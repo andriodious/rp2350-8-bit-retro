@@ -45,6 +45,10 @@
 #include "drive.h"
 #include "boot_guard.h"
 
+#if NIMBUS_TEST
+#include "presto_bluetooth.h"
+#endif
+
 #define HOSTNAME "beeb"
 
 extern const uint8_t presto_web_page[];     // src/common/api/web/index.html, gzipped (presto_web_page.c, generated)
@@ -156,6 +160,9 @@ static void net_start(void) {
     join();
     net_start_step(45);
     wifi_on = true;
+#if NIMBUS_TEST
+    presto_bluetooth_start();
+#endif
 }
 
 static void check_link(void) {

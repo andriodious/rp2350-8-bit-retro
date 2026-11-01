@@ -239,6 +239,14 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
     <button id="send">Send ⏎</button>
   </div>
 </section>
+<section id="bluetoothPanel" hidden><h2>Nimbus Bluetooth test</h2>
+<p>Put the controller into pairing mode, scan, then select its address. Inputs are shown as raw values; game controls are not connected yet. Pairing is forgotten on reboot.</p>
+<button onclick="btCommand('scan')">Scan for controllers</button>
+<select id="btDevices" aria-label="Bluetooth device"></select>
+<button onclick="btCommand('connect '+$('btDevices').value)">Connect</button>
+<button onclick="btCommand('disconnect')">Disconnect</button>
+<button onclick="btDownload()">Download controller status</button>
+<pre id="btValues"></pre><p id="btError" role="status"></p></section>
 </main>
 
 <script>
@@ -506,7 +514,26 @@ $('profilesave').onclick=()=>{
 const BOARDS = {presto: 'Pimoroni Presto'};
 const MACHINES = {master: 'BBC Master', beeb: 'BBC Model B', c64: 'Commodore 64'};
 let builtFor, switchingTo;
+function btDownload() {
+  const url=URL.createObjectURL(new Blob([JSON.stringify({time:new Date().toISOString(),...status},null,2)],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download='presto-nimbus.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function btCommand(command) {
+  try { await api('/api/bluetooth',command); $('btError').textContent=''; }
+  catch(e) { $('btError').textContent=String(e); }
+}
 function show(s) {
+  $('bluetoothPanel').hidden=!s.bluetooth;
+  if(s.bluetooth) {
+    const b=s.bluetooth, select=$('btDevices');
+    const key=b.devices.join(',');
+    if(select.dataset.devices!==key) {
+      select.replaceChildren(...b.devices.map((address,i)=>new Option(address,String(i))));
+      select.dataset.devices=key;
+    }
+    $('btValues').textContent=JSON.stringify(b,null,2);
+  }
   showProfile(s);
   if(s.c64_failure && s.machine==='master')switchingTo=null;
   if(switchingTo && s.machine!==switchingTo)return;
