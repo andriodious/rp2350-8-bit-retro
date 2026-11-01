@@ -1,3 +1,5 @@
+> Historical development record. The final PR update enables the four tested optimisations by default and leaves profiling OFF. See [current defaults and validation](c64-optimised-release.md). Experimental defaults and unmeasured-result statements below describe that stage of development.
+
 # Experiment 1: VIC code in internal SRAM
 
 Baseline: web profiling commit a0f84c2, based on PR #10 a9360b0.

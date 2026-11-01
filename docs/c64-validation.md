@@ -1,3 +1,5 @@
+> Updated performance defaults and later contributor hardware results are documented in [c64-optimised-release.md](c64-optimised-release.md). Earlier validation limitations below refer to the initial integration.
+
 # Validation — merged experimental r11 PR fileset
 
 Checked on 28 October 2026 against the supplied `rp2350-bbc-micro-main 2.zip` baseline. This is r11 functionality merged with newer BBC changes, not the original r11 binary.

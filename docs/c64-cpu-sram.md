@@ -1,3 +1,5 @@
+> Historical development record. The final PR update enables the four tested optimisations by default and leaves profiling OFF. See [current defaults and validation](c64-optimised-release.md). Experimental defaults and unmeasured-result statements below describe that stage of development.
+
 # Experiment 4: main 6510 interpreter in SRAM
 
 Parent: packed-read experiment 1ea26e9. User measurements of that build were

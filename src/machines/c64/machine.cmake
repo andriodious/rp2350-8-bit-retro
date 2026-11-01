@@ -1,7 +1,7 @@
-option(C64_RAM_CPU "Experimental: execute 6510 interpreter from SRAM" OFF)
-option(C64_PACKED_PIXELS "Experimental: fetch four indexed pixels per PSRAM read" OFF)
-option(C64_RENDER_OVERLAP "Experimental: double-buffer C64 indexed frames" OFF)
-option(C64_RAM_VIC "Experimental: execute VIC code from SRAM" OFF)
+option(C64_RAM_CPU "Experimental: execute 6510 interpreter from SRAM" ON)
+option(C64_PACKED_PIXELS "Experimental: fetch four indexed pixels per PSRAM read" ON)
+option(C64_RENDER_OVERLAP "Experimental: double-buffer C64 indexed frames" ON)
+option(C64_RAM_VIC "Experimental: execute VIC code from SRAM" ON)
 option(C64_PROFILE "Collect C64 stage timings over USB (adds measurement overhead)" OFF)
 # FRANK/Frodo line-based PAL C64 on Presto. No HDMI, PS/2 or foreign SD drivers.
 # Fetch the pinned fork and checksum-verified Elite before configuring sources.

@@ -1,3 +1,5 @@
+> Historical development record. The final PR update enables the four tested optimisations by default and leaves profiling OFF. See [current defaults and validation](c64-optimised-release.md). Experimental defaults and unmeasured-result statements below describe that stage of development.
+
 # Experiment 3: read four indexed pixels together
 
 Parent experiment: render overlap commit 050ece3 with VIC SRAM enabled. Hardware

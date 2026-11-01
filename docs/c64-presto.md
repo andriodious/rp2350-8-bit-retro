@@ -1,3 +1,5 @@
+> Updated performance defaults and later contributor hardware results are documented in [c64-optimised-release.md](c64-optimised-release.md). Earlier validation limitations below refer to the initial integration.
+
 > For this PR fileset, use [c64-pr-build.md](c64-pr-build.md): FRANK is fetched into `deps/frank-c64` instead of vendored. This port overview is supplemented by r11 and PR validation notes.
 
 # Experimental Presto C64 integration

@@ -24,6 +24,20 @@ NINJA_JOBS=2 scripts/build-dual-boot.sh build-r11
 
 Output: `build-r11/presto_dual_boot.uf2`, containing launcher, Master, Model B and C64. Use this combined image for the web machine selector. The historical dual-boot filename is retained.
 
+Fresh C64 builds enable `C64_RAM_CPU`, `C64_RAM_VIC`, `C64_RENDER_OVERLAP` and
+`C64_PACKED_PIXELS` by default. They retain the 250 MHz clock. `C64_PROFILE` and
+`WEBDIAG` default OFF. Use a new build folder when upgrading: existing CMake
+caches retain their old values. See [performance and validation](c64-optimised-release.md).
+
+To enable browser/USB performance sampling in a separate build:
+
+```sh
+OS_CMAKE_ARGS='-DSOUND=ON -DAMBIENT=ON -DC64_PROFILE=ON' NINJA_JOBS=2 scripts/build-dual-boot.sh build-c64-profile
+```
+
+The C64 performance panel can save samples without USB logging; see
+[c64-performance.md](c64-performance.md).
+
 `WEBDIAG` defaults OFF. For a new diagnostic build:
 
 ```sh
@@ -38,4 +52,4 @@ Offline validation can use `C64_FRANK_ARCHIVE=/absolute/path/frank-c64-main.zip`
 
 Master is the power-on default. C64 selection automatically submits LOAD and RUN for the bundled disk. Choose **N** for Elite's fastloader: this integration uses DOS-level IEC access and not full 1541 CPU emulation. D64/D81 loading, C64 keyboard, Turbo frame-conversion skipping, ambient lighting and optional web diagnostics are included. C64 writes remain session-only.
 
-Piezo sound remains faint; gain can clip and audio underruns occur when emulation runs below PAL speed. This is an experimental integration, not a claim that these issues are solved. User hardware results from the earlier r11 development are not hardware validation of this newer merged tree.
+The contributor tested the merged firmware and reported normal operation and substantially improved sound after the performance work. Profiled Elite captures hold 50 fps in normal mode. This does not guarantee all games, long-term stability or amplifier noise performance; piezo output level and clipping remain dependent on the hardware/audio setup. See the performance notes for measured results and memory costs.

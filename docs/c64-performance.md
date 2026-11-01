@@ -1,3 +1,5 @@
+> Historical development record. The final PR update enables the four tested optimisations by default and leaves profiling OFF. See [current defaults and validation](c64-optimised-release.md). Experimental defaults and unmeasured-result statements below describe that stage of development.
+
 # C64 performance work: measurement baseline
 
 Starting PR #10 commit: `a9360b0aa99d8f28ab7eba75973e1938688c19d2`.

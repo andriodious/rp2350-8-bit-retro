@@ -1,8 +1,8 @@
-> Experimental C64 integration (r11): see [build/dependency instructions](docs/c64-pr-build.md) and [credits](docs/c64-credits.md). FRANK is fetched from the configured fork; Elite is downloaded separately. Known audio/performance limitations remain.
+> Experimental C64 integration (r11): see [build/dependency instructions](docs/c64-pr-build.md) and [credits](docs/c64-credits.md). FRANK is fetched from the configured fork; Elite is downloaded separately. The tested performance improvements are enabled by default; see [performance and validation](docs/c64-optimised-release.md).
 
 # Experimental three-machine Presto build
 
-This copy adds a C64 target and extends the combined build to BBC Master, Model B and C64. See [C64 setup, limitations and validation](docs/c64-presto.md) before building. Hardware validation is still required.
+This copy adds a C64 target and extends the combined build to BBC Master, Model B and C64. See [C64 setup, limitations and validation](docs/c64-presto.md) before building. Contributor hardware tests and remaining validation limits are recorded in the performance notes.
 
 # BBC Micro on the RP2350
 
