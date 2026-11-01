@@ -1,3 +1,4 @@
+#include "profile.h"
 #include <cstdio>
 #include <cstring>
 #include "pico/stdlib.h"
@@ -140,7 +141,11 @@ extern "C" void machine_perf_get(unsigned *a,unsigned *b,unsigned *s){*a=load0;*
 extern "C" uint32_t machine_psram_used(){return c64_memory_used();}
 extern "C" unsigned machine_leds(){return 0;}
 extern "C" void machine_print_stats(){printf("STATS machine=c64 core0=%u core1=%u speed=%u%%\n",load0,load1,speed);}
-extern "C" bool machine_usb_command(const char *cmd){if(!strcmp(cmd,"restore")){c64_nmi();return true;}return false;}
+extern "C" bool machine_usb_command(const char *cmd){
+#if C64_PROFILE
+if(!strcmp(cmd,"c64prof")){c64_profile::print();return true;}
+#endif
+if(!strcmp(cmd,"restore")){c64_nmi();return true;}return false;}
 extern "C" void machine_drive_load(const uint8_t *image,uint32_t n,bool,bool boot){
     if(recovery)return;
     c64_unmount_disk();typing=nullptr;boot_frames=0;
@@ -183,26 +188,43 @@ int main(){
     uint64_t due=time_us_64(),stat=due,busy=0;unsigned frames=0;
     for(;;){
         if(install_hold){
+#if C64_PROFILE
+            c64_profile::reset();
+#endif
             frontend_frame();watchdog_update();sleep_ms(1);
             due=time_us_64();stat=due;busy=0;frames=0;
             continue;
         }
         if(reset_pending){c64_reset();reset_pending=false;memset(pressed,0,sizeof pressed);rebuild_keys();}
-        phase(4);uint64_t t=time_us_64();c64_run_frame();trace_frames++;busy+=time_us_64()-t;
+#if C64_PROFILE
+        c64_profile::begin(time_us_64(),turbo);
+#endif
+        phase(4);uint64_t t=time_us_64();
+        C64_PROFILE_CALL(EMULATION, c64_run_frame());
+        trace_frames++;busy+=time_us_64()-t;
         phase(5);
 #if WITH_AMBIENT
         board_leds_frame(0);
 #endif
         // Turbo skips alternate display conversions, giving emulation more time.
-        if(!turbo || (trace_frames&1)==0){__dmb();frame_ready=true;__sev();}
+        bool submitted = !turbo || (trace_frames&1)==0;
+        if(submitted){__dmb();frame_ready=true;__sev();}
         // Do not mutate the VIC framebuffer until core 1 has converted it.
-        while(frame_ready){frontend_poll();sleep_us(50);}
-        phase(6);frontend_frame();watchdog_update();
+        C64_PROFILE_CALL(WAIT, while(frame_ready){frontend_poll();sleep_us(50);});
+#if C64_PROFILE
+        __dmb();
+        if(submitted)c64_profile::add(c64_profile::CONVERSION,conversion_us);
+#endif
+        phase(6);C64_PROFILE_CALL(FRONTEND, frontend_frame());watchdog_update();
         if(boot_frames && !--boot_frames)typing="LOAD\"*\",8,1\rRUN\r";
         if(typing && *typing){uint8_t *ram=c64_get_ram();if(ram[198]<10){ram[631+ram[198]]= *typing++;ram[198]++;}}
         phase(7);frames++;due+=20000;
-        if(!turbo){while(time_us_64()<due){frontend_poll();sleep_us(100);}}
-        else due=time_us_64();
+        C64_PROFILE_CALL(PACING,
+            if(!turbo){while(time_us_64()<due){frontend_poll();sleep_us(100);}}
+            else due=time_us_64(););
+#if C64_PROFILE
+        if(c64_profile::finish(time_us_64(),submitted))c64_profile::print();
+#endif
         if(time_us_64()-due>100000)due=time_us_64();
         uint64_t now=time_us_64();if(now-stat>=5000000){uint64_t dt=now-stat;load0=busy*100/dt;load1=conversion_us/200;speed=frames*2000000ull/dt;machine_print_stats();stat=now;busy=0;frames=0;}
     }

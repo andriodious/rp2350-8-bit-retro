@@ -280,7 +280,7 @@ def main():
         s.write(bytes([0x1a, 0, sc])); time.sleep(ms / 1000); s.write(bytes([0x1a, 1, sc]))
     else:
         cmd = ' '.join(a) if a[0] != 'raw' else a[1]
-        prefix = {'stats': 'STATS', 'status': 'STATUS', 'api': 'API', 'turbo': 'TURBO', 'crtc': 'CRTC', 'view': 'VIEW',
+        prefix = {'c64prof': 'C64PROF', 'stats': 'STATS', 'status': 'STATUS', 'api': 'API', 'turbo': 'TURBO', 'crtc': 'CRTC', 'view': 'VIEW',
                   'bootsel': 'BOOTSEL', 'touch': 'TOUCH', 'program': 'PROGRAM', 'audio': 'AUDIO', 'leds': 'LEDS',
                   'ambient': 'LEDS', 'temp': 'TEMP', 'net': 'NET', 'peek': 'PEEK', 'boot': 'BOOT', 'break': 'BREAK',
                   'keys': 'KEYS', 'machine': 'MACHINE'}.get(a[0], '')

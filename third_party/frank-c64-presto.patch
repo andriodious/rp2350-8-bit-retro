@@ -1,6 +1,22 @@
+diff --git a/src/1541d64.cpp b/src/1541d64.cpp
+index 5f6603c..8ab1488 100644
+--- a/src/1541d64.cpp
++++ b/src/1541d64.cpp
+@@ -1123,7 +1123,8 @@ bool ImageDrive::find_file(const uint8_t *pattern, int pattern_len, int &dir_tra
+ 	while (num_dir_blocks < max_dir_sectors) {
+ 
+ 		// Goto next entry
+-		entry++; de += SIZEOF_DE;
++		entry++;
++        if (de) de += SIZEOF_DE;
+ 		if (entry >= 8) {
+ 
+ 			// Read next directory block
+diff --git a/src/VIC.cpp b/src/VIC.cpp
+index 53c8748..a126636 100644
 --- a/src/VIC.cpp
 +++ b/src/VIC.cpp
-@@ -1566,15 +1566,10 @@
+@@ -1566,15 +1566,10 @@ unsigned MOS6569::EmulateLine(int & retCyclesLeft)
  			rc = 0;
  
  			// Read and latch 40 bytes from video matrix and color RAM
@@ -19,21 +35,16 @@
  		}
  
  		// Handler upper/lower border
---- a/src/1541d64.cpp
-+++ b/src/1541d64.cpp
-@@ -1123,7 +1123,8 @@
- 	while (num_dir_blocks < max_dir_sectors) {
- 
- 		// Goto next entry
--		entry++; de += SIZEOF_DE;
-+		entry++;
-+        if (de) de += SIZEOF_DE;
- 		if (entry >= 8) {
- 
- 			// Read next directory block
+diff --git a/src/rp2350/C64_rp2350.cpp b/src/rp2350/C64_rp2350.cpp
+index ae7d749..37081e6 100644
 --- a/src/rp2350/C64_rp2350.cpp
 +++ b/src/rp2350/C64_rp2350.cpp
-@@ -120,8 +120,9 @@
+@@ -1,3 +1,4 @@
++#include "profile.h"
+ /*
+  *  C64_rp2350.cpp - C64 emulator for RP2350
+  *
+@@ -120,8 +121,9 @@ C64::C64() : quit_requested(false), prefs_editor_requested(false), load_snapshot
      TheIEC = new IEC(this);
      MII_DEBUG_PRINTF("  IEC created\n");
  
@@ -45,6 +56,35 @@
  
      // No cartridge by default
      TheCart = new NoCartridge;
+@@ -605,20 +607,21 @@ bool c64_run_frame(void)
+ 
+         // Emulate one raster line
+         int cycles_left = 0;
+-        unsigned vic_flags = c64->TheVIC->EmulateLine(cycles_left);
++        unsigned vic_flags;
++        C64_PROFILE_CALL(VIC, vic_flags = c64->TheVIC->EmulateLine(cycles_left));
+ 
+         // SID emulation (audio samples)
+-        c64->TheSID->EmulateLine();
++        C64_PROFILE_CALL(SID, c64->TheSID->EmulateLine());
+ 
+ #if !PRECISE_CIA_CYCLES
+         // CIA timers
+-        c64->TheCIA1->EmulateLine(ThePrefs.CIACycles);
+-        c64->TheCIA2->EmulateLine(ThePrefs.CIACycles);
++        C64_PROFILE_CALL(CIA, c64->TheCIA1->EmulateLine(ThePrefs.CIACycles);
++            c64->TheCIA2->EmulateLine(ThePrefs.CIACycles));
+ #endif
+ 
+         // CPU emulation
+         // Frodo's $f2 opcode mechanism handles IEC traps internally
+-        c64->TheCPU->EmulateLine(cycles_left);
++        C64_PROFILE_CALL(CPU, c64->TheCPU->EmulateLine(cycles_left));
+         c64->cycle_counter += CYCLES_PER_LINE;
+ 
+         line_count++;
+diff --git a/src/rp2350/Prefs_rp2350.cpp b/src/rp2350/Prefs_rp2350.cpp
+index 7bfa283..5b64cf7 100644
 --- a/src/rp2350/Prefs_rp2350.cpp
 +++ b/src/rp2350/Prefs_rp2350.cpp
 @@ -13,7 +13,8 @@
