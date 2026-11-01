@@ -1,3 +1,6 @@
+#if NIMBUS_TEST
+#include "controller.h"
+#endif
 #include "profile.h"
 #include "pixel_convert.h"
 #include <atomic>
@@ -68,6 +71,7 @@ static uint8_t keys[8],reverse_keys[8];
 static uint32_t boot_frames;
 static const char *typing;
 static uint8_t joystick=255;
+static uint8_t controller_joy[2]={255,255};
 static bool pressed[256];
 static void rebuild_keys(){
  memset(keys,255,8);memset(reverse_keys,255,8);joystick=255;
@@ -122,7 +126,7 @@ extern "C" void machine_install_screen(const char *, int permille){
     install_hold = permille >= 0;
 }
 extern "C" const char *machine_name(){return "c64";}
-extern "C" void machine_key(int code,bool down){
+extern "C" void MACHINE_KEY_IMPL(int code,bool down){
     if(recovery)return;
     // A real key takes over from the startup typing, including during its delay.
     if(down){typing=nullptr;boot_frames=0;}
@@ -130,8 +134,8 @@ extern "C" void machine_key(int code,bool down){
     if(code<0 || code>=256)return;
     pressed[code]=down;rebuild_keys();
 }
-extern "C" void c64_keyboard_poll(uint8_t *k,uint8_t *r,uint8_t *j){memcpy(k,keys,8);memcpy(r,reverse_keys,8);*j=255;}
-extern "C" uint8_t input_get_joystick2(){return joystick;}
+extern "C" void c64_keyboard_poll(uint8_t *k,uint8_t *r,uint8_t *j){memcpy(k,keys,8);memcpy(r,reverse_keys,8);*j=controller_joy[0];}
+extern "C" uint8_t input_get_joystick2(){return joystick & controller_joy[1];}
 extern "C" void machine_key_sdl(uint32_t s,bool down){
     static const uint8_t letters[]={10,28,20,18,14,21,26,29,33,34,37,42,36,39,38,41,62,17,13,22,30,31,9,23,25,12};
     static const uint8_t digits[]={56,59,8,11,16,19,24,27,32,35};
@@ -209,7 +213,11 @@ int main(){
             due=time_us_64();stat=due;busy=0;frames=0;
             continue;
         }
-        if(reset_pending){c64_reset();reset_pending=false;memset(pressed,0,sizeof pressed);rebuild_keys();}
+        if(reset_pending){c64_reset();
+#if NIMBUS_TEST
+    controller_reset();
+#endif
+reset_pending=false;memset(pressed,0,sizeof pressed);rebuild_keys();}
 #if C64_PROFILE
         c64_profile::begin(time_us_64(),turbo);
 #endif
@@ -262,3 +270,10 @@ int main(){
         uint64_t now=time_us_64();if(now-stat>=5000000){uint64_t dt=now-stat;load0=busy*100/dt;load1=conversion_us/200;speed=frames*2000000ull/dt;machine_print_stats();stat=now;busy=0;frames=0;}
     }
 }
+
+#if NIMBUS_TEST
+extern "C" void machine_controller(unsigned port,uint16_t x,uint16_t y,unsigned directions,bool fire) {
+    (void)x;(void)y;if(port<1||port>2)return;
+    controller_joy[port-1]=(uint8_t)~((directions&15)|(fire?16:0));
+}
+#endif

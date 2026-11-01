@@ -13,7 +13,7 @@ set(BOARD_FLASH_SAVE_SHIFT 0 CACHE STRING "Move the save disc down the flash by 
 
 function(board_setup TARGET)
     if(NIMBUS_TEST)
-        target_sources(${TARGET} PRIVATE ${BOARD_DIR}/presto_bluetooth.c
+        target_sources(${TARGET} PRIVATE ${BOARD_DIR}/presto_bluetooth.c ${COMMON_DIR}/controller.c
             ${PICO_BTSTACK_PATH}/src/classic/btstack_link_key_db_memory.c)
         target_compile_definitions(${TARGET} PRIVATE NIMBUS_TEST=1)
         target_link_libraries(${TARGET} PRIVATE pico_btstack_classic

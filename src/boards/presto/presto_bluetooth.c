@@ -12,6 +12,7 @@
 #include "pico/btstack_run_loop_async_context.h"
 #include "pico/btstack_cyw43.h"
 #include "presto_bluetooth.h"
+#include "controller.h"
 
 /* Supply the SDK init hook, deliberately without the SDK flash TLV backend. */
 bool btstack_cyw43_init(async_context_t *context) {
@@ -37,9 +38,23 @@ static uint16_t cid;
 static bool ready, scanning, connecting, connected, descriptor_ready;
 static unsigned error;
 static int32_t axes[4], buttons[8], hat, menu, dpad[4];
+static int16_t normalized[4];
+static int32_t hat_min;static bool has_hat;
+static void publish_input(void) {
+    unsigned bits=0;
+    for(int i=0;i<4;i++)if(dpad[i])bits|=1u<<(i==2?3:i==3?2:i);
+    if(has_hat) {
+        int h=hat-hat_min;
+        static const unsigned dirs[8]={1,9,8,10,2,6,4,5};
+        if(h>=0&&h<8)bits|=dirs[h];
+    }
+    controller_input(connected&&descriptor_ready,normalized,bits,buttons,menu!=0);
+}
 static btstack_packet_callback_registration_t registration;
 static void clear_input(void) {
+    memset(normalized,0,sizeof normalized);has_hat=false;
     memset(axes,0,sizeof axes); memset(buttons,0,sizeof buttons); hat=menu=0; memset(dpad,0,sizeof dpad);
+    publish_input();
 }
 static void report(const uint8_t *data, uint16_t len) {
     if (!descriptor_ready || len < 2 || data[0]!=0xa1) return;
@@ -50,26 +65,36 @@ static void report(const uint8_t *data, uint16_t len) {
     fields=0;
     while(btstack_hid_parser_has_more(&parser)) {
         uint16_t page,usage; int32_t value;
+        /* Reject truncated/oversized fields before the SDK parser reads them. */
+        const btstack_hid_usage_item_t *item=&parser.descriptor_usage_item;
+        unsigned end=item->bit_pos+item->size+(item->report_id!=HID_REPORT_ID_UNDEFINED?8:0);
+        if(!item->size||item->size>31||end>(unsigned)(len-1)*8){clear_input();return;}
+        int32_t lo=parser.usage_iterator.global_logical_minimum;
+        int32_t hi=parser.usage_iterator.global_logical_maximum;
         btstack_hid_parser_get_field(&parser,&page,&usage,&value); fields++;
+        if(page==1) {
+            int index=usage==0x30?0:usage==0x31?1:usage==0x32?2:usage==0x35?3:-1;
+            if(index>=0)normalized[index]=controller_normalize(value,lo,hi);
+        }
         if(page==1) {
             if(usage==0x30) axes[0]=value;
             if(usage==0x31) axes[1]=value;
             if(usage==0x32) axes[2]=value;
             if(usage==0x35) axes[3]=value;
-            if(usage==0x39) hat=value;
+            if(usage==0x39){hat=value;hat_min=lo;has_hat=true;}
             if(usage>=0x90 && usage<=0x93) dpad[usage-0x90]=value;
         }
         if(page==9 && usage>=1 && usage<=8) buttons[usage-1]=value;
         if(page==12 && usage==0x223) menu=value;
     }
-    reports++;
+    reports++;publish_input();
 }
 static void event(uint8_t type,uint16_t channel,uint8_t *p,uint16_t size) {
     (void)channel;(void)size;
     if(type!=HCI_EVENT_PACKET)return;
     bd_addr_t addr;
     switch(hci_event_packet_get_type(p)) {
-    case BTSTACK_EVENT_STATE: ready=btstack_event_state_get_state(p)==HCI_STATE_WORKING; break;
+    case BTSTACK_EVENT_STATE: ready=btstack_event_state_get_state(p)==HCI_STATE_WORKING; if(!ready){connected=false;clear_input();} break;
     case GAP_EVENT_INQUIRY_RESULT:
         gap_event_inquiry_result_get_bd_addr(p,addr);
         for(unsigned i=0;i<count;i++)if(!memcmp(addr,devices[i],6))return;
@@ -124,6 +149,7 @@ void presto_bluetooth_start(void) {
     hci_power_control(HCI_POWER_ON);
 }
 int presto_bluetooth_command(const char *s) {
+    if(!strncmp(s,"config ",7))return controller_config(s+7);
     if(!ready)return 503;
     if(!strcmp(s,"scan")) {
         if(scanning||connecting||connected)return 409;
@@ -132,6 +158,7 @@ int presto_bluetooth_command(const char *s) {
     if(!strcmp(s,"disconnect")) {
         if(scanning)gap_inquiry_stop();
         if(cid)hid_host_disconnect(cid);
+        connected=false;descriptor_ready=false;
         clear_input();return 200;
     }
     if(!strncmp(s,"connect ",8)) {
@@ -146,9 +173,10 @@ int presto_bluetooth_command(const char *s) {
     return 400;
 }
 void presto_bluetooth_json(char *out,size_t size) {
+    char config[160];controller_json(config,sizeof config);
     char list[768];size_t used=0;list[0]=0;
     for(unsigned i=0;i<count;i++)used+=snprintf(list+used,sizeof list-used,"%s\"%s %s\"",i?",":"",bd_addr_to_str(devices[i]),names[i]);
-    snprintf(out,size,",\"bluetooth\":{\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
-        !ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
+    snprintf(out,size,",\"bluetooth\":{\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
+        config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
         (long)axes[0],(long)axes[1],(long)axes[2],(long)axes[3],(long)buttons[0],(long)buttons[1],(long)buttons[2],(long)buttons[3],(long)buttons[4],(long)buttons[5],(long)buttons[6],(long)buttons[7],(long)hat,(long)menu,(long)dpad[0],(long)dpad[1],(long)dpad[2],(long)dpad[3]);
 }

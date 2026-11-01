@@ -1,0 +1,43 @@
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include "controller.h"
+#include "machine_if.h"
+static bool keys[256],fire[2];static unsigned dirs[2];static uint16_t xs[2],ys[2];
+void machine_key_raw(int code,bool down){assert(code>=0&&code<256);keys[code]=down;}
+void machine_controller(unsigned port,uint16_t x,uint16_t y,unsigned d,bool f){assert(port==1||port==2);xs[port-1]=x;ys[port-1]=y;dirs[port-1]=d;fire[port-1]=f;}
+static int16_t axes[4];static int32_t buttons[8];
+static void feed(bool connected,unsigned pad){controller_input(connected,axes,pad,buttons,false);controller_frame();}
+int main(void){
+ assert(controller_normalize(-127,-127,127)==-32767);
+ assert(controller_normalize(127,-127,127)==32767);
+ assert(controller_normalize(0,-128,127)==0);
+ assert(controller_normalize(128,0,255)==0);
+ assert(controller_normalize(0,0,255)==-32767);
+ assert(controller_normalize(255,0,255)==32767);
+ assert(controller_normalize(99,1,1)==0);
+ buttons[0]=1;axes[0]=32767;feed(true,0);assert(!fire[1]&&!dirs[1]); // disabled
+ assert(controller_config("1 2 0 15 0 0 -1 -1 -1 -1 -2 -1 -1 -1 -1 -1 -1 -1 -1")==200);
+ feed(true,0);assert(fire[1]&&dirs[1]==8&&xs[1]==1);assert(!fire[0]);
+ axes[0]=1000;axes[1]=32767;feed(true,0);assert(dirs[1]==1&&xs[1]==32768&&ys[1]==65535);
+ feed(false,0);assert(!fire[1]&&!dirs[1]&&xs[1]==32768&&ys[1]==32768);
+ assert(controller_config("1 1 2 15 0 0 -1 -1 -1 -1 -2 -1 -1 -1 -1 -1 -1 -1 -1")==200);
+ feed(true,4);assert(dirs[0]==4&&fire[0]&&!fire[1]);
+ feed(true,15);assert(dirs[0]==0&&xs[0]==32768&&ys[0]==32768);
+ assert(controller_config("1 1 0 15 1 1 -1 -1 -1 -1 -2 -1 -1 -1 -1 -1 -1 -1 -1")==200);
+ axes[0]=32767;axes[1]=32767;feed(true,0);assert(dirs[0]==6);
+ // Two controller buttons share key 42; releasing one must not release the other.
+ assert(controller_config("2 1 2 15 0 0 10 11 12 13 42 42 -1 -1 -1 -1 -1 -1 -1")==200);
+ buttons[0]=buttons[1]=1;feed(true,1);assert(keys[42]&&keys[10]&&!fire[0]);
+ buttons[0]=0;feed(true,0);assert(keys[42]&&!keys[10]);
+ machine_key(42,true);feed(false,0);assert(keys[42]); // physical/web keyboard still holds it
+ machine_key(42,false);assert(!keys[42]);
+ char before[160],after[160];controller_json(before,sizeof before);
+ assert(controller_config("1 2")==400);
+ assert(controller_config("1 2 0 99 0 0 -1 -1 -1 -1 -2 -1 -1 -1 -1 -1 -1 -1 -1")==400);
+ controller_json(after,sizeof after);assert(!strcmp(before,after));
+ feed(true,0);assert(keys[42]);controller_reset();assert(!keys[42]);controller_frame();assert(keys[42]);
+ assert(controller_config("0 1 2 15 0 0 10 11 12 13 42 42 -1 -1 -1 -1 -1 -1 -1")==200);
+ controller_frame();assert(!keys[42]);
+ puts("Normalization, ports, dead zone, inversion, keyboard ownership, reset, disconnect and validation passed");
+}

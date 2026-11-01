@@ -239,13 +239,24 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
     <button id="send">Send ⏎</button>
   </div>
 </section>
-<section id="bluetoothPanel" hidden><h2>Nimbus Bluetooth test</h2>
-<p>Put the controller into pairing mode, scan, then select its address. Inputs are shown as raw values; game controls are not connected yet. Pairing is forgotten on reboot.</p>
+<section id="bluetoothPanel" hidden><h2>Nimbus controller</h2>
+<p>Put the controller into pairing mode, scan, then select its address. Pairing and settings are forgotten on reboot. Choose controls below, then Apply.</p>
 <button onclick="btCommand('scan')">Scan for controllers</button>
 <select id="btDevices" aria-label="Bluetooth device"></select>
 <button onclick="btCommand('connect '+$('btDevices').value)">Connect</button>
 <button onclick="btCommand('disconnect')">Disconnect</button>
 <button onclick="btDownload()">Download controller status</button>
+<details><summary>Game controls</summary>
+<label>Mode <select id="btMode"><option value="0">Off</option><option value="1">Joystick</option><option value="2">Keyboard</option></select></label>
+<label>Joystick port <select id="btPort"><option value="1">1</option><option value="2">2</option></select></label>
+<label>Movement <select id="btSource"><option value="0">Left stick + D-pad</option><option value="1">Right stick + D-pad</option><option value="2">D-pad only</option></select></label>
+<label>Dead zone (%) <input id="btDead" type="number" min="0" max="50" value="15"></label>
+<label><input id="btInvX" type="checkbox">Invert stick X</label>
+<label><input id="btInvY" type="checkbox">Invert stick Y</label>
+<p>Direction key assignments apply in Keyboard mode. Fire applies in Joystick mode; other button key assignments work in either mode. BBC games may need their joystick option enabled.</p>
+<div id="btMappings" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px"></div>
+<button onclick="btDefaults()">Default mappings</button><button onclick="btApply()">Apply controls</button>
+</details>
 <pre id="btValues"></pre><p id="btError" role="status"></p></section>
 </main>
 
@@ -514,18 +525,53 @@ $('profilesave').onclick=()=>{
 const BOARDS = {presto: 'Pimoroni Presto'};
 const MACHINES = {master: 'BBC Master', beeb: 'BBC Model B', c64: 'Commodore 64'};
 let builtFor, switchingTo;
+let btFormMachine=null;
+const btLabels=['Up','Down','Left','Right','A','B','X','Y','Left shoulder','Right shoulder','Left trigger','Right trigger','Menu'];
+function btBuildForm(machine,cfg) {
+  if(btFormMachine===machine)return;
+  btFormMachine=machine;
+  const rows=machine==='c64'?ROWS_C64:machine==='master'?ROWS_MASTER:ROWS_BEEB;
+  const keys=new Map([[-1,'None'],[-2,'Joystick fire']]);
+  for(const row of rows)for(const [label,key] of row)if(Number.isInteger(key)&&key>=0&&key<128&&!keys.has(key))keys.set(key,label.replace(/\n/g,' ')||'SPACE');
+  if(machine==='c64'){keys.set(71,'Cursor up');keys.set(66,'Cursor left');}
+  const box=$('btMappings');box.replaceChildren();
+  btLabels.forEach((name,i)=>{
+    const label=document.createElement('label');label.textContent=name+' ';
+    const select=document.createElement('select');select.id='btMap'+i;
+    for(const [value,text] of keys)select.add(new Option(text,String(value)));
+    label.append(select);box.append(label);
+  });
+  btSetForm(cfg||[0,machine==='c64'?2:1,0,15,0,0,...Array(13).fill(-1)]);
+}
+function btSetForm(c) {
+  ['btMode','btPort','btSource','btDead'].forEach((id,i)=>$(id).value=c[i]);
+  $('btInvX').checked=!!c[4];$('btInvY').checked=!!c[5];
+  for(let i=0;i<13;i++)$('btMap'+i).value=c[6+i];
+}
+function btDefaults() {
+  const c64=btFormMachine==='c64';
+  btSetForm([1,c64?2:1,0,15,0,0,...(c64?[71,7,66,2]:[0x39,0x29,0x19,0x79]),-2,-1,-1,-1,-1,-1,-1,-1,-1]);
+}
+async function btApply() {
+  const c=['btMode','btPort','btSource','btDead'].map(id=>Number($(id).value));
+  c.push(+$('btInvX').checked,+$('btInvY').checked);
+  for(let i=0;i<13;i++)c.push(Number($('btMap'+i).value));
+  if(c.some(v=>!Number.isInteger(v))||c[3]<0||c[3]>50){$('btError').textContent='Use a whole-number dead zone from 0 to 50.';return;}
+  await btCommand('config '+c.join(' '));
+}
 function btDownload() {
   const url=URL.createObjectURL(new Blob([JSON.stringify({time:new Date().toISOString(),...status},null,2)],{type:'application/json'}));
   const a=document.createElement('a');a.href=url;a.download='presto-nimbus.json';a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function btCommand(command) {
-  try { await api('/api/bluetooth',command); $('btError').textContent=''; }
+  try { await api('/api/bluetooth',command); $('btError').textContent=command.startsWith('config ')?'Controls applied.':''; }
   catch(e) { $('btError').textContent=String(e); }
 }
 function show(s) {
   $('bluetoothPanel').hidden=!s.bluetooth;
   if(s.bluetooth) {
+    btBuildForm(s.machine,s.bluetooth.config);
     const b=s.bluetooth, select=$('btDevices');
     const key=b.devices.join(',');
     if(select.dataset.devices!==key) {

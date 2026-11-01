@@ -1,3 +1,6 @@
+#if NIMBUS_TEST
+#include "controller.h"
+#endif
 // The front end every machine shares (frontend.h): the USB channel, the network, queued keys.
 //
 // The USB channel (tools/presto.py speaks it):
@@ -252,5 +255,8 @@ void frontend_frame(void) {
     drive0_frame();     // the save disc
 #if BOARD_HAS_NET
     net_frame();
+#endif
+#if NIMBUS_TEST
+    controller_frame();
 #endif
 }

@@ -1,37 +1,47 @@
-# Original SteelSeries Nimbus: Bluetooth test 1
+# Original SteelSeries Nimbus: controller test 2
 
-This is a separate experimental build, not an update to PR #10. It adds a
-single Bluetooth Classic HID connection and web input diagnostics to Master,
-Model B and C64. It does not yet send joystick events to the emulators.
+This separate experimental build adds web-configurable game controls for BBC
+Master, BBC Model B and C64. It has not been pushed to the pending C64 PR.
+The first build's scanning, connection, buttons, D-pad and both sticks were
+confirmed on the user's hardware. The new emulator mappings need hardware testing.
 
-## Try it
+## Start here
 
-1. Keep your working optimised UF2 as a rollback copy, then flash the supplied
-   `presto_nimbus_test1.uf2` using the same procedure as before.
-2. Open `http://beeb.local/` (or the Presto's IP address) and refresh the page.
-   Scroll down to **Nimbus Bluetooth test**. Wi-Fi credentials must already be saved.
-3. Disconnect the original Nimbus from other hosts and put it into pairing mode.
-4. Click **Scan for controllers**. Allow about 11 seconds for the scan to finish.
-   The state should change from `scanning` to `idle`.
-5. Select the Nimbus entry and click **Connect**. Names appear only when included
-   in the Bluetooth inquiry response; some devices may show just an address.
-   If uncertain which address is the controller, compare scans with it off/on.
-6. Look for `connected`, `descriptor: true`, and an increasing `reports` count.
-   Move each stick, hold each direction and button for at least two seconds, and
-   check the displayed values. The page samples status at its usual interval;
-   a brief tap may occur between samples. Values are raw HID values, not calibrated.
-   Axes are X/Y/Z/Rz; buttons are HID usages 1–8 (A/B/X/Y/shoulders/triggers on
-   the original Nimbus). Hat and separate D-pad usages are shown separately.
-7. Click **Download controller status** and send the JSON file back. If pairing
-   fails, download the status anyway: it includes the Bluetooth error code,
-   memory readings and the machine's status.
-8. Check that the web interface remains responsive while connected, then repeat
-   in the other two machine modes. Switching machines restarts the Bluetooth host.
+1. Keep the working firmware as a rollback copy. Flash `presto_nimbus_test2.uf2`.
+2. Refresh `http://beeb.local/` (or the Presto's IP address). Scroll to **Nimbus
+   controller**, put the original Nimbus into pairing mode, scan, wait about
+   11 seconds and connect as before.
+3. Open **Game controls** and click **Default mappings**, then **Apply controls**.
+   Controls initially start OFF to avoid accidental inputs while configuring.
+4. The defaults are joystick mode, left stick plus D-pad, 15% dead zone and
+   A as fire. The BBC machines default to joystick 1; the C64 defaults to port 2.
+   Games which use the other port need that selected here and applied.
+5. Test movement and fire in a game. BBC games may require their own joystick
+   option to be enabled. Check both horizontal and vertical movement. If a game's
+   stick direction is reversed, change **Invert stick X/Y** and Apply.
+6. To use keyboard controls, select **Keyboard**, assign Up/Down/Left/Right and
+   the controller buttons to the game's keys, then Apply. Default direction
+   mappings are cursor keys. Set A to the game's fire key in this mode:
+   **Joystick fire** is only active in joystick mode.
+7. You can use the right stick instead of the left, or use the D-pad alone.
+   Button key assignments also work in joystick mode, for extra game functions.
+   Analog triggers are treated as pressed/released buttons for assignments.
+8. Test **Disconnect** while holding a direction/button. The emulator should
+   release controller keys, centre analogue inputs and release fire. Keyboard
+   keys held independently remain held. Changing mappings also releases old keys.
+9. Use **Download controller status** and send the JSON file back if something
+   behaves incorrectly, describing the machine, game and selected mode/port.
+   Status includes raw inputs, normalized axes and the applied configuration.
 
-Pairing keys exist only in RAM. Repeat pairing after restarting/switching machine;
-if the controller retains its old pairing, put it back in pairing mode. No
-Bluetooth keys are written to flash. Only explicitly selected outgoing devices
-are accepted. Scan is limited to eight results and one connection is supported.
+The D-pad combines with the selected stick. Opposite digital directions cancel.
+The stick dead zone rescales analogue movement outside the centre zone; digital
+joystick/keyboard directions engage beyond one quarter of that remaining travel.
+Inversion applies to the stick, not the D-pad. Only the selected stick is mapped.
+
+Pairing and settings are currently RAM-only: repeat after restarting or switching
+machines. There are no new writes to flash, saved disks or Wi-Fi settings. Only
+explicitly selected outgoing devices are accepted; one connection and eight scan
+results are supported. Controller names appear when included in inquiry replies.
 
 ## Build
 
@@ -41,37 +51,56 @@ From this source checkout, after the normal setup:
 scripts/setup.sh --no-build --roms
 . deps/env.sh
 OS_CMAKE_ARGS="-DSOUND=ON -DAMBIENT=ON -DWEBDIAG=OFF -DNIMBUS_TEST=ON" \
-  scripts/build-dual-boot.sh build-nimbus-test
+  scripts/build-dual-boot.sh build-nimbus-test2
 ```
 
-The result is `build-nimbus-test/presto_dual_boot.uf2`. Use a new build directory
-when changing options. `NIMBUS_TEST` defaults OFF. Existing CPU/VIC SRAM,
-packed-pixel and render-overlap defaults remain ON; clock stays 250 MHz.
+Output: `build-nimbus-test2/presto_dual_boot.uf2`. Use a new build directory when
+changing options. `NIMBUS_TEST` defaults OFF. Existing performance options remain
+ON and the clock remains 250 MHz. The regular release is unchanged when disabled.
 
-## Implementation and verification
+## Implementation
 
-`presto_bluetooth.c` uses the SDK's BTstack Classic HID host, report-descriptor
-parser, CYW43 transport and polled async context shared with Wi-Fi. Its SDK init
-hook uses BTstack's RAM link-key database, avoiding the SDK's default flash TLV
-backend and its unrelated storage layout. Bluetooth storage pools are bounded.
-The web API command is `/api/bluetooth`, with `scan`, `connect <index>` or
-`disconnect` as its POST body. State is included in `/api/status`.
+`presto_bluetooth.c` shares Wi-Fi's polled main-core async context. Pairing keys
+use BTstack's RAM database, not its default flash TLV backend. HID logical ranges
+normalize stick values; original Nimbus Y axes are inverted to screen coordinates.
+Malformed/truncated fields are rejected before parsing. `controller.c` applies
+inputs from `frontend_frame`, combines controller/web/USB keyboard ownership,
+and handles configuration without dynamically allocating memory.
 
-All three targets compile and the combined UF2 is checked against their payloads.
-Browser tests exercise commands, status download and hiding the panel when the
-feature is absent. These checks do not establish on-hardware pairing or radio
-coexistence. Hardware testing of this first build remains outstanding.
+Master/Model B use ADC channels 0/1 or 2/3 and active-low system VIA PB4/PB5 fire.
+The Model B masked VIA setter preserves the other peripheral input bits. C64 uses
+active-low joystick bits through the existing port 1 keyboard-poll and port 2
+input hooks, retaining the web keyboard's joystick controls on port 2.
 
-The original Nimbus uses Bluetooth Classic, as documented by Bluepad32:
-https://github.com/ricardoquesada/bluepad32/blob/main/docs/supported_gamepads.md
-Its usage mappings were checked against Ricardo Quesada's Apache-2.0 Nimbus
-parser; no Bluepad32 source is compiled into this build. BTstack is by BlueKitchen;
-its license is included with the test distribution. Existing emulator, SDK and
-Elite credits remain applicable (see `c64-credits.md`).
+`POST /api/bluetooth` accepts `scan`, `connect <index>`, `disconnect`, or
+`config <19 integers>`. Configuration is mode (0 off, 1 joystick, 2 keyboard),
+port (1/2), movement (0 left, 1 right, 2 D-pad), dead zone (0–50), invert X/Y
+(0/1), followed by 13 assignments: Up, Down, Left, Right, A, B, X, Y, L1, R1,
+L2, R2, Menu. Assignments are -1 none, -2 joystick fire or 0–127 machine keyboard
+codes. All values are validated before replacing the configuration. Status
+returns the same array under `bluetooth.config`.
 
-Local build results: C64 static headroom is 42,160 bytes with this test enabled,
-versus 48,016 bytes with it disabled (5,856 bytes additional static SRAM).
-The disabled build has no Bluetooth host symbols. Combined image verification
-matched all 10,894 payload blocks to the launcher and machine binaries and found
-no Bluetooth flash-storage backend in any target. Existing SDK/newlib compiler
-warnings remain; compilation and linking completed successfully.
+## Validation
+
+All three machine variants compile. Local address/undefined-behaviour sanitizer
+tests cover normalization, ports, dead zone, inversion, opposite directions,
+multiple buttons assigned to one key, keyboard ownership, reset, disconnect,
+and invalid configuration. Browser tests cover all three machine forms, requests,
+default mappings, preserving edits during polling and status download. Packaging
+checks compare every combined UF2 payload to its source target and check that
+no Bluetooth flash-key backend is linked. These are not hardware game tests.
+
+Run the native mapping checks with:
+
+```sh
+cc -DNIMBUS_TEST=1 -Wall -Wextra -Werror -fsanitize=address,undefined \
+  -Isrc/common src/common/controller.c tests/bluetooth/mapping_test.c \
+  -o /tmp/nimbus-mapping-test
+/tmp/nimbus-mapping-test
+```
+
+The original Nimbus Classic protocol and usage mappings were checked against
+[Bluepad32](https://github.com/ricardoquesada/bluepad32) and Ricardo Quesada's
+Apache-2.0 Nimbus parser; no Bluepad32 source is compiled into this build.
+BTstack is by BlueKitchen; its license and the Pico SDK license are included in
+`docs/licenses`. Existing emulator and Elite credits remain in `c64-credits.md`.

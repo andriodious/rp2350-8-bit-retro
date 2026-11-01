@@ -1,3 +1,6 @@
+#if NIMBUS_TEST
+#include "controller.h"
+#endif
 /*
  * What the front end asks of the machine, for beebjit: the hooks in
  * machine_if.h and drive.h (the command layer, the USB channel, the web
@@ -88,7 +91,7 @@ machine_name(void) {
 }
 
 void
-machine_key(int vkey, bool down) {
+MACHINE_KEY_IMPL(int vkey, bool down) {
   if ((vkey >= 0) && (vkey < 0x80)) {
     key_event(s_matrix_keys[vkey], down);
   }
@@ -99,7 +102,12 @@ static uint8_t sdl_key(uint32_t sc);
 
 void
 machine_key_sdl(uint32_t sc, bool down) {
+#if NIMBUS_TEST
+  uint8_t key=sdl_key(sc);
+  for(int i=0;i<128;i++)if(key && s_matrix_keys[i]==key){machine_key(i,down);return;}
+#else
   key_event(sdl_key(sc), down);
+#endif
 }
 
 static uint8_t
@@ -541,6 +549,10 @@ app_frame_beeb(void) {
 
 static void
 reset_hook(void* p, uint32_t flags) {
+#if NIMBUS_TEST
+    controller_reset();
+#endif
+
   (void) p;
   s_app_io.resets++;
   if (flags & k_cpu_flag_hard_reset) {
@@ -671,3 +683,13 @@ void
 presto_machine_poll(void) {
   frontend_poll();
 }
+
+#if NIMBUS_TEST
+void machine_controller(unsigned port,uint16_t x,uint16_t y,unsigned directions,bool fire) {
+    (void)directions;if(!s_bbc||port<1||port>2)return;
+    adc_set_channel_value(bbc_get_adc(s_bbc),(port-1)*2,x);
+    adc_set_channel_value(bbc_get_adc(s_bbc),(port-1)*2+1,y);
+    unsigned mask=1u<<(port+3);
+    via_update_peripheral_b(bbc_get_sysvia(s_bbc),mask,fire?0:mask);
+}
+#endif
