@@ -12,6 +12,21 @@ index 5f6603c..8ab1488 100644
  		if (entry >= 8) {
  
  			// Read next directory block
+diff --git a/src/CPUC64.cpp b/src/CPUC64.cpp
+index 4e6cce9..6c90bda 100644
+--- a/src/CPUC64.cpp
++++ b/src/CPUC64.cpp
+@@ -703,6 +703,10 @@ void MOS6510::illegal_op(uint16_t adr)
+  *  Returns number of cycles of last instruction
+  */
+ 
++// Optional Presto placement: change code location, not interpreter behavior.
++#if C64_RAM_CPU
++__attribute__((section(".time_critical.c64_cpu")))
++#endif
+ int MOS6510::EmulateLine(int cycles_left)
+ {
+ 	uint8_t tmp, tmp2;
 diff --git a/src/VIC.cpp b/src/VIC.cpp
 index 53c8748..a126636 100644
 --- a/src/VIC.cpp

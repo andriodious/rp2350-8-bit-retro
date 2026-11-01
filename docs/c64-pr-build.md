@@ -4,7 +4,7 @@ This is an integration of experimental r11 behaviour with the supplied newer BBC
 
 ## Dependencies
 
-1. Use the shared public fork https://github.com/andriodious/frank-c64. Other builders do not need to create their own FRANK fork. Original upstream is https://github.com/rh1tech/frank-c64; the BBC repository carries the four-file Presto adaptation patch.
+1. Use the shared public fork https://github.com/andriodious/frank-c64. Other builders do not need to create their own FRANK fork. Original upstream is https://github.com/rh1tech/frank-c64; the BBC repository carries the Presto adaptation patch.
 2. Keep `frank_repository` and `frank_revision` in `third_party/c64-sources.json` unchanged. The pinned revision has been downloaded from the shared fork and verified. Updates to the fork's main branch do not change builds. Only a deliberate configuration/patch/checksum update selects a different source revision.
 3. Run `python3 scripts/fetch-c64.py`, or configure/build C64: its CMake setup invokes that script before listing sources. The script downloads the fork at the pinned revision, applies the patch in a temporary directory, verifies every required adapted core file, then installs it into ignored `deps/frank-c64`. It downloads and verifies the Elite PAL image into ignored `discs/`.
 4. Existing downloaded files are reused only after verification. Changed local dependency files or a different disk cause an error rather than an overwrite. Move them aside if you intentionally want a fresh fetch.
