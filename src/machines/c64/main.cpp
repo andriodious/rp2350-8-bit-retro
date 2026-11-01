@@ -55,6 +55,10 @@ extern "C" void c64_diagnostics_json(char *out,uint32_t size){
         recovery?"true":"false",(unsigned long)previous_phase,(unsigned long)previous_pc,(unsigned long)previous_cfsr,
         (unsigned long)to_ms_since_boot(get_absolute_time()),(unsigned long)(watchdog_hw->scratch[0]&511),
         (unsigned long)trace_frames,(unsigned long)trace_rendered);
+#if C64_PROFILE
+    size_t used = strlen(out);
+    if (used < size) c64_profile::json(out + used, size - used);
+#endif
 }
 static bool turbo, reset_pending, install_hold;
 static uint8_t keys[8],reverse_keys[8];

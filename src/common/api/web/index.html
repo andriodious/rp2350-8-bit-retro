@@ -164,6 +164,10 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
   </div>
 </header>
 
+<details id="profilepanel" hidden open><summary>C64 performance</summary>
+<p>One completed timing sample about every five seconds. Keep this page open and the game scene unchanged. Browser polling adds some measurement overhead.</p>
+<button id="profilesave">Save performance data</button> <button id="profileclear">Clear performance data</button>
+<pre id="profileout" style="max-height:200px;overflow:auto;white-space:pre-wrap;font-size:12px">Waiting for a complete sample…</pre></details>
 <details id="tracepanel" hidden open><summary>Diagnostic trace</summary><p>Last received messages stay here if the board stops responding. Select and copy the text, or save it below.</p><button id="tracesave">Save trace</button> <button id="traceclear">Clear trace</button><pre id="traceout" style="max-height:240px;overflow:auto;white-space:pre-wrap;font-size:12px"></pre></details>
 <section id="c64notice" hidden><span id="c64diag"></span> <button id="c64retry">Retry C64</button></section>
 <section id="av">
@@ -476,10 +480,34 @@ async function api(path, body, method = 'POST') {
   } finally {clearTimeout(timer);}
 }
 
+let profileLines=[], profileSequence=null, profileUptime=0;
+function showProfile(s) {
+  const p=s.c64_profile;
+  $('profilepanel').hidden=!(s.machine==='c64' && p);
+  if(!p || s.machine!=='c64')return;
+  const uptime=s.c64?.uptime_ms || 0;
+  if(uptime<profileUptime)profileSequence=null;
+  profileUptime=uptime;
+  if(!p.frames || p.sequence===profileSequence)return;
+  profileSequence=p.sequence;
+  const fields=['window_us','frames','rendered','turbo','cpu_us','vic_us','sid_us','cia_us','emulation_us','conversion_us','wait_us','frontend_us','pacing_us'];
+  profileLines.push('C64PROF '+fields.map(k=>k+'='+p[k]).join(' '));
+  profileLines=profileLines.slice(-120);
+  $('profileout').textContent=`${profileLines.length} samples collected; latest ${(p.frames*1000000/p.window_us).toFixed(1)} frames/sec; Turbo ${p.turbo?'ON':'OFF'}\n`+profileLines.slice(-3).join('\n');
+}
+$('profileclear').onclick=()=>{profileLines=[];$('profileout').textContent='Cleared. Waiting for the next completed sample…';};
+$('profilesave').onclick=()=>{
+  if(!profileLines.length)return;
+  const url=URL.createObjectURL(new Blob([profileLines.join('\n')+'\n'],{type:'text/plain'}));
+  const a=document.createElement('a');a.href=url;a.download='c64-performance.txt';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+
 const BOARDS = {presto: 'Pimoroni Presto'};
 const MACHINES = {master: 'BBC Master', beeb: 'BBC Model B', c64: 'Commodore 64'};
 let builtFor, switchingTo;
 function show(s) {
+  showProfile(s);
   if(s.c64_failure && s.machine==='master')switchingTo=null;
   if(switchingTo && s.machine!==switchingTo)return;
   const oldMachine=status.machine;

@@ -5,6 +5,24 @@ This first change measures the existing implementation. It does not change the
 250 MHz clock, allocation policy, rendering algorithm, or emulated timing.
 No speed improvement or hardware result is claimed yet.
 
+## Browser collection (no USB logging required)
+
+With C64_PROFILE=ON, the usual web interface shows a **C64 performance** panel
+when C64 is selected. WEBDIAG is not required. The existing status poll reads the
+last completed window without resetting counters; repeated windows are ignored.
+
+Leave Elite on Load New Commander, wait 15 seconds, then click **Clear performance
+data**. Keep this page visible for one minute and click **Save performance data**.
+Repeat after enabling Turbo and waiting 15 seconds. Rename the downloads to
+c64-normal.txt and c64-turbo.txt. Keep sound and LED settings unchanged. Browser
+polling affects timings, so use the same open-page conditions for both runs.
+
+The page retains up to 120 samples in memory (roughly ten minutes). Save before
+refreshing or leaving the page. No extra polling loop or firmware log allocation
+is added. Downloads use the same C64PROF text format as USB captures. A stalled
+network can lose intermediate windows; the frame/time values describe each saved
+window, not the browser's collection duration.
+
 ## Build and collect
 
 Configure a fresh combined build:
@@ -83,3 +101,5 @@ FRANK's pinned revision is unchanged. The BBC adaptation patch and expected hash
 for C64_rp2350.cpp include the optional timing hooks. Existing cached dependencies
 from r11 must be moved aside before fetching the revised adaptation; do not discard
 local edits. No change to the shared FRANK fork is required.
+
+Web follow-up checks: profile JSON bounds and simulated-browser panel visibility, deduplication, clear and download. Full combined firmware rebuilt with profiling ON.

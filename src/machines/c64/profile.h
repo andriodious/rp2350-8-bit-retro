@@ -20,6 +20,7 @@ struct Sample {
 inline Sample active, last;
 inline uint64_t started;
 inline bool running;
+inline uint32_t sequence;
 inline void reset() { active = {}; running = false; }
 inline void begin(uint64_t now, bool turbo) {
     if (!running || active.turbo != turbo) {
@@ -31,9 +32,23 @@ inline bool finish(uint64_t now, bool rendered) {
     ++active.frames;
     active.rendered += rendered;
     if (now - started < 5000000) return false;
-    active.elapsed = now - started; last = active;
+    active.elapsed = now - started; last = active; ++sequence;
     active = {}; active.turbo = last.turbo; started = now;
     return true;
+}
+// Only complete snapshots are exposed; status polling never resets counters.
+inline void json(char *out, size_t size) {
+    if (!size) return;
+    int n = snprintf(out,size,
+        ",\"c64_profile\":{\"sequence\":%lu,\"window_us\":%llu,\"frames\":%lu,\"rendered\":%lu,\"turbo\":%u,\"cpu_us\":%llu,\"vic_us\":%llu,\"sid_us\":%llu,\"cia_us\":%llu,\"emulation_us\":%llu,\"conversion_us\":%llu,\"wait_us\":%llu,\"frontend_us\":%llu,\"pacing_us\":%llu}",
+        (unsigned long)sequence, (unsigned long long)last.elapsed,
+        (unsigned long)last.frames, (unsigned long)last.rendered, last.turbo,
+        (unsigned long long)last.us[CPU], (unsigned long long)last.us[VIC],
+        (unsigned long long)last.us[SID], (unsigned long long)last.us[CIA],
+        (unsigned long long)last.us[EMULATION], (unsigned long long)last.us[CONVERSION],
+        (unsigned long long)last.us[WAIT], (unsigned long long)last.us[FRONTEND],
+        (unsigned long long)last.us[PACING]);
+    if (n < 0 || (size_t)n >= size) out[0] = 0;
 }
 inline void print() {
     printf("C64PROF window_us=%llu frames=%lu rendered=%lu turbo=%u cpu_us=%llu vic_us=%llu sid_us=%llu cia_us=%llu emulation_us=%llu conversion_us=%llu wait_us=%llu frontend_us=%llu pacing_us=%llu\n",

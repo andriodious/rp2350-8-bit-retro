@@ -8,6 +8,7 @@ with tempfile.TemporaryDirectory() as td:
     (p/'test.cpp').write_text(r'''
 #include "profile.h"
 #include <cassert>
+#include <cstring>
 int main(){
  int calls=0;
  C64_PROFILE_CALL(CPU, ++calls);
@@ -26,6 +27,9 @@ int main(){
  assert(!finish(5000300,true));
  reset();begin(6000000,false);assert(active.us[CONVERSION]==0);
  assert(last.frames==2); // USB returns the last complete window.
+ char small[8];json(small,sizeof small);assert(small[0]==0);
+ char full[1024];json(full,sizeof full);assert(strstr(full,"\"sequence\":1"));
+ assert(strstr(full,"\"frames\":2"));
  print();
 #endif
 }
