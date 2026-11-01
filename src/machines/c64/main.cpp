@@ -1,4 +1,5 @@
 #include "profile.h"
+#include "pixel_convert.h"
 #include <atomic>
 #include <cstdio>
 #include <cstring>
@@ -93,8 +94,12 @@ static void convert_frame(){
     const uint8_t *src=render_source;
     for(int y=0;y<272;y++)for(int group=0;group<96;group++){
         const uint8_t *in=src+y*384+group*4;uint16_t *out=pixels[y]+group*5;
+#if C64_PACKED_PIXELS
+        c64_convert_four<true>(in,out,pin_palette);
+#else
         out[0]=out[1]=pin_palette[in[0]&15];out[2]=pin_palette[in[1]&15];
         out[3]=pin_palette[in[2]&15];out[4]=pin_palette[in[3]&15];
+#endif
     }
 }
 static void core1(){
