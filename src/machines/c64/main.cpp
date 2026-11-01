@@ -1,4 +1,5 @@
 #include "profile.h"
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include "pico/stdlib.h"
@@ -20,6 +21,7 @@ extern "C" {
 extern const uint8_t c64_default_disc[];
 extern const uint32_t c64_default_disc_size;
 void c64_init(void); bool c64_run_frame(void); void c64_reset(void); void c64_nmi(void);
+uint8_t *c64_exchange_framebuffer(void);
 uint8_t *c64_get_framebuffer(void); uint8_t *c64_get_ram(void);
 void c64_mount_disk(const uint8_t *,uint32_t,const char *);void c64_unmount_disk(void);
 void c64_disk_set(uint8_t *,size_t);uint32_t c64_disk_writes(void);uint32_t c64_memory_used(void);
@@ -80,12 +82,15 @@ static unsigned speed=100, load0, load1;
 // One RGB565 row per VIC row; the LCD row table stretches 272 rows to 480.
 static uint16_t pixels[272][482] __attribute__((aligned(4)));
 static const uint16_t *rows[481];
-static volatile bool frame_ready;
+static_assert(std::atomic<bool>::is_always_lock_free, "Frame hand-off must be lock-free");
+static std::atomic<bool> frame_ready{false};
+static const uint8_t *render_source;
+static bool render_pending;
 static volatile uint32_t conversion_us;
 static const uint32_t palette[16]={0x000000,0xffffff,0x813338,0x75cec8,0x8e3c97,0x56ac4d,0x2e2c9b,0xedf171,0x8e5029,0x553800,0xc46c71,0x4a4a4a,0x7b7b7b,0xa9ff9f,0x706deb,0xb2b2b2};
 static uint16_t pin_palette[16];
 static void convert_frame(){
-    const uint8_t *src=c64_get_framebuffer();
+    const uint8_t *src=render_source;
     for(int y=0;y<272;y++)for(int group=0;group<96;group++){
         const uint8_t *in=src+y*384+group*4;uint16_t *out=pixels[y]+group*5;
         out[0]=out[1]=pin_palette[in[0]&15];out[2]=pin_palette[in[1]&15];
@@ -98,12 +103,12 @@ static void core1(){
     audio_init();
 #endif
     for(;;){
-        if(!frame_ready){__wfe();continue;}
+        if(!frame_ready.load(std::memory_order_acquire)){__wfe();continue;}
         __dmb();uint32_t t=time_us_32();convert_frame();trace_rendered++;conversion_us=time_us_32()-t;
 #if WITH_AMBIENT
         if(board_leds_due())board_leds_update();
 #endif
-        __dmb();frame_ready=false;__sev();
+        frame_ready.store(false,std::memory_order_release);__sev();
     }
 }
 // App installation is shared with BBC modes. Keep the last C64 picture while
@@ -212,12 +217,31 @@ int main(){
 #endif
         // Turbo skips alternate display conversions, giving emulation more time.
         bool submitted = !turbo || (trace_frames&1)==0;
-        if(submitted){__dmb();frame_ready=true;__sev();}
-        // Do not mutate the VIC framebuffer until core 1 has converted it.
-        C64_PROFILE_CALL(WAIT, while(frame_ready){frontend_poll();sleep_us(50);});
+        bool converted = false;
+#if C64_RENDER_OVERLAP
+        // Emulation has used its own writable buffer while core 1 reads the
+        // previous completed frame. Wait only before reusing that reader's buffer.
+        C64_PROFILE_CALL(WAIT, while(frame_ready.load(std::memory_order_acquire)){frontend_poll();sleep_us(50);});
+        converted=render_pending;
 #if C64_PROFILE
-        __dmb();
-        if(submitted)c64_profile::add(c64_profile::CONVERSION,conversion_us);
+        if(converted)c64_profile::add(c64_profile::CONVERSION,conversion_us);
+#endif
+        render_pending=false;
+        if(submitted){
+            render_source=c64_exchange_framebuffer();
+            render_pending=true;
+            frame_ready.store(true,std::memory_order_release);__sev();
+        }
+#else
+        if(submitted){
+            render_source=c64_get_framebuffer();
+            frame_ready.store(true,std::memory_order_release);__sev();
+        }
+        C64_PROFILE_CALL(WAIT, while(frame_ready.load(std::memory_order_acquire)){frontend_poll();sleep_us(50);});
+        converted=submitted;
+#if C64_PROFILE
+        if(converted)c64_profile::add(c64_profile::CONVERSION,conversion_us);
+#endif
 #endif
         phase(6);C64_PROFILE_CALL(FRONTEND, frontend_frame());watchdog_update();
         if(boot_frames && !--boot_frames)typing="LOAD\"*\",8,1\rRUN\r";
@@ -227,7 +251,7 @@ int main(){
             if(!turbo){while(time_us_64()<due){frontend_poll();sleep_us(100);}}
             else due=time_us_64(););
 #if C64_PROFILE
-        if(c64_profile::finish(time_us_64(),submitted))c64_profile::print();
+        if(c64_profile::finish(time_us_64(),converted))c64_profile::print();
 #endif
         if(time_us_64()-due>100000)due=time_us_64();
         uint64_t now=time_us_64();if(now-stat>=5000000){uint64_t dt=now-stat;load0=busy*100/dt;load1=conversion_us/200;speed=frames*2000000ull/dt;machine_print_stats();stat=now;busy=0;frames=0;}

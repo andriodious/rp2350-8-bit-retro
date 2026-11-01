@@ -1,3 +1,4 @@
+option(C64_RENDER_OVERLAP "Experimental: double-buffer C64 indexed frames" OFF)
 option(C64_RAM_VIC "Experimental: execute VIC code from SRAM" OFF)
 option(C64_PROFILE "Collect C64 stage timings over USB (adds measurement overhead)" OFF)
 # FRANK/Frodo line-based PAL C64 on Presto. No HDMI, PS/2 or foreign SD drivers.
@@ -22,7 +23,7 @@ common_setup(presto_c64)
 board_setup(presto_c64)
 target_include_directories(presto_c64 PRIVATE ${MACHINE_DIR} ${FRANK} ${FRANK}/rp2350)
 target_compile_definitions(presto_c64 PRIVATE MACHINE_C64=1 FRODO_RP2350=1
-    C64_PROFILE=$<BOOL:${C64_PROFILE}> PSRAM_MAX_FREQ_MHZ=125 ENABLE_DEBUG_LOGS=0 PRESTO_DISC_STAGE_OFFSET=0
+    C64_RENDER_OVERLAP=$<BOOL:${C64_RENDER_OVERLAP}> C64_PROFILE=$<BOOL:${C64_PROFILE}> PSRAM_MAX_FREQ_MHZ=125 ENABLE_DEBUG_LOGS=0 PRESTO_DISC_STAGE_OFFSET=0
     $<$<COMPILE_LANGUAGE:CXX>:PICO_CXX_DISABLE_ALLOCATION_OVERRIDES=1>)
 target_compile_options(presto_c64 PRIVATE -O2 -fwrapv -Wall
     $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions;-fno-rtti>)
