@@ -1,4 +1,4 @@
-# Original SteelSeries Nimbus: controller test 3
+# Original SteelSeries Nimbus: controller test 4
 
 This separate experimental build adds web-configurable game controls for BBC
 Master, BBC Model B and C64. It has not been pushed to the pending C64 PR.
@@ -7,7 +7,7 @@ confirmed on the user's hardware. The user also confirmed test 2 game mappings w
 
 ## Start here
 
-1. Keep the working firmware as a rollback copy. Flash `presto_nimbus_test3.uf2`.
+1. Keep the working firmware as a rollback copy. Flash `presto_nimbus_test4.uf2`.
 2. Refresh `http://beeb.local/` (or the Presto's IP address). Scroll to **Nimbus
    controller**, put the original Nimbus into pairing mode, scan, wait about
    11 seconds and connect as before.
@@ -64,10 +64,10 @@ From this source checkout, after the normal setup:
 scripts/setup.sh --no-build --roms
 . deps/env.sh
 OS_CMAKE_ARGS="-DSOUND=ON -DAMBIENT=ON -DWEBDIAG=OFF -DNIMBUS_TEST=ON" \
-  scripts/build-dual-boot.sh build-nimbus-test3
+  scripts/build-dual-boot.sh build-nimbus-test4
 ```
 
-Output: `build-nimbus-test3/presto_dual_boot.uf2`. Use a new build directory when
+Output: `build-nimbus-test4/presto_dual_boot.uf2`. Use a new build directory when
 changing options. `NIMBUS_TEST` defaults OFF. Existing performance options remain
 ON and the clock remains 250 MHz. The regular release is unchanged when disabled.
 
@@ -137,3 +137,28 @@ BTstack is by BlueKitchen; its license and the Pico SDK license are included in
 `docs/licenses`. Existing emulator and Elite credits remain in `c64-credits.md`.
 
 Test 3 linked results: C64 static headroom 41,276 bytes (before runtime heap use); 10,956 combined UF2 payload blocks verified. Saving a changed configuration or new bond can briefly pause emulation while the safe flash writer runs.
+
+
+## Test 4: reconnect timing
+
+Existing test 3 pairing and profiles are retained; no new pairing is normally
+needed. Flash test 4, refresh the browser, switch machines and leave the Nimbus
+searching. It first listens for three seconds before initiating an outgoing HID
+connection. Failed or closed connections get another listening window. BTstack
+rejects incoming HID control connections while its outgoing HID connection object
+exists, so immediate repeated outgoing attempts can interfere with the controller
+reaching its host. The page timeout is now 5.12 seconds rather than ~15 seconds;
+this limits the radio paging stage, not every subsequent protocol exchange.
+
+Reconnect gives immediate acknowledgment. One click enables reconnect; additional
+clicks do not restart an in-progress attempt or push the retry deadline back.
+Status shows listening/connecting/connected. Downloads include build 4, retry_ms,
+attempts, incoming and failures. If the delay persists, download status while it
+is stuck and again after connection succeeds, and report the approximate delay.
+The timing-collision explanation is based on source behaviour, not a captured
+radio trace; this build needs hardware verification.
+
+All three targets compile; mapping/persistence behaviour is unchanged. Reconnect
+policy tests cover repeated clicks, listening deadlines, busy states and clock
+wrap. Browser tests check the feedback. Final UF2 verification matches 10,966
+payload blocks; C64 static headroom is 41,264 bytes before runtime allocations.

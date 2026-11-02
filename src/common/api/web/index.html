@@ -259,6 +259,7 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 <div id="btMappings" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px"></div>
 <button onclick="btDefaults()">Default mappings</button><button onclick="btApply()">Apply controls</button>
 </details>
+<p id="btConnection" role="status"></p>
 <p id="btStorage" role="status"></p>
 <pre id="btValues"></pre><p id="btError" role="status"></p></section>
 </main>
@@ -568,7 +569,7 @@ function btDownload() {
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function btCommand(command) {
-  try { await api('/api/bluetooth',command); $('btError').textContent=command.startsWith('config ')?'Controls saved for this machine.':''; }
+  try { if(command==='reconnect')$('btError').textContent='Enabling reconnection…'; await api('/api/bluetooth',command); $('btError').textContent=command.startsWith('config ')?'Controls saved for this machine.':command==='reconnect'?'Reconnection enabled. One click is enough; keep the Nimbus searching.':''; }
   catch(e) { $('btError').textContent=String(e); }
 }
 function show(s) {
@@ -582,6 +583,7 @@ function show(s) {
       select.dataset.devices=key;
     }
     $('btValues').textContent=JSON.stringify(b,null,2);
+    $('btConnection').textContent=b.state==='connected'?'Controller connected.':b.state==='connecting'?'Connection attempt in progress; no further clicks needed.':b.remembered&&b.reconnect_enabled?`Listening for the Nimbus${b.retry_ms?' — next outgoing attempt in '+Math.ceil(b.retry_ms/1000)+' seconds':''}. Keep the controller searching.`:'Reconnect is paused, or no controller is saved.';
     $('btStorage').textContent=b.save_error?'Saving failed. Apply controls again to retry; changes may not survive restart.':b.save_pending?'Saving controller data…':b.remembered?'Controller remembered. Controls are saved separately for each machine.':'No saved controller. Pair once to remember it.';
   }
   showProfile(s);
