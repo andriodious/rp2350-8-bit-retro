@@ -1,5 +1,6 @@
 #if NIMBUS_TEST
 #include "controller.h"
+#include "presto_bluetooth.h"
 #endif
 // The front end every machine shares (frontend.h): the USB channel, the network, queued keys.
 //
@@ -257,6 +258,7 @@ void frontend_frame(void) {
     net_frame();
 #endif
 #if NIMBUS_TEST
+    presto_bluetooth_frame();
     controller_frame();
 #endif
 }

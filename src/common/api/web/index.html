@@ -240,11 +240,13 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
   </div>
 </section>
 <section id="bluetoothPanel" hidden><h2>Nimbus controller</h2>
-<p>Put the controller into pairing mode, scan, then select its address. Pairing and settings are forgotten on reboot. Choose controls below, then Apply.</p>
+<p>Put the controller into pairing mode, scan, then select its address. Pairing is remembered, and each machine remembers its own settings. Choose controls below, then Apply.</p>
 <button onclick="btCommand('scan')">Scan for controllers</button>
 <select id="btDevices" aria-label="Bluetooth device"></select>
 <button onclick="btCommand('connect '+$('btDevices').value)">Connect</button>
 <button onclick="btCommand('disconnect')">Disconnect</button>
+<button onclick="btCommand('reconnect')">Reconnect saved controller</button>
+<button onclick="btCommand('forget')">Forget controller</button>
 <button onclick="btDownload()">Download controller status</button>
 <details><summary>Game controls</summary>
 <label>Mode <select id="btMode"><option value="0">Off</option><option value="1">Joystick</option><option value="2">Keyboard</option></select></label>
@@ -257,6 +259,7 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 <div id="btMappings" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px"></div>
 <button onclick="btDefaults()">Default mappings</button><button onclick="btApply()">Apply controls</button>
 </details>
+<p id="btStorage" role="status"></p>
 <pre id="btValues"></pre><p id="btError" role="status"></p></section>
 </main>
 
@@ -565,7 +568,7 @@ function btDownload() {
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function btCommand(command) {
-  try { await api('/api/bluetooth',command); $('btError').textContent=command.startsWith('config ')?'Controls applied.':''; }
+  try { await api('/api/bluetooth',command); $('btError').textContent=command.startsWith('config ')?'Controls saved for this machine.':''; }
   catch(e) { $('btError').textContent=String(e); }
 }
 function show(s) {
@@ -579,6 +582,7 @@ function show(s) {
       select.dataset.devices=key;
     }
     $('btValues').textContent=JSON.stringify(b,null,2);
+    $('btStorage').textContent=b.save_error?'Saving failed. Apply controls again to retry; changes may not survive restart.':b.save_pending?'Saving controller data…':b.remembered?'Controller remembered. Controls are saved separately for each machine.':'No saved controller. Pair once to remember it.';
   }
   showProfile(s);
   if(s.c64_failure && s.machine==='master')switchingTo=null;

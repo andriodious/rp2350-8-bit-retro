@@ -2,7 +2,7 @@
  * Copyright (c) 2023 Raspberry Pi (Trading) Ltd.
  * SPDX-License-Identifier: BSD-3-Clause
  */
-/* Experimental single-controller Classic HID host. No flash pairing storage. */
+/* Experimental single-controller Classic HID host with project-managed persistence. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,13 +13,47 @@
 #include "pico/btstack_cyw43.h"
 #include "presto_bluetooth.h"
 #include "controller.h"
+#include "controller_store.h"
+#include "machine_if.h"
+#include "pico/time.h"
 
+static btstack_link_key_db_t persistent_db;
+static const btstack_link_key_db_t *ram_db;
+static bool store_error, store_started, reconnect=true;
+static uint32_t retry_at;
+static unsigned machine_index(void) {
+    const char *m=machine_name();return !strcmp(m,"master")?0:!strcmp(m,"beeb")?1:2;
+}
+static bool remembered(bd_addr_t address) {
+    link_key_t key;uint8_t type;return controller_store_bond(address,key,&type);
+}
+static void save_key(bd_addr_t address,link_key_t key,link_key_type_t type) {
+    if(!reconnect)return; // Ignore a late pairing result after Disconnect/Forget.
+    ram_db->put_link_key(address,key,type);
+    controller_store_set_bond(address,key,(uint8_t)type);
+}
+static void delete_key(bd_addr_t address) {
+    bd_addr_t saved;
+    ram_db->delete_link_key(address);
+    if(remembered(saved)&&!memcmp(saved,address,6))controller_store_forget();
+}
 /* Supply the SDK init hook, deliberately without the SDK flash TLV backend. */
 bool btstack_cyw43_init(async_context_t *context) {
     btstack_memory_init();
     btstack_run_loop_init(btstack_run_loop_async_context_get_instance(context));
     hci_init(hci_transport_cyw43_instance(), NULL);
-    hci_set_link_key_db(btstack_link_key_db_memory_instance());
+    controller_store_init();store_started=true;
+    ram_db=btstack_link_key_db_memory_instance();persistent_db=*ram_db;
+    persistent_db.put_link_key=save_key;persistent_db.delete_link_key=delete_key;
+    hci_set_link_key_db(&persistent_db);
+    bd_addr_t address;link_key_t key;uint8_t type;
+    if(controller_store_bond(address,key,&type))ram_db->put_link_key(address,key,(link_key_type_t)type);
+    int32_t cfg[19];
+    if(controller_store_get_config(machine_index(),cfg)) {
+        char text[256];size_t n=0;
+        for(int i=0;i<19;i++)n+=snprintf(text+n,sizeof text-n,"%s%ld",i?" ":"",(long)cfg[i]);
+        controller_config(text);
+    }
     return true;
 }
 void btstack_cyw43_deinit(async_context_t *context) {
@@ -123,8 +157,16 @@ static void event(uint8_t type,uint16_t channel,uint8_t *p,uint16_t size) {
         break;
     case HCI_EVENT_HID_META:
         switch(hci_event_hid_meta_get_subevent_code(p)) {
-        case HID_SUBEVENT_INCOMING_CONNECTION:
-            hid_host_decline_connection(hid_subevent_incoming_connection_get_hid_cid(p)); break;
+        case HID_SUBEVENT_INCOMING_CONNECTION: {
+            bd_addr_t saved;
+            hid_subevent_incoming_connection_get_address(p,addr);
+            if(reconnect&&!connected&&!connecting&&remembered(saved)&&!memcmp(saved,addr,6)) {
+                memcpy(selected,addr,6);connecting=true;
+                cid=hid_subevent_incoming_connection_get_hid_cid(p);
+                hid_host_accept_connection(cid,HID_PROTOCOL_MODE_REPORT);
+            } else hid_host_decline_connection(hid_subevent_incoming_connection_get_hid_cid(p));
+            break;
+        }
         case HID_SUBEVENT_CONNECTION_OPENED:
             error=hid_subevent_connection_opened_get_status(p); connecting=false;
             connected=error==0; descriptor_ready=false;
@@ -144,18 +186,36 @@ void presto_bluetooth_start(void) {
     gap_set_local_name("Presto Nimbus test");
     gap_ssp_set_io_capability(SSP_IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
     gap_ssp_set_auto_accept(0);
-    gap_discoverable_control(0); gap_connectable_control(0);
+    bd_addr_t saved;
+    gap_discoverable_control(0); gap_connectable_control(remembered(saved));
     gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_SNIFF_MODE|LM_LINK_POLICY_ENABLE_ROLE_SWITCH);
     hci_power_control(HCI_POWER_ON);
 }
 int presto_bluetooth_command(const char *s) {
-    if(!strncmp(s,"config ",7))return controller_config(s+7);
+    if(!strncmp(s,"config ",7)) {
+        if(!store_started)return 503;
+        int result=controller_config(s+7);if(result!=200)return result;
+        int32_t cfg[19];controller_get_config(cfg);controller_store_set_config(machine_index(),cfg);
+        store_error=!controller_store_flush();return store_error?500:200;
+    }
     if(!ready)return 503;
+    if(!strcmp(s,"reconnect")) {
+        bd_addr_t saved;if(!remembered(saved))return 404;
+        reconnect=true;retry_at=0;gap_connectable_control(1);return 200;
+    }
+    if(!strcmp(s,"forget")) {
+        reconnect=false;gap_connectable_control(0);
+        if(cid)hid_host_disconnect(cid);
+        connected=false;descriptor_ready=false;clear_input();
+        bd_addr_t saved;if(remembered(saved))ram_db->delete_link_key(saved);
+        controller_store_forget();store_error=!controller_store_flush();return store_error?500:200;
+    }
     if(!strcmp(s,"scan")) {
         if(scanning||connecting||connected)return 409;
-        count=0;error=gap_inquiry_start(8);scanning=error==0;return error?500:200;
+        reconnect=false;count=0;error=gap_inquiry_start(8);scanning=error==0;return error?500:200;
     }
     if(!strcmp(s,"disconnect")) {
+        reconnect=false;gap_connectable_control(0);
         if(scanning)gap_inquiry_stop();
         if(cid)hid_host_disconnect(cid);
         connected=false;descriptor_ready=false;
@@ -165,6 +225,7 @@ int presto_bluetooth_command(const char *s) {
         char *end; long i=strtol(s+8,&end,10);
         if(end==s+8||*end||i<0||(unsigned)i>=count)return 400;
         if(scanning||connecting||connected)return 409;
+        reconnect=true;gap_connectable_control(1);
         memcpy(selected,devices[i],6); connecting=true;
         error=hid_host_connect(selected,HID_PROTOCOL_MODE_REPORT,&cid);
         if(error)connecting=false;
@@ -172,11 +233,23 @@ int presto_bluetooth_command(const char *s) {
     }
     return 400;
 }
+void presto_bluetooth_frame(void) {
+    if(!store_started)return;
+    /* Never erase flash from a BTstack callback. Do not repeatedly retry failed writes. */
+    if(controller_store_pending()&&!store_error)store_error=!controller_store_flush();
+    uint32_t now=to_ms_since_boot(get_absolute_time());
+    if(!ready||!reconnect||scanning||connecting||connected||cid||(int32_t)(now-retry_at)<0)return;
+    if(!remembered(selected))return;
+    retry_at=now+10000;connecting=true;
+    error=hid_host_connect(selected,HID_PROTOCOL_MODE_REPORT,&cid);
+    if(error){connecting=false;cid=0;}
+}
 void presto_bluetooth_json(char *out,size_t size) {
+    bd_addr_t saved;bool bonded=remembered(saved);
     char config[160];controller_json(config,sizeof config);
     char list[768];size_t used=0;list[0]=0;
     for(unsigned i=0;i<count;i++)used+=snprintf(list+used,sizeof list-used,"%s\"%s %s\"",i?",":"",bd_addr_to_str(devices[i]),names[i]);
-    snprintf(out,size,",\"bluetooth\":{\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
-        config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
+    snprintf(out,size,",\"bluetooth\":{\"remembered\":%s,\"save_error\":%s,\"save_pending\":%s,\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
+        bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
         (long)axes[0],(long)axes[1],(long)axes[2],(long)axes[3],(long)buttons[0],(long)buttons[1],(long)buttons[2],(long)buttons[3],(long)buttons[4],(long)buttons[5],(long)buttons[6],(long)buttons[7],(long)hat,(long)menu,(long)dpad[0],(long)dpad[1],(long)dpad[2],(long)dpad[3]);
 }

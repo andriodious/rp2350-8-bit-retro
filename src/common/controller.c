@@ -106,3 +106,5 @@ void controller_json(char *out,size_t size) {
         n+=(size_t)wrote;
     }
 }
+
+void controller_get_config(int32_t out[19]) {for(int i=0;i<19;i++)out[i]=cfg[i];}
