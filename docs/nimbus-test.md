@@ -1,4 +1,4 @@
-# Original SteelSeries Nimbus: controller test 4
+# Original SteelSeries Nimbus: controller test 5
 
 This separate experimental build adds web-configurable game controls for BBC
 Master, BBC Model B and C64. It has not been pushed to the pending C64 PR.
@@ -7,7 +7,7 @@ confirmed on the user's hardware. The user also confirmed test 2 game mappings w
 
 ## Start here
 
-1. Keep the working firmware as a rollback copy. Flash `presto_nimbus_test4.uf2`.
+1. Keep the working firmware as a rollback copy. Flash `presto_nimbus_test5.uf2`.
 2. Refresh `http://beeb.local/` (or the Presto's IP address). Scroll to **Nimbus
    controller**, put the original Nimbus into pairing mode, scan, wait about
    11 seconds and connect as before.
@@ -64,10 +64,10 @@ From this source checkout, after the normal setup:
 scripts/setup.sh --no-build --roms
 . deps/env.sh
 OS_CMAKE_ARGS="-DSOUND=ON -DAMBIENT=ON -DWEBDIAG=OFF -DNIMBUS_TEST=ON" \
-  scripts/build-dual-boot.sh build-nimbus-test4
+  scripts/build-dual-boot.sh build-nimbus-test5
 ```
 
-Output: `build-nimbus-test4/presto_dual_boot.uf2`. Use a new build directory when
+Output: `build-nimbus-test5/presto_dual_boot.uf2`. Use a new build directory when
 changing options. `NIMBUS_TEST` defaults OFF. Existing performance options remain
 ON and the clock remains 250 MHz. The regular release is unchanged when disabled.
 
@@ -162,3 +162,31 @@ All three targets compile; mapping/persistence behaviour is unchanged. Reconnect
 policy tests cover repeated clicks, listening deadlines, busy states and clock
 wrap. Browser tests check the feedback. Final UF2 verification matches 10,966
 payload blocks; C64 static headroom is 41,264 bytes before runtime allocations.
+
+
+## Test 5: clean Bluetooth shutdown on web machine switches
+
+The supplied C64 snapshot was taken after reconnection: three outgoing attempts,
+two failures, one incoming connection, descriptor ready and one input report.
+It is a single snapshot, not a history of the preceding runs. It does not reveal
+the earlier failure codes because test 4 overwrote error on success.
+
+Web-requested restarts now ask BTstack to power down gracefully, which sends HCI
+disconnect commands for open links. The existing network poll runs for up to
+1.5 seconds waiting for OFF; the watchdog is serviced and the restart proceeds
+even if cleanup cannot finish. Reconnect is disabled during shutdown, controller
+inputs are released, and pending settings are flushed using the existing safe
+writer. This does not change the behaviour of a physical reset or power removal.
+
+This addresses a plausible stale connection at the controller after an abrupt
+machine switch; it is not yet confirmed as the cause. Existing pairing/settings
+remain compatible. Test repeated Master → BBC → C64 → Master → C64 switches
+without turning the Nimbus off. If it sticks searching, download status before
+power-cycling the controller, then again after recovery.
+
+Status includes last_failure, last_failure_phase and last_failure_ms; these
+survive successful reconnection within the same firmware run. Phases: 1 immediate
+outgoing-request error, 2 connection-open failure, 3 HID-descriptor failure.
+They reset when the Presto reboots; no extra flash writes are made for logging.
+All three builds pass; combined image matches 10,973 payload blocks. C64 static
+headroom is 41,252 bytes before runtime allocations.

@@ -92,6 +92,15 @@ bool net_wifi_save(const char *ssid, const char *pass) {
 }
 
 static void restart_soon(void) {
+#if NIMBUS_TEST
+    presto_bluetooth_prepare_restart();
+    uint32_t started=time_us_32();
+    while(!presto_bluetooth_restart_done() && time_us_32()-started<1500000u) {
+        cyw43_arch_poll();
+        watchdog_update();
+        sleep_ms(2);
+    }
+#endif
     printf("NET restarting\n");
     fflush(stdout);
     sleep_ms(100);

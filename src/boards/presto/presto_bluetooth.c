@@ -22,8 +22,13 @@ static btstack_link_key_db_t persistent_db;
 static const btstack_link_key_db_t *ram_db;
 static bool store_error, store_started, reconnect=true;
 static uint32_t retry_at;
-static unsigned attempts,incoming_count,failures;
+static unsigned attempts,incoming_count,failures,last_failure,last_failure_phase;
+static uint32_t last_failure_ms;
 static uint32_t now_ms(void){return to_ms_since_boot(get_absolute_time());}
+static void note_failure(unsigned code,unsigned phase) {
+    if(!code)return;
+    failures++;last_failure=code;last_failure_phase=phase;last_failure_ms=now_ms();
+}
 static unsigned machine_index(void) {
     const char *m=machine_name();return !strcmp(m,"master")?0:!strcmp(m,"beeb")?1:2;
 }
@@ -177,11 +182,11 @@ static void event(uint8_t type,uint16_t channel,uint8_t *p,uint16_t size) {
         case HID_SUBEVENT_CONNECTION_OPENED:
             error=hid_subevent_connection_opened_get_status(p); connecting=false;
             connected=error==0; descriptor_ready=false;
-            if(error){failures++;retry_at=now_ms()+RECONNECT_LISTEN_MS;}
+            if(error){note_failure(error,2);retry_at=now_ms()+RECONNECT_LISTEN_MS;}
             cid=connected?hid_subevent_connection_opened_get_hid_cid(p):0;
             clear_input();break;
         case HID_SUBEVENT_DESCRIPTOR_AVAILABLE:
-            error=hid_subevent_descriptor_available_get_status(p); descriptor_ready=error==0;break;
+            error=hid_subevent_descriptor_available_get_status(p); descriptor_ready=error==0;note_failure(error,3);break;
         case HID_SUBEVENT_REPORT: report(hid_subevent_report_get_report(p),hid_subevent_report_get_report_len(p));break;
         case HID_SUBEVENT_CONNECTION_CLOSED:
             cid=0;connected=connecting=descriptor_ready=false;retry_at=now_ms()+RECONNECT_LISTEN_MS;clear_input();break;
@@ -240,7 +245,7 @@ int presto_bluetooth_command(const char *s) {
         reconnect=true;gap_connectable_control(1);
         memcpy(selected,devices[i],6); connecting=true;
         attempts++;error=hid_host_connect(selected,HID_PROTOCOL_MODE_REPORT,&cid);
-        if(error){connecting=false;cid=0;failures++;retry_at=now_ms()+RECONNECT_LISTEN_MS;}
+        if(error){connecting=false;cid=0;note_failure(error,1);retry_at=now_ms()+RECONNECT_LISTEN_MS;}
         return error?500:200;
     }
     return 400;
@@ -254,7 +259,18 @@ void presto_bluetooth_frame(void) {
     if(!remembered(selected))return;
     connecting=true;attempts++;
     error=hid_host_connect(selected,HID_PROTOCOL_MODE_REPORT,&cid);
-    if(error){connecting=false;cid=0;failures++;retry_at=now+RECONNECT_LISTEN_MS;}
+    if(error){connecting=false;cid=0;note_failure(error,1);retry_at=now+RECONNECT_LISTEN_MS;}
+}
+void presto_bluetooth_prepare_restart(void) {
+    if(!store_started)return;
+    reconnect=false;gap_connectable_control(0);
+    connected=false;descriptor_ready=false;clear_input();controller_frame();
+    if(controller_store_pending())store_error=!controller_store_flush();
+    // BTstack closes ACL links before powering down the radio. Poll until OFF.
+    hci_power_control(HCI_POWER_OFF);
+}
+bool presto_bluetooth_restart_done(void) {
+    return !store_started||hci_get_state()==HCI_STATE_OFF;
 }
 void presto_bluetooth_json(char *out,size_t size) {
     bd_addr_t saved;bool bonded=remembered(saved);
@@ -263,7 +279,7 @@ void presto_bluetooth_json(char *out,size_t size) {
     char config[160];controller_json(config,sizeof config);
     char list[768];size_t used=0;list[0]=0;
     for(unsigned i=0;i<count;i++)used+=snprintf(list+used,sizeof list-used,"%s\"%s %s\"",i?",":"",bd_addr_to_str(devices[i]),names[i]);
-    snprintf(out,size,",\"bluetooth\":{\"build\":4,\"reconnect_enabled\":%s,\"retry_ms\":%u,\"attempts\":%u,\"incoming\":%u,\"failures\":%u,\"remembered\":%s,\"save_error\":%s,\"save_pending\":%s,\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
-        reconnect?"true":"false",wait_ms,attempts,incoming_count,failures,bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
+    snprintf(out,size,",\"bluetooth\":{\"build\":5,\"last_failure\":%u,\"last_failure_phase\":%u,\"last_failure_ms\":%lu,\"reconnect_enabled\":%s,\"retry_ms\":%u,\"attempts\":%u,\"incoming\":%u,\"failures\":%u,\"remembered\":%s,\"save_error\":%s,\"save_pending\":%s,\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
+        last_failure,last_failure_phase,(unsigned long)last_failure_ms,reconnect?"true":"false",wait_ms,attempts,incoming_count,failures,bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
         (long)axes[0],(long)axes[1],(long)axes[2],(long)axes[3],(long)buttons[0],(long)buttons[1],(long)buttons[2],(long)buttons[3],(long)buttons[4],(long)buttons[5],(long)buttons[6],(long)buttons[7],(long)hat,(long)menu,(long)dpad[0],(long)dpad[1],(long)dpad[2],(long)dpad[3]);
 }
