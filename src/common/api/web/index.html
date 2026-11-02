@@ -247,7 +247,7 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 <button onclick="btCommand('disconnect')">Disconnect</button>
 <button onclick="btCommand('reconnect')">Reconnect saved controller</button>
 <button onclick="btCommand('forget')">Forget controller</button>
-<button onclick="btDownload()">Download controller status</button>
+<button id="btDownload" onclick="btDownload()">Download controller status</button>
 <details><summary>Game controls</summary>
 <label>Mode <select id="btMode"><option value="0">Off</option><option value="1">Joystick</option><option value="2">Keyboard</option></select></label>
 <label>Joystick port <select id="btPort"><option value="1">1</option><option value="2">2</option></select></label>
@@ -574,6 +574,8 @@ async function btCommand(command) {
 }
 function show(s) {
   $('bluetoothPanel').hidden=!s.bluetooth;
+  $('btValues').hidden=!WEBDIAG;
+  $('btDownload').hidden=!WEBDIAG;
   if(s.bluetooth) {
     btBuildForm(s.machine,s.bluetooth.config);
     const b=s.bluetooth, select=$('btDevices');
