@@ -27,7 +27,9 @@ Pimoroni Presto is the first supported board. Nimbus validation is for the
 with every game or disk fastloader is not guaranteed; for the supplied C64 Elite
 image, choose **N** when asked to use its fastloader.
 
-![Pimoroni Presto running Elite with an original SteelSeries Nimbus controller](presto-nimbus-elite.jpeg)
+| Presto and Nimbus controller | C64 web interface |
+|---|---|
+| ![Pimoroni Presto running Elite with an original SteelSeries Nimbus controller](presto-nimbus-elite.jpeg) | ![C64 web interface with on-screen keyboard and connected Nimbus controller](c64-web-interface.png) |
 
 ## Build on a Raspberry Pi or Linux computer
 
