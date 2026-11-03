@@ -123,3 +123,32 @@ jobs:
           src/machines/beeb/harness/build.sh ${{ matrix.target }}
           src/machines/beeb/harness/tests.sh ${{ matrix.target }}
           JIT=1 src/machines/beeb/harness/tests.sh ${{ matrix.target }}
+
+  retro:
+    name: Combined Presto platform
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - uses: actions/cache@v4
+        with:
+          path: deps
+          key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh') }}
+      - run: scripts/setup.sh --no-build --roms
+      - name: Native controller checks
+        run: |
+          cc -Wall -Wextra -Werror -fsanitize=address,undefined -Isrc/common src/common/controller_store.c tests/bluetooth/store_test.c -o /tmp/store-test
+          /tmp/store-test
+          cc -DNIMBUS_TEST=1 -Wall -Wextra -Werror -fsanitize=address,undefined -Isrc/common src/common/controller.c tests/bluetooth/mapping_test.c -o /tmp/mapping-test
+          /tmp/mapping-test
+          cc -Wall -Wextra -Werror -fsanitize=address,undefined -Isrc/boards/presto tests/bluetooth/reconnect_test.c -o /tmp/reconnect-test
+          /tmp/reconnect-test
+      - name: Build and verify combined firmware
+        run: |
+          . deps/env.sh
+          scripts/build-retro.sh
+          python3 tests/bluetooth/firmware_test.py build-retro "$(command -v arm-none-eabi-nm)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rp2350-8-bit-retro-presto
+          path: build-retro/rp2350-8-bit-retro-presto.uf2

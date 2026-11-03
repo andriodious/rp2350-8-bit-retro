@@ -184,7 +184,7 @@ static void check_link(void) {
             mdns_started = true;
             mdns_resp_init();
             mdns_resp_add_netif(nif, HOSTNAME);
-            mdns_resp_add_service(nif, "BBC Micro", "_http", DNSSD_PROTO_TCP, 80, NULL, NULL);
+            mdns_resp_add_service(nif, "8-bit Retro", "_http", DNSSD_PROTO_TCP, 80, NULL, NULL);
         } else {
             mdns_resp_announce(nif);
         }

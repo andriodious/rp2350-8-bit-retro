@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BBC Micro RP2350</title>
+<title>RP2350 8-bit Retro</title>
 <style>
 :root {
   --bg: #f4efe4; --panel: #fffdf8; --ink: #2a2622; --muted: #6f675d; --line: #ddd4c4;
@@ -158,7 +158,7 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 <body>
 <main>
 <header>
-  <h1><a href="https://github.com/8bitkick/rp2350-bbc-micro" target="_blank" rel="noopener" title="The project on GitHub"><span id="mname">BBC Micro</span> <span>RP2350</span></a></h1>
+  <h1><a href="https://github.com/andriodious/rp2350-8-bit-retro" target="_blank" rel="noopener" title="The project on GitHub"><span id="mname">RP2350</span> <span>8-bit Retro</span></a></h1>
   <div class="msel" id="msel" hidden title="Both machines are in the flash: restart as the other one">
     <span>Machine</span><button data-m="master">BBC Master</button><button data-m="beeb">BBC Model B</button><button data-m="c64">Commodore 64</button>
   </div>
@@ -174,7 +174,7 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
   <div class="row">
     <span class="row" id="sound" hidden>
       <button id="soundtest" hidden>Test speaker</button>
-      <button id="soundon" title="The BBC's sound on the speaker">Sound</button>
+      <button id="soundon" title="Play the selected machine's sound through the speaker">Sound</button>
       <label class="check" for="vol">Volume <input type="range" id="vol" min="0" max="200" step="5"></label>
     </span>
     <span class="row" id="lights" hidden>
@@ -234,7 +234,7 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
   <h2>Keyboard</h2>
   <div id="kbwrap"><div id="kbcase"><div id="kb"></div></div></div>
   <div class="row" id="capture-row" style="margin-top:10px">
-    <button id="capture" title="Send your own keyboard's keys to the BBC (by position, as on a BBC keyboard)">Use my keyboard</button>
+    <button id="capture" title="Send your keyboard input to the selected machine">Use my keyboard</button>
     <input type="text" id="typeit" placeholder="type text to send, e.g. CHAIN&quot;ELITE&quot;">
     <button id="send">Send ⏎</button>
   </div>
@@ -610,7 +610,7 @@ function show(s) {
     $('drop').title=c64?'Choose a .d64, .d81 or .zip file':'Choose a .ssd, .dsd or .zip file';
     $('typeit').placeholder=c64?'LOAD"*",8,1':'CHAIN"ELITE"';
     $('mname').textContent = name;
-    document.title = name + ' RP2350';
+    document.title = name + ' — RP2350 8-bit Retro';
   }
   // both machines in the flash: the switch, the one running lit
   if (switchingTo && s.machine === switchingTo) switchingTo = null;

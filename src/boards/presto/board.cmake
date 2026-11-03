@@ -1,4 +1,4 @@
-option(NIMBUS_TEST "Experimental web Bluetooth controller test" OFF)
+option(NIMBUS_TEST "Original Nimbus Bluetooth controller support (legacy option name)" ON)
 # The Pimoroni Presto (RP2350B, 8 MB PSRAM, 480x480 ST7701 panel, WiFi, SD card, piezo, seven
 # LEDs on its back): what a machine's firmware needs of it. Included by the top-level
 # CMakeLists.txt (-DBOARD=presto); a machine calls board_setup(<target>). See

@@ -63,7 +63,7 @@ include(${BOARD_DIR}/board.cmake)      # the board: PICO_BOARD, and board_setup(
 include(${COMMON_DIR}/common.cmake)     # common_setup()
 include(pico_sdk_import.cmake)
 
-project(rp2350_bbc_micro C CXX ASM)
+project(rp2350_8_bit_retro C CXX ASM)
 if (MACHINE STREQUAL "beeb")
     set(CMAKE_C_STANDARD 11)   # (the Master's core builds with the compiler's default)
 endif()
