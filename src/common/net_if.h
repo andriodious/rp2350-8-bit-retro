@@ -13,6 +13,10 @@ extern "C" {
 // core 0; a board without a network builds without them.
 
 void net_init(void);        // once the machine is set up: start when it's running
+void net_boot_poll(void);   // connect without accepting uploads during the boot banner
+void net_boot_status(char *out, size_t size);
+bool net_boot_configured(void);
+bool net_boot_has_address(void);
 void net_poll(void);        // whenever core 0 has a moment: move packets
 void net_frame(void);       // between frames: act on requests
 // /api/status's network part: ',"wifi":"...","fetch":{...}' (a JSON fragment, leading comma)

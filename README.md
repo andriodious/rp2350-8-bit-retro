@@ -59,9 +59,10 @@ for options and an explanation of the legacy build entry points.
 2. Copy `rp2350-8-bit-retro-presto.uf2` to that drive.
 3. Use the existing Wi-Fi setup procedure in [the Presto network guide](docs/presto/wifi.md)
    if Wi-Fi has not been configured. Existing Wi-Fi settings are retained.
-4. Open `http://beeb.local/` or the device's IP address, then select a machine.
+4. Open `http://retro8bit.local/` or the device's IP address, then select a machine.
 
-The hostname intentionally remains `beeb.local` for existing installations.
+After flashing this version, use `retro8bit.local` instead of the previous
+`beeb.local` address. Saved Wi-Fi credentials are retained.
 The tested flash layout and machine identifiers remain compatible. Normal combined
 builds do not include save-disk overwrite payloads. Saved Nimbus pairing and
 profiles from test 3 onwards are retained. Refresh the browser after updating.
@@ -96,3 +97,10 @@ Different components carry their own terms; this project does not relicense them
 ROMs and Elite are separate copyrighted assets. Fetching or crediting them does
 not change their ownership or grant new redistribution rights. Review the relevant
 upstream notices before distributing firmware with embedded assets.
+
+### Startup banner
+
+A power-on screen shows the build, DHCP address and joystick status. With Wi-Fi
+configured it waits for an address, then holds it for two more seconds (30-second
+network timeout); otherwise it shows for three seconds.
+Machine switching skips the banner. See [startup banner details](docs/boot-banner.md).

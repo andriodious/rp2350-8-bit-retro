@@ -23,6 +23,7 @@
 // !perf (overlay), !leds (ambient), !wifi <ssid> <password>. Anything else goes to the machine
 // (machine_usb_command: the Model B's crtc, state, peek, ...), then to a program built in
 // alongside (app.c: app_command).
+#include "boot_banner.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -239,6 +240,7 @@ void frontend_init(void) {
 #if BOARD_HAS_NET
     net_init();
 #endif
+    boot_banner_show();
 }
 
 void frontend_poll(void) {

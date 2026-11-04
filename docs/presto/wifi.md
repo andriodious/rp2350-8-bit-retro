@@ -13,6 +13,6 @@ python3 tools/presto.py net
 ```
 
 The first command saves the network and restarts the Presto. Allow 10–20 seconds
-to connect before asking for network status. Open `http://beeb.local/` or the IP
+to connect before asking for network status. Open `http://retro8bit.local/` or the IP
 address reported by the second command from a browser on the same network. With
 multiple Prestos, use each device's own IP address to avoid hostname ambiguity.

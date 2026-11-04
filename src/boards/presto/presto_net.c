@@ -1,5 +1,5 @@
 /*
- * The Presto's network (net_if.h): WiFi through its RM2 module (CYW43439), DHCP, mDNS (beeb.local),
+ * The Presto's network (net_if.h): WiFi through its RM2 module (CYW43439), DHCP, mDNS (retro8bit.local),
  * the WiFi network saved in flash, and a small HTTP server: the web page and /api/<name>, each
  * request carried out by the command layer (src/common/api), so the page and the USB channel
  * (tools/presto.py) share every command.
@@ -49,7 +49,7 @@
 #include "presto_bluetooth.h"
 #endif
 
-#define HOSTNAME "beeb"
+#define HOSTNAME "retro8bit"
 
 extern const uint8_t presto_web_page[];     // src/common/api/web/index.html, gzipped (presto_web_page.c, generated)
 extern const uint32_t presto_web_page_len;
@@ -130,7 +130,7 @@ static void join(void) {
 }
 
 static void start_server(void);
-static bool net_wanted, net_started;
+static bool net_wanted, net_started, server_pending;
 
 // started from net_frame once the machine is running, so it boots without waiting on the
 // WiFi chip (its firmware takes a moment to load)
@@ -145,7 +145,7 @@ static void net_start_step(uint32_t n) {
     c64_network_phase(n);
 #endif
 }
-static void net_start(void) {
+static void net_start(bool boot_banner) {
     const cred_t *c = saved_cred();
     if (!c) {
         printf("NET no WiFi network saved (!wifi <ssid> <password>)\n");
@@ -164,7 +164,8 @@ static void net_start(void) {
     // no power saving: it adds a lot of latency to every key press from the web page
     cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
     net_start_step(43);
-    start_server();
+    if (boot_banner) server_pending = true;
+    else start_server();
     net_start_step(44);
     join();
     net_start_step(45);
@@ -223,6 +224,25 @@ static const char *link_name(void) {
         case CYW43_LINK_BADAUTH: return "wrong password";
         default: return "joining";
     }
+}
+
+void net_boot_poll(void) {
+    if (net_wanted && !net_started) {
+        net_started = true;
+        net_start(true);
+    }
+    net_poll();
+}
+
+bool net_boot_configured(void) { return saved_cred() != NULL; }
+bool net_boot_has_address(void) {
+    return wifi_on && link_status == CYW43_LINK_UP &&
+        !ip4_addr_isany_val(*netif_ip4_addr(&cyw43_state.netif[CYW43_ITF_STA]));
+}
+void net_boot_status(char *out, size_t size) {
+    if (net_boot_has_address())
+        snprintf(out, size, "%s", ip4addr_ntoa(netif_ip4_addr(&cyw43_state.netif[CYW43_ITF_STA])));
+    else snprintf(out, size, "%s", link_name());
 }
 
 void net_print_status(void) {
@@ -988,9 +1008,10 @@ void net_frame(void) {
     if (frames < 50) frames++;
     if (net_wanted && !net_started && frames == 50) {
         net_started = true;
-        net_start();
+        net_start(false);
     }
     if (!wifi_on) return;
+    if (server_pending) { server_pending = false; start_server(); }
     last_poll_us -= 1000;   // (always poll here: in turbo core 0 seldom waits for core 1)
     net_poll();
     // a disc that's arrived: from its staging area to the start of the disc RAM, where drive 0 reads it

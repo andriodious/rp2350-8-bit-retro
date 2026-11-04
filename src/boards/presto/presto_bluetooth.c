@@ -250,10 +250,10 @@ int presto_bluetooth_command(const char *s) {
     }
     return 400;
 }
-void presto_bluetooth_frame(void) {
+static void bluetooth_frame(bool save) {
     if(!store_started)return;
     /* Never erase flash from a BTstack callback. Do not repeatedly retry failed writes. */
-    if(controller_store_pending()&&!store_error)store_error=!controller_store_flush();
+    if(save&&controller_store_pending()&&!store_error)store_error=!controller_store_flush();
     uint32_t now=now_ms();
     if(!nimbus_retry_due(ready,reconnect,scanning||connecting||connected||cid,now,retry_at))return;
     if(!remembered(selected))return;
@@ -261,6 +261,18 @@ void presto_bluetooth_frame(void) {
     error=hid_host_connect(selected,HID_PROTOCOL_MODE_REPORT,&cid);
     if(error){connecting=false;cid=0;note_failure(error,1);retry_at=now+RECONNECT_LISTEN_MS;}
 }
+void presto_bluetooth_frame(void) { bluetooth_frame(true); }
+// Core 1 may not yet be ready for flash lockout during startup. Defer bond writes.
+void presto_bluetooth_boot_poll(void) { bluetooth_frame(false); }
+const char *presto_bluetooth_boot_status(void) {
+    bd_addr_t saved;
+    if (connected && descriptor_ready) return "CONNECTED";
+    if (connected || connecting) return "CONNECTING";
+    if (!store_started) return "NOT STARTED";
+    if (!remembered(saved)) return "NOT PAIRED";
+    return ready ? "SEARCHING" : "STARTING";
+}
+
 void presto_bluetooth_prepare_restart(void) {
     if(!store_started)return;
     reconnect=false;gap_connectable_control(0);

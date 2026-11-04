@@ -6,7 +6,7 @@
 <title>RP2350 8-bit Retro</title>
 <style>
 :root {
-  --bg: #f4efe4; --panel: #fffdf8; --ink: #2a2622; --muted: #6f675d; --line: #ddd4c4;
+  --bg: #f2f2f2; --panel: #fafafa; --ink: #282828; --muted: #666666; --line: #d6d6d6;
   --accent: #b8321f; --ok: #2f7d4a; --warn: #a86400;
   /* the BBC's own key colours (from the xr.bbcmic.ro model's key texture) */
   --bbc-key: #272727; --bbc-fkey: #e14621; --bbc-break: #202020; --bbc-cursor: #54564d; --bbc-legend: #f4f4f0;
@@ -14,7 +14,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1b1a18; --panel: #24221f; --ink: #ece6da; --muted: #a39a8c; --line: #3a3732;
+    --bg: #1b1b1b; --panel: #242424; --ink: #ededed; --muted: #a3a3a3; --line: #3a3a3a;
     --accent: #e0563f; --ok: #5cb87a; --warn: #e0a040;
   }
 }
@@ -147,11 +147,11 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 #appmsg.err { color: var(--accent); } #appmsg.ok { color: var(--ok); }
 #program { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
 #program h3 { font-size: 15px; margin: 0 0 10px; font-weight: 600; }
-#kbcase.c64 { background:#b6a482; }
-#kbcase.c64 #kb { background:#463d32; }
-#kbcase.c64 .k { background:#493f36; color:#fff5df; border-bottom:3px solid #241f1b; }
-#kbcase.c64 .c64fn { background:#c1b7a1; color:#29231e; font-size:12px; }
-#kbcase.c64 .k.latched, #kbcase.c64 .k.down { background:#946c42; }
+#kbcase.c64 { background:#a09881; }
+#kbcase.c64 #kb { background:#bfb39d; }
+#kbcase.c64 .k { background:#574738; color:#f5f5f5; border-bottom:3px solid #242424; }
+#kbcase.c64 .c64fn { background:#b9996a; color:#292929; font-size:12px; }
+#kbcase.c64 .k.latched, #kbcase.c64 .k.down { background:#707070; }
 #c64notice { white-space:pre-wrap; padding:12px; border:1px solid #ba4a21; }
 </style>
 </head>
@@ -609,6 +609,7 @@ function show(s) {
     $('sthsel').hidden=c64; $('sthfind').hidden=true; $('app').hidden=c64;
     $('drop').title=c64?'Choose a .d64, .d81 or .zip file':'Choose a .ssd, .dsd or .zip file';
     $('typeit').placeholder=c64?'LOAD"*",8,1':'CHAIN"ELITE"';
+    $('soundon').title = `Play ${name} sound through the speaker`;
     $('mname').textContent = name;
     document.title = name + ' — RP2350 8-bit Retro';
   }

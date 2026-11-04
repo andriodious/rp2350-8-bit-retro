@@ -1,7 +1,7 @@
 # The HTTP API
 
 Everything the web panel does goes through a small HTTP API on the board, so a script can do it
-too. The board answers at `http://beeb.local/` (or its address: `python3 tools/presto.py net`).
+too. The board answers at `http://retro8bit.local/` (or its address: `python3 tools/presto.py net`).
 Replies are JSON; an error is `{"error": "why"}` with a 4xx or 5xx code.
 
 Each command is also on the USB serial channel as `!<name> <args>` (`tools/presto.py` sends them),
@@ -9,9 +9,9 @@ replying in plain text instead of JSON. The code is `src/common/api/api.c` (the 
 `src/boards/presto/presto_net.c` (the HTTP server, and the uploads below).
 
 ```sh
-curl http://beeb.local/api/status
-curl -X POST -d 1 http://beeb.local/api/turbo
-curl --data-binary @Repton.ssd "http://beeb.local/api/disc?name=Repton.ssd"
+curl http://retro8bit.local/api/status
+curl -X POST -d 1 http://retro8bit.local/api/turbo
+curl --data-binary @Repton.ssd "http://retro8bit.local/api/disc?name=Repton.ssd"
 ```
 
 ## Reading
@@ -77,7 +77,7 @@ The keys for the examples: RETURN `49`, SPACE `62`, SHIFT `00`, CTRL `01`, Z `61
 panel's keyboard (`ROWS_BEEB` and `ROWS_MASTER` in `src/common/api/web/index.html`) has them all. Pressing SPACE:
 
 ```sh
-curl -X POST -d "d62 u62" http://beeb.local/api/keys
+curl -X POST -d "d62 u62" http://retro8bit.local/api/keys
 ```
 
 ## Discs

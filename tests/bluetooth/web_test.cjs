@@ -15,7 +15,7 @@ const fs=require('fs'),path=require('path'),assert=require('assert');
   });
   await page.goto('http://presto.test/');
   assert((await page.title()).includes('RP2350 8-bit Retro'));
-  assert.equal(await page.locator('#soundon').getAttribute('title'),"Play the selected machine's sound through the speaker");
+  assert.equal(await page.locator('#soundon').getAttribute('title'),"Play BBC Master sound through the speaker");
   assert.equal(await page.locator('#capture').getAttribute('title'),"Send your keyboard input to the selected machine");
   await page.locator('#bluetoothPanel').waitFor({state:'visible'});
   await page.getByRole('button',{name:'Scan for controllers',exact:true}).click();
@@ -32,6 +32,7 @@ const fs=require('fs'),path=require('path'),assert=require('assert');
   await page.evaluate(()=>show({...status,machine:'master',bluetooth:{state:'connected',devices:[],config:Array(19).fill(0)}}));
   assert.equal(await page.locator('#btMap4').inputValue(),'98'); // polling preserves unsaved changes
   await page.evaluate(()=>show({...status,machine:'c64',bluetooth:{state:'idle',devices:[]}}));
+  assert.equal(await page.locator('#soundon').getAttribute('title'),'Play Commodore 64 sound through the speaker');
   await page.getByRole('button',{name:'Default mappings',exact:true}).click();
   assert.equal(await page.locator('#btPort').inputValue(),'2');assert.equal(await page.locator('#btMap0').inputValue(),'71');
   await page.evaluate(()=>show({...status,machine:'beeb',bluetooth:{state:'idle',devices:[]}}));

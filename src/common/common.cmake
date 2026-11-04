@@ -4,8 +4,15 @@
 # guard, the sound. A machine calls common_setup(<target>).
 
 function(common_setup TARGET)
+    execute_process(COMMAND git describe --always --dirty WORKING_DIRECTORY ${TOP_DIR}
+        OUTPUT_VARIABLE RETRO_BUILD_ID OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(NOT RETRO_BUILD_ID)
+        set(RETRO_BUILD_ID "source archive")
+    endif()
+    target_compile_definitions(${TARGET} PRIVATE RETRO_BUILD_ID="${RETRO_BUILD_ID}")
     target_sources(${TARGET} PRIVATE
             ${COMMON_DIR}/api/api.c
+            ${COMMON_DIR}/boot_banner.c
             ${COMMON_DIR}/frontend.c
             ${COMMON_DIR}/drive.c           # the disc in drive 0, the save disc
             ${COMMON_DIR}/mem.c             # the flash, by the board's layout
