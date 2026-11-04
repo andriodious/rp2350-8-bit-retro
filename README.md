@@ -7,6 +7,12 @@ This project continues [8bitkick/rp2350-bbc-micro](https://github.com/8bitkick/r
 as a broader emulator platform. The original project remains focused on its BBC
 experiment. Original Git history, source notices and licence files are retained.
 
+## Download and try it
+
+**[Download v0.2.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.2.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
+
+See the **[v0.2.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.2.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
+
 ## Machines and features
 
 | Machine | Emulator foundation | Disk support | Controller support |
@@ -33,9 +39,12 @@ image, choose **N** when asked to use its fastloader.
 
 ## Build on a Raspberry Pi or Linux computer
 
-Start in an extracted source folder or a clone of this project. The intended
-GitHub location is `andriodious/rp2350-8-bit-retro`; the repository rename/publication
-is a separate step described in [project transition](docs/project-transition.md).
+Start in the extracted release source folder or clone this repository:
+
+```sh
+git clone --branch retro-platform https://github.com/andriodious/rp2350-8-bit-retro.git
+cd rp2350-8-bit-retro
+```
 
 ```sh
 scripts/setup.sh --no-build --roms
