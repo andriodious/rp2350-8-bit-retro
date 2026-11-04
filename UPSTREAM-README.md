@@ -1,3 +1,7 @@
+> Historical upstream README, retained for attribution and reference. For this fork,
+> use **http://8bitretro.local/** and follow the current [README](README.md).
+> The `beeb.local` links below describe the original upstream firmware.
+
 > Historical README preserved from the BBC/C64 integration baseline. Links, release instructions and feature claims below describe that earlier project; use [README.md](README.md) for this project.
 
 > Experimental C64 integration (r11): see [build/dependency instructions](docs/c64-pr-build.md) and [credits](docs/c64-credits.md). FRANK is fetched from the configured fork; Elite is downloaded separately. The tested performance improvements are enabled by default; see [performance and validation](docs/c64-optimised-release.md).

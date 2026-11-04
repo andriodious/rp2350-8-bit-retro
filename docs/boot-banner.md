@@ -45,3 +45,7 @@ both on and off, and switching between all three machines after boot.
 Hardware testing of the IP-wait banner firmware was reported successful by the
 project owner on 4 November 2026. The tested package was
 `retro-ip-wait-banner-test.zip`; machine switches bypass the banner.
+
+The subsequent `8bitretro.local` hostname and blue web-theme build also passed
+hardware testing, as reported by the project owner on 4 November 2026. The
+README screenshot was refreshed from that tested interface.

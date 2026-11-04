@@ -13,7 +13,8 @@ retaining its history and credits and adding the integrated C64 and Nimbus work.
 - A branded build entry point and combined CI artifact.
 
 Saved Wi-Fi, disk-save locations and Nimbus pairing/profile format are unchanged.
-The hostname remains `beeb.local`; use the device's IP address if needed.
+This initial release used `beeb.local`. Current builds use `8bitretro.local`;
+use the device's IP address if needed.
 
 This release is based on hardware-tested controller test 5 and the clean Nimbus
 build. Project branding and packaging changes receive local build/tests; they do
