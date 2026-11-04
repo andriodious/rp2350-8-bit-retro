@@ -7,7 +7,7 @@
 // one 4-bit row per BBC scanline, scanned out by PIO and DMA
 // (presto_lcd.c).
 //
-// The USB channel and the web panel (http://retro8bit.local/ once on WiFi) are the
+// The USB channel and the web panel (http://8bitretro.local/ once on WiFi) are the
 // common front end's (src/common/frontend.c, src/common/api); this file gives
 // it the machine (machine_if.h): keys, turbo, the figures.
 #include <stdio.h>

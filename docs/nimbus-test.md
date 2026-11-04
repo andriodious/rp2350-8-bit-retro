@@ -8,7 +8,7 @@ confirmed on the user's hardware. The user also confirmed test 2 game mappings w
 ## Start here
 
 1. Keep the working firmware as a rollback copy. Flash `presto_nimbus_test5.uf2`.
-2. Refresh `http://retro8bit.local/` (or the Presto's IP address). Scroll to **Nimbus
+2. Refresh `http://8bitretro.local/` (or the Presto's IP address). Scroll to **Nimbus
    controller**, put the original Nimbus into pairing mode, scan, wait about
    11 seconds and connect as before.
 3. Open **Game controls** and click **Default mappings**, then **Apply controls**.

@@ -121,7 +121,7 @@ void boot_banner_show(void) {
     text(fb, 132, 34, "8-BIT RETRO");
     text(fb, 20, 72, "BUILD " RETRO_BUILD_ID);
     text(fb, 20, 86, __DATE__ " " __TIME__);
-    text(fb, 20, 196, "WEB: RETRO8BIT.LOCAL");
+    text(fb, 20, 196, "WEB: 8BITRETRO.LOCAL");
     text(fb, 20, 216, "STARTING EMULATOR...");
     char value[48], line[64], last_value[48], last_line[64];
     read_status(value, sizeof value, line, sizeof line);

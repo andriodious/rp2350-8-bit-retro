@@ -242,5 +242,5 @@ to the RP2350 drive that appears (or re-run with --flash).
 
 It boots straight into $BOOTS. To use the web control panel, give it your WiFi network once over USB:
   python3 tools/presto.py wifi secrets.py     (a Pimoroni-style secrets.py with WIFI_SSID / WIFI_PASSWORD)
-then open http://retro8bit.local/
+then open http://8bitretro.local/
 EOF

@@ -37,7 +37,7 @@ function(board_setup TARGET)
     target_include_directories(${TARGET} PRIVATE ${BOARD_DIR} ${BOARD_DIR}/fatfs)
     target_compile_definitions(${TARGET} PRIVATE
             BOARD_FLASH_SAVE_SHIFT=${BOARD_FLASH_SAVE_SHIFT}
-            CYW43_HOST_NAME="retro8bit")     # its DHCP name; it also answers as retro8bit.local (mDNS)
+            CYW43_HOST_NAME="8bitretro")     # its DHCP name; it also answers as 8bitretro.local (mDNS)
     target_link_libraries(${TARGET} PRIVATE
             hardware_pio hardware_dma hardware_spi hardware_pwm hardware_adc hardware_flash pico_flash
             pico_cyw43_arch_lwip_poll   # WiFi, polled from core 0 (presto_net.c)

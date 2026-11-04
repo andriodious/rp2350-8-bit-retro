@@ -59,10 +59,10 @@ for options and an explanation of the legacy build entry points.
 2. Copy `rp2350-8-bit-retro-presto.uf2` to that drive.
 3. Use the existing Wi-Fi setup procedure in [the Presto network guide](docs/presto/wifi.md)
    if Wi-Fi has not been configured. Existing Wi-Fi settings are retained.
-4. Open `http://retro8bit.local/` or the device's IP address, then select a machine.
+4. Open `http://8bitretro.local/` or the device's IP address, then select a machine.
 
-After flashing this version, use `retro8bit.local` instead of the previous
-`beeb.local` address. Saved Wi-Fi credentials are retained.
+After flashing this version, use `8bitretro.local` instead of the previous
+`beeb.local` or interim `retro8bit.local` address. Saved Wi-Fi credentials are retained.
 The tested flash layout and machine identifiers remain compatible. Normal combined
 builds do not include save-disk overwrite payloads. Saved Nimbus pairing and
 profiles from test 3 onwards are retained. Refresh the browser after updating.

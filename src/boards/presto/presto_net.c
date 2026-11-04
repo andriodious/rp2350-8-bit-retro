@@ -1,5 +1,5 @@
 /*
- * The Presto's network (net_if.h): WiFi through its RM2 module (CYW43439), DHCP, mDNS (retro8bit.local),
+ * The Presto's network (net_if.h): WiFi through its RM2 module (CYW43439), DHCP, mDNS (8bitretro.local),
  * the WiFi network saved in flash, and a small HTTP server: the web page and /api/<name>, each
  * request carried out by the command layer (src/common/api), so the page and the USB channel
  * (tools/presto.py) share every command.
@@ -49,7 +49,7 @@
 #include "presto_bluetooth.h"
 #endif
 
-#define HOSTNAME "retro8bit"
+#define HOSTNAME "8bitretro"
 
 extern const uint8_t presto_web_page[];     // src/common/api/web/index.html, gzipped (presto_web_page.c, generated)
 extern const uint32_t presto_web_page_len;

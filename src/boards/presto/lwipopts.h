@@ -44,7 +44,7 @@
 #define LWIP_DHCP_DOES_ACD_CHECK    0
 #define SO_REUSE                    1
 
-// retro8bit.local
+// 8bitretro.local
 #define LWIP_IGMP                   1
 #define LWIP_MDNS_RESPONDER         1
 #define LWIP_NUM_NETIF_CLIENT_DATA  1
