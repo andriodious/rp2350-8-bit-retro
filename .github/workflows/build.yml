@@ -18,11 +18,11 @@ jobs:
         board: [presto]
         features: [plain, sound+ambient]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Host tools
         run: sudo apt-get update && sudo apt-get install -y ninja-build
       - name: Toolchain and Pico SDK (cached)
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: deps
           key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh') }}
@@ -47,7 +47,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DMACHINE=${{ matrix.machine }} -DBOARD=${{ matrix.board }} $F
           ninja -C build
           ls -la build/*.uf2
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.machine }}-${{ matrix.board }}-${{ matrix.features == 'plain' && 'plain' || 'sound-ambient' }}
           path: build/*.uf2
@@ -61,9 +61,9 @@ jobs:
       matrix:
         machine: [beeb, master]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: sudo apt-get update && sudo apt-get install -y ninja-build
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: deps
           key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh') }}
@@ -106,7 +106,7 @@ jobs:
       matrix:
         target: [native, qemu]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Elite (for the Elite scenarios)
         run: scripts/fetch-elite.sh
       - name: The Model B's ROMs
@@ -128,9 +128,9 @@ jobs:
     name: Combined Presto platform
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: sudo apt-get update && sudo apt-get install -y ninja-build
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: deps
           key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh') }}
@@ -148,7 +148,7 @@ jobs:
           . deps/env.sh
           scripts/build-retro.sh
           python3 tests/bluetooth/firmware_test.py build-retro "$(command -v arm-none-eabi-nm)"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: rp2350-8-bit-retro-presto
           path: build-retro/rp2350-8-bit-retro-presto.uf2
