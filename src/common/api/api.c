@@ -21,6 +21,9 @@
 #include "mem.h"
 #include "system.h"
 #include "board.h"
+#if MACHINE_C64
+#include "t64.h"
+#endif
 #if BOARD_HAS_NET
 #include "net_if.h"
 #endif
@@ -217,6 +220,7 @@ static void status_json(char *j, size_t size) {
 #endif
 #if MACHINE_C64
     if(n>0 && (size_t)n<size){c64_diagnostics_json(j+n,size-n);n+=(int)strlen(j+n);}
+    if(n>0 && (size_t)n<size){c64_tape_status(j+n,size-n);n+=(int)strlen(j+n);}
 #endif
 #if MACHINE_C64 && WITH_SOUND
     extern void c64_audio_json(char *, uint32_t);
@@ -584,10 +588,46 @@ static void cmd_bluetooth(api_req_t *r) {
     api_reply(r,code,"{\"ok\":%s}",code==200?"true":"false");
 }
 #endif
+#if MACHINE_C64
+// The directory is separate from status: even a 64-program archive must not
+// crowd out diagnostics. Reserve the closing JSON before appending each entry.
+static void cmd_tape(api_req_t *r) {
+    if (!r->json) { printf("T64 %u programs\n", c64_tape_count()); return; }
+    int written = snprintf(r->out,r->size,"{\"generation\":%lu,\"entries\":[",
+        (unsigned long)c64_tape_generation());
+    if (written < 0 || (size_t)written + 3 >= r->size) { api_error(r,500,"T64 response buffer too small"); return; }
+    size_t used = (size_t)written;
+    for (unsigned i=0;i<c64_tape_count();++i) {
+        struct t64_entry e;
+        if (!c64_tape_entry(i,&e)) { api_error(r,500,"T64 directory unavailable"); return; }
+        char q[40], entry[160];
+        api_json_str(q,sizeof q,e.name);
+        int n=snprintf(entry,sizeof entry,"%s{\"index\":%u,\"name\":%s,\"start\":%u,\"size\":%lu,\"run\":%s}",
+            i?",":"",i,q,e.start,(unsigned long)e.length,e.runnable?"true":"false");
+        if(n<0 || (size_t)n>=sizeof entry || used+(size_t)n+3>r->size){api_error(r,500,"T64 directory response too large");return;}
+        memcpy(r->out+used,entry,(size_t)n);used+=(size_t)n;
+    }
+    memcpy(r->out+used,"]}",3);
+}
+static void cmd_tape_load(api_req_t *r) {
+    unsigned long generation; unsigned index,run; char extra;
+    if(sscanf(r->args,"%lu %u %u %c",&generation,&index,&run,&extra)!=3 || run>1){
+        api_error(r,400,"Expected archive generation, program index and run flag");return;
+    }
+    if(generation!=c64_tape_generation()){api_error(r,409,"The mounted archive changed; select the program again");return;}
+    if(!c64_tape_select(index,run!=0)){api_error(r,400,"No such program, or it cannot be started with RUN");return;}
+    api_reply(r,200,"{}");
+}
+#endif
+
 // ---- The commands
 
 static const api_cmd_t s_cmds[] = {
     {"status", NULL, false, cmd_status},
+#if MACHINE_C64
+    {"tape", NULL, false, cmd_tape},
+    {"tape/load", NULL, true, cmd_tape_load},
+#endif
 #if NIMBUS_TEST
     {"bluetooth", NULL, true, cmd_bluetooth},
 #endif

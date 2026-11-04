@@ -7,7 +7,7 @@ const fs=require('fs');
  await page.route('**/*',route=>{const u=new URL(route.request().url());if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});if(u.pathname==='/api/sound'){soundPosted.push(route.request().postData());return route.fulfill({contentType:'application/json',body:JSON.stringify({machine:'c64',sound:{on:true,vol:200}})});}if(u.pathname==='/api/keys')posted.push(route.request().postData());let data={};if(u.pathname==='/api/status')data={machine:'c64',board:'presto',system:{machines:['master','beeb','c64']},disc:'test.d81',core0:60,core1:20,mhz:250,temp:40,sound:{on:false,vol:50},ambient:{on:true,bright:40,locks:false},app:{state:'none'}};if(u.pathname==='/api/discs')data={card:true,discs:[{name:'test.d81',size:819200},{name:'test.d64',size:174848}]};return route.fulfill({contentType:'application/json',body:JSON.stringify(data)});});
  await page.goto('http://presto.test/');await page.waitForFunction(()=>document.querySelector('#mname').textContent==='Commodore 64');
  if(await page.locator('#sthsel').isVisible())throw Error('BBC archive shown in C64');
- if(await page.locator('#file').getAttribute('accept')!=='.d64,.d81,.zip')throw Error('wrong image types');
+ if(await page.locator('#file').getAttribute('accept')!=='.d64,.d81,.t64,.zip')throw Error('wrong image types');
  if(!await page.locator('#lights').isVisible())throw Error('C64 lighting controls missing');
  await page.locator('#soundtest').click();
  if(!soundPosted.includes('test=1'))throw Error('Speaker test request missing');

@@ -28,6 +28,8 @@ See the **[v0.2.0 release and first-time setup instructions](https://github.com/
 - Tested C64 optimisations: CPU/VIC code in SRAM, packed pixel conversion and
   overlapping emulation/display conversion. The RP2350 clock remains 250 MHz.
 
+The development build adds read-only C64 `.t64` loading from SD or web upload, with a program selector for multi-entry archives. This is not included in v0.2.0. See [T64 support and limitations](docs/c64-t64.md).
+
 Pimoroni Presto is the first supported board. Nimbus validation is for the
 **original Nimbus**, not Nimbus+ or arbitrary Bluetooth gamepads. Compatibility
 with every game or disk fastloader is not guaranteed; for the supplied C64 Elite

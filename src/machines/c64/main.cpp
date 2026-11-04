@@ -2,6 +2,7 @@
 #include "controller.h"
 #endif
 #include "profile.h"
+#include "t64.h"
 #include "pixel_convert.h"
 #include <atomic>
 #include <cstdio>
@@ -69,6 +70,11 @@ extern "C" void c64_diagnostics_json(char *out,uint32_t size){
 static bool turbo, reset_pending, install_hold;
 static uint8_t keys[8],reverse_keys[8];
 static uint32_t boot_frames;
+static t64_archive tape;
+static uint32_t tape_generation;
+static unsigned tape_selected;
+static bool tape_pending, tape_run, boot_requested;
+static const char *tape_state = "none";
 static const char *typing;
 static uint8_t joystick=255;
 static uint8_t controller_joy[2]={255,255};
@@ -129,7 +135,7 @@ extern "C" const char *machine_name(){return "c64";}
 extern "C" void MACHINE_KEY_IMPL(int code,bool down){
     if(recovery)return;
     // A real key takes over from the startup typing, including during its delay.
-    if(down){typing=nullptr;boot_frames=0;}
+    if(down){typing=nullptr;boot_frames=0;if(tape_pending)tape_state="cancelled";tape_pending=false;}
     if(code==134){if(down)c64_nmi();return;}
     if(code<0 || code>=256)return;
     pressed[code]=down;rebuild_keys();
@@ -148,8 +154,14 @@ extern "C" void machine_key_sdl(uint32_t s,bool down){
     case 224:case 228:c=58;break;case 225:case 229:c=15;break;case 226:case 230:c=61;break;}
     if(c>=0)machine_key(c,down);
 }
-extern "C" void machine_break(){if(recovery){watchdog_reboot(0,0,10);return;}reset_pending=true;}
-extern "C" void machine_boot_shift(){boot_frames=100;}
+extern "C" void machine_break(){if(recovery){watchdog_reboot(0,0,10);return;}reset_pending=true;
+    if(!boot_requested){boot_frames=0;typing=nullptr;tape_pending=false;if(tape.count)tape_state="ready";}
+    boot_requested=false;
+}
+extern "C" void machine_boot_shift(){
+    boot_requested=true;boot_frames=100;
+    if(tape.count){tape_pending=true;tape_state="loading";}
+}
 extern "C" bool machine_turbo_get(){return turbo;}
 extern "C" void machine_turbo_set(bool on){turbo=on;}
 extern "C" bool machine_overlay_has(){return false;}
@@ -166,11 +178,36 @@ if(!strcmp(cmd,"c64prof")){c64_profile::print();return true;}
 if(!strcmp(cmd,"restore")){c64_nmi();return true;}return false;}
 extern "C" void machine_drive_load(const uint8_t *image,uint32_t n,bool,bool boot){
     if(recovery)return;
+    tape={};tape_generation++;tape_pending=false;tape_state="none";
     c64_unmount_disk();typing=nullptr;boot_frames=0;
     uint8_t *dst=board_psram()+1024*1024;
     if(image && n){memmove(dst,image,n);c64_disk_set(dst,n);c64_mount_disk(dst,n,"presto.d64");}
     else c64_disk_set(nullptr,0);
     if(boot){reset_pending=true;boot_frames=image?100:0;}
+}
+// Retain the archive in the mounted-media PSRAM region, never in upload staging.
+extern "C" unsigned c64_tape_count(){return tape.count;}
+extern "C" uint32_t c64_tape_generation(){return tape_generation;}
+extern "C" bool c64_tape_entry(unsigned index,t64_entry *out){return t64_entry_get(&tape,index,out);}
+extern "C" bool c64_tape_select(unsigned index,bool run){
+    t64_entry e;
+    if(recovery || !t64_entry_get(&tape,index,&e) || (run && !e.runnable))return false;
+    tape_selected=index;tape_run=run;tape_pending=true;tape_state="loading";
+    typing=nullptr;reset_pending=true;boot_frames=100;return true;
+}
+extern "C" bool c64_tape_insert(const uint8_t *image,uint32_t n){
+    t64_archive candidate;
+    if(recovery || n>DRIVE_IMAGE_MAX || t64_open(&candidate,image,n))return false;
+    c64_unmount_disk();c64_disk_set(nullptr,0);typing=nullptr;boot_frames=0;tape_pending=false;
+    uint8_t *dst=board_psram()+1024*1024;
+    memmove(dst,image,n);candidate.data=dst;tape=candidate;tape_generation++;
+    tape_selected=0;tape_run=false;tape_state="ready";reset_pending=true;
+    if(tape.count==1){t64_entry e;t64_entry_get(&tape,0,&e);c64_tape_select(0,e.runnable);}
+    return true;
+}
+extern "C" void c64_tape_status(char *out,uint32_t size){
+    snprintf(out,size,",\"tape\":{\"generation\":%lu,\"count\":%u,\"selected\":%u,\"state\":\"%s\"}",
+        (unsigned long)tape_generation,tape.count,tape_selected,tape_state);
 }
 extern "C" uint32_t machine_drive_writes(){return c64_disk_writes();}
 extern "C" bool machine_drive_sector(int,int,uint8_t *){return false;}
@@ -257,7 +294,14 @@ reset_pending=false;memset(pressed,0,sizeof pressed);rebuild_keys();}
 #endif
 #endif
         phase(6);C64_PROFILE_CALL(FRONTEND, frontend_frame());watchdog_update();
-        if(boot_frames && !--boot_frames)typing="LOAD\"*\",8,1\rRUN\r";
+        if(boot_frames && !--boot_frames){
+            if(tape_pending){
+                tape_pending=false;
+                if(t64_load(&tape,tape_selected,c64_get_ram())){
+                    tape_state="loaded";if(tape_run)typing="RUN\r";
+                }else tape_state="error";
+            }else if(!tape.count)typing="LOAD\"*\",8,1\rRUN\r";
+        }
         if(typing && *typing){uint8_t *ram=c64_get_ram();if(ram[198]<10){ram[631+ram[198]]= *typing++;ram[198]++;}}
         phase(7);frames++;due+=20000;
         C64_PROFILE_CALL(PACING,

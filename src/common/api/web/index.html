@@ -226,6 +226,12 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
     <input type="search" id="sthq" placeholder="Search the archive: a title or a publisher" autocomplete="off">
     <select id="sthres" size="8" title="Click one to boot it"></select>
   </div>
+  <div id="tapePanel" hidden>
+    <p>T64 programs · read-only. Loading resets the C64. Tape fast loaders and subsequent cassette loads are not emulated.</p>
+    <div class="row"><select id="tapeProgram" aria-label="T64 program"></select>
+      <button id="tapeLoad">Load</button><button id="tapeRun">Load and run</button></div>
+    <p id="tapeInfo" role="status"></p>
+  </div>
   <progress id="prog" value="0" max="1" hidden></progress>
   <div id="msg"></div>
 </section>
@@ -605,9 +611,9 @@ function show(s) {
     buildKeyboard(s.machine);
     const name = MACHINES[s.machine] || s.machine;
     const c64=s.machine==='c64';
-    $('file').accept=c64?'.d64,.d81,.zip':'.ssd,.dsd,.zip';
+    $('file').accept=c64?'.d64,.d81,.t64,.zip':'.ssd,.dsd,.zip';
     $('sthsel').hidden=c64; $('sthfind').hidden=true; $('app').hidden=c64;
-    $('drop').title=c64?'Choose a .d64, .d81 or .zip file':'Choose a .ssd, .dsd or .zip file';
+    $('drop').title=c64?'Choose a .d64, .d81, .t64 or .zip file':'Choose a .ssd, .dsd or .zip file';
     $('typeit').placeholder=c64?'LOAD"*",8,1':'CHAIN"ELITE"';
     $('soundon').title = `Play ${name} sound through the speaker`;
     $('mname').textContent = name;
@@ -624,8 +630,9 @@ function show(s) {
   // the panel's figures: only in builds that have them
   // what's in the drive: a disc loaded (its name), or the built-in one (its title, and its saves)
   const builtin = (s.builtin || '').replace(/^(\S )+\S$/, t => t.replace(/ /g, '')) || (s.machine==='c64'?'No disk mounted':'The built-in disc');   // "E L I T E": ELITE
-  $('dname').textContent = s.disc ? s.disc.replace(/\.(ssd|dsd|d64|d81)$/i, '') : builtin;
-  $('dnote').textContent = s.machine==='c64'?' · disk writes last this session':'';
+  $('dname').textContent = s.disc ? s.disc.replace(/\.(ssd|dsd|d64|d81|t64)$/i, '') : builtin;
+  $('dnote').textContent = s.machine==='c64'?(s.tape?.count?' · read-only T64':' · disk writes last this session'):'';
+  showTape(s);
   const lit = s.leds | 8;   // POWER ON: lit while the board answers
   for (const bit in ledEls) ledEls[bit].classList.toggle('on', !!(lit & bit));
   // the sound: only in builds that have it
@@ -703,6 +710,48 @@ $('bright').oninput = () => {
 };
 $('boot').onclick = () => api('/api/boot');
 
+// --- Read-only T64 program selection (directory fetched once per mounted archive).
+let tapeDirectory = null, tapeFetching = false;
+function tapeControls() {
+  const entry = tapeDirectory?.entries.find(e => String(e.index) === $('tapeProgram').value);
+  const loading = status.tape?.state === 'loading';
+  $('tapeLoad').disabled = !entry || loading;
+  $('tapeRun').disabled = !entry?.run || loading;
+  $('tapeInfo').textContent = entry ?
+    `${entry.size} bytes at $${entry.start.toString(16).padStart(4,'0').toUpperCase()} · ${status.tape?.state || 'ready'}` +
+    (entry.run ? '' : ' · Load only; use the program’s own start instructions.') : '';
+}
+async function showTape(s) {
+  const active = s.machine === 'c64' && s.tape?.count > 0;
+  $('tapePanel').hidden = !active;
+  if (!active) { tapeDirectory = null; return; }
+  if (tapeDirectory?.generation === s.tape.generation) { tapeControls(); return; }
+  $('tapeLoad').disabled = $('tapeRun').disabled = true;
+  if (tapeFetching) return;
+  tapeFetching = true;
+  try {
+    const directory = await api('/api/tape', null, 'GET');
+    if (status.machine !== 'c64' || directory.generation !== status.tape?.generation) return;
+    tapeDirectory = directory;
+    $('tapeProgram').replaceChildren(...directory.entries.map(e => new Option(e.name, String(e.index))));
+    $('tapeProgram').value = String(status.tape.selected);
+    tapeControls();
+  } catch (e) { $('tapeInfo').textContent = e.message; }
+  finally { tapeFetching = false; }
+}
+$('tapeProgram').onchange = tapeControls;
+async function loadTape(run) {
+  if (!tapeDirectory) return;
+  $('tapeLoad').disabled = $('tapeRun').disabled = true;
+  try {
+    await api('/api/tape/load', `${tapeDirectory.generation} ${$('tapeProgram').value} ${run ? 1 : 0}`);
+    msg(run ? 'Loading T64 program, then RUN…' : 'Loading T64 program…');
+    pollSoon();
+  } catch (e) { msg(e.message, 'err'); }
+}
+$('tapeLoad').onclick = () => loadTape(false);
+$('tapeRun').onclick = () => loadTape(true);
+
 // --- discs
 function msg(text, cls = '') { $('msg').textContent = text; $('msg').className = cls; }
 function progress(got, total, text) {
@@ -728,7 +777,7 @@ async function unzip(buf) {
     const off = v.getUint32(p + 42, true);
     const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nlen));
     p += 46 + nlen + xlen + clen;
-    if (!(builtFor==='c64'?/\.(d64|d81)$/i:/\.(ssd|dsd)$/i).test(name)) continue;
+    if (!(builtFor==='c64'?/\.(d64|d81|t64)$/i:/\.(ssd|dsd)$/i).test(name)) continue;
     const start = off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true);
     const data = u8.subarray(start, start + csize);
     if (method === 0) return {name: name.split('/').pop(), data};
@@ -736,13 +785,13 @@ async function unzip(buf) {
     const out = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
     return {name: name.split('/').pop(), data: new Uint8Array(out)};
   }
-  throw new Error('No compatible disk image in that zip');
+  throw new Error('No compatible disk or T64 image in that zip');
 }
 
 async function bootImage(name, buf, toCard = false) {
   let data = new Uint8Array(buf);
   if (/\.zip$/i.test(name) || (data[0] === 0x50 && data[1] === 0x4b)) ({name, data} = await unzip(buf));
-  if (!(builtFor==='c64'?/\.(d64|d81)$/i:/\.(ssd|dsd)$/i).test(name)) throw new Error('Choose a disk image for this machine');
+  if (!(builtFor==='c64'?/\.(d64|d81|t64)$/i:/\.(ssd|dsd)$/i).test(name)) throw new Error('Choose a supported disk or T64 image for this machine');
   if (data.length > (builtFor==='c64'?1048576:409600)) throw new Error('too big for a disc image');
   return new Promise((resolve, reject) => {
     const x = new XMLHttpRequest();

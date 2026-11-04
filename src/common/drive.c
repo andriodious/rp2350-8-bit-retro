@@ -9,6 +9,9 @@
 #include "drive.h"
 #include "machine_if.h"
 #include "mem.h"
+#if MACHINE_C64
+#include "t64.h"
+#endif
 
 static const uint8_t *s_golden;     // the built-in disc (NULL: none)
 static uint32_t s_golden_size;
@@ -126,9 +129,14 @@ bool drive0_insert(const char *name, uint32_t size) {
     if (!dot) return false;
     bool valid64 = !strcasecmp(dot,".d64") && (size==174848 || size==175531 || size==196608 || size==197376);
     bool valid81 = !strcasecmp(dot,".d81") && (size==819200 || size==822400);
-    if (!valid64 && !valid81) return false;
+    bool tape = !strcasecmp(dot,".t64");
+    if (tape) {
+        if (!c64_tape_insert(ram, size)) return false;
+    } else {
+        if (!valid64 && !valid81) return false;
+        machine_drive_load(ram, size, false, true);
+    }
     s_persist = false;
-    machine_drive_load(ram, size, false, true);
     snprintf(s_name, sizeof s_name, "%s", name);
     s_last_writes = machine_drive_writes();
     return true;

@@ -39,3 +39,10 @@ python3 tests/c64/dependency_test.py /path/frank-c64-main.zip /path/elite-commod
 ```
 
 Native harness leak detection is disabled; its frame checks do not establish absence of memory leaks. See `docs/c64-validation.md` for this fileset's results and hardware limitations.
+
+## T64 program loading
+
+See [T64 validation](../../docs/c64-t64.md#validation-and-hardware-test) for the
+parser sanitizer, production API handler, native C64 execution and browser tests.
+The native harness accepts `sh tests/c64/native/build.sh t64` to test generated
+T64 programs instead of the existing Elite disk run.
