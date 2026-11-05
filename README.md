@@ -9,9 +9,9 @@ experiment. Original Git history, source notices and licence files are retained.
 
 ## Download and try it
 
-**[Download v0.3.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.3.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
+**[Download v0.4.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.4.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
 
-See the **[v0.3.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.3.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
+See the **[v0.4.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.4.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
 
 ## Machines and features
 
