@@ -9,9 +9,9 @@ experiment. Original Git history, source notices and licence files are retained.
 
 ## Download and try it
 
-**[Download v0.2.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.2.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
+**[Download v0.3.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.3.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
 
-See the **[v0.2.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.2.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
+See the **[v0.3.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.3.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
 
 ## Machines and features
 
@@ -19,7 +19,7 @@ See the **[v0.2.0 release and first-time setup instructions](https://github.com/
 |---|---|---|---|
 | BBC Model B | beebjit, including the upstream RP2350 JIT work | BBC disk loading through SD/web | Analogue joystick/fire or keyboard mappings |
 | BBC Master 128 | Kieran Connell's kc-beeb integration | BBC disk loading through SD/web | Analogue joystick/fire or keyboard mappings |
-| Commodore 64 PAL | FRANK C64 / Frodo | D64/D81 loading through SD/web | Joystick port 1/2 or keyboard mappings |
+| Commodore 64 PAL | FRANK C64 / Frodo | D64/D81 and read-only T64 loading through SD/web | Joystick port 1/2 or keyboard mappings |
 
 - Select the machine, load disks and use its keyboard from the web interface.
 - Sound output, volume controls and ambient LEDs on supported builds.
@@ -28,7 +28,7 @@ See the **[v0.2.0 release and first-time setup instructions](https://github.com/
 - Tested C64 optimisations: CPU/VIC code in SRAM, packed pixel conversion and
   overlapping emulation/display conversion. The RP2350 clock remains 250 MHz.
 
-The development build adds read-only C64 `.t64` loading from SD or web upload, with a program selector for multi-entry archives. This is not included in v0.2.0. See [T64 support and limitations](docs/c64-t64.md).
+Version v0.3.0 adds read-only C64 `.t64` loading from SD or web upload, with a program selector for multi-entry archives. See [T64 support and limitations](docs/c64-t64.md).
 
 Pimoroni Presto is the first supported board. Nimbus validation is for the
 **original Nimbus**, not Nimbus+ or arbitrary Bluetooth gamepads. Compatibility
