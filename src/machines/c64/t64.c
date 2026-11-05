@@ -24,6 +24,12 @@ static bool basic(const uint8_t *p, uint32_t n, unsigned start) {
 
 bool t64_entry_get(const struct t64_archive *a, unsigned index, struct t64_entry *out) {
     if (!a || !a->data || index >= a->count || !out) return false;
+    if (!a->slots) { // Validated P00: one PRG, retaining its load address.
+        out->start=le16(a->data+26);out->offset=28;out->length=a->size-28;
+        for(unsigned j=0;j<16;j++){unsigned c=a->data[8+j];out->name[j]=c>=32&&c<127?c:' ';}
+        out->name[16]=0;
+        out->runnable=basic(a->data+28,out->length,out->start);return true;
+    }
     for (unsigned i = 0; i < a->slots; ++i) {
         const uint8_t *p = a->data + 64 + i * 32;
         if (p[0] != 1) continue;
@@ -49,6 +55,12 @@ bool t64_entry_get(const struct t64_archive *a, unsigned index, struct t64_entry
 const char *t64_open(struct t64_archive *out, const uint8_t *data, uint32_t size) {
     if (!out) return "No archive destination";
     memset(out, 0, sizeof *out);
+    if (data && size>=8 && !memcmp(data,"C64File\0",8)) {
+        if(size<29 || data[25] || !memchr(data+8,0,17))return "Invalid P00 header";
+        unsigned start=le16(data+26);
+        if(size-28>65536u-start)return "P00 program exceeds C64 memory";
+        *out=(struct t64_archive){data,size,0,1};return 0;
+    }
     if (!data || size < 96) return "Truncated T64 header or directory";
     if (memcmp(data, "C64 tape image", 14) && memcmp(data, "C64S tape image", 15) &&
         memcmp(data, "C64S tape file", 13)) return "Not a T64 archive";

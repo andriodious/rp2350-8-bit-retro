@@ -46,3 +46,10 @@ See [T64 validation](../../docs/c64-t64.md#validation-and-hardware-test) for the
 parser sanitizer, production API handler, native C64 execution and browser tests.
 The native harness accepts `sh tests/c64/native/build.sh t64` to test generated
 T64 programs instead of the existing Elite disk run.
+
+## CRT and P00
+
+`sh tests/c64/native/build.sh media` runs bounded cartridge loading, allocation
+failure, bank/reset mapping and P00 execution tests. See
+[cartridge/P00 notes](../../docs/c64-cartridge-p00.md) for optional sample tests and
+hardware validation. No copyrighted sample games are included.

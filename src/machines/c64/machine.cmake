@@ -11,7 +11,7 @@ if(NOT C64_FETCH_RESULT EQUAL 0)
 endif()
 set(FRANK ${TOP_DIR}/deps/frank-c64/src)
 
-add_executable(presto_c64 main.cpp display.cpp memory.cpp disk_file.c t64.c
+add_executable(presto_c64 main.cpp display.cpp memory.cpp disk_file.c t64.c crt.cpp
     ${FRANK}/rp2350/C64_rp2350.cpp ${FRANK}/rp2350/Prefs_rp2350.cpp
     ${FRANK}/rp2350/ROM_data.cpp ${FRANK}/rp2350/SID_rp2350.cpp
     ${FRANK}/rp2350/Tape_stub.cpp ${FRANK}/CPUC64.cpp ${FRANK}/VIC.cpp
