@@ -151,6 +151,8 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 #kbcase.c64 #kb { background:#bfb39d; }
 #kbcase.c64 .k { background:#574738; color:#f5f5f5; border-bottom:3px solid #242424; }
 #kbcase.c64 .c64fn { background:#b9996a; color:#292929; font-size:12px; }
+#kbcase.c64 .c64control { background:#000; color:#fff; }
+#kbcase.c64 .c64control[data-code="133"] { background:#c32f1b; color:#fff; }
 #kbcase.c64 .k.latched, #kbcase.c64 .k.down { background:#707070; }
 #c64notice { white-space:pre-wrap; padding:12px; border:1px solid #ba4a21; }
 </style>
@@ -349,7 +351,7 @@ $('kbcase').classList.toggle('c64',machine==='c64');
 const ROWS = machine === 'c64' ? ROWS_C64 : beeb ? ROWS_BEEB : ROWS_MASTER;
 kb.innerHTML = '';
 for (const b in ledEls) delete ledEls[b];
-kb.style.gridTemplateColumns = `repeat(${machine==='c64'?72:beeb?67:85}, 1fr)`;
+kb.style.gridTemplateColumns = `repeat(${machine==='c64'?76:beeb?67:85}, 1fr)`;
 $('kbcase').style.minWidth = beeb ? '664px' : '842px';
 const ledRow = document.createElement('div');
 ledRow.id = 'leds';
@@ -370,6 +372,7 @@ ROWS.forEach((row, y) => {
     if (code == null) { x += span; continue; }
     const k = document.createElement('button');
     k.className = 'k' + (cls ? ' ' + cls : '') + (y === 0 ? ' frow' : '');
+    if(machine==='c64' && (code==='b' || (code>=129 && code<=133)))k.classList.add('c64control');
     k.textContent = label;
     k.tabIndex = -1;
     k.style.gridRow = y + 1;
@@ -398,7 +401,7 @@ ROWS.forEach((row, y) => {
 if(machine==='c64') [[4,'f1 / f2'],[5,'f3 / f4'],[6,'f5 / f6'],[3,'f7 / f8']].forEach(([code,label],i)=>{
   const k=document.createElement('button');
   k.className='k c64fn'; k.textContent=label; k.dataset.code=String(code);
-  k.style.gridColumn='69 / span 4'; k.style.gridRow=i+1;
+  k.style.gridColumn='69 / span 8'; k.style.gridRow=i+1;
   k.addEventListener('pointerdown',e=>{e.preventDefault();tap(code);});
   kb.appendChild(k);
 });
@@ -542,8 +545,13 @@ function btBuildForm(machine,cfg) {
   btFormMachine=machine;
   const rows=machine==='c64'?ROWS_C64:machine==='master'?ROWS_MASTER:ROWS_BEEB;
   const keys=new Map([[-1,'None'],[-2,'Joystick fire']]);
+  if(machine==='c64'){
+    for(const [code,label] of [[71,'Cursor up'],[7,'Cursor down'],[66,'Cursor left'],[2,'Cursor right']])keys.set(code,label);
+    // C64 function keys are drawn separately from ROWS_C64. Even F-keys
+    // use the firmware's shifted-key encoding (matrix code + 64).
+    [4,68,5,69,6,70,3,67].forEach((code,i)=>keys.set(code,`F${i+1}`));
+  }
   for(const row of rows)for(const [label,key] of row)if(Number.isInteger(key)&&key>=0&&key<128&&!keys.has(key))keys.set(key,label.replace(/\n/g,' ')||'SPACE');
-  if(machine==='c64'){keys.set(71,'Cursor up');keys.set(66,'Cursor left');}
   const box=$('btMappings');box.replaceChildren();
   btLabels.forEach((name,i)=>{
     const label=document.createElement('label');label.textContent=name+' ';
