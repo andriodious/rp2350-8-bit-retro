@@ -39,6 +39,22 @@ image, choose **N** when asked to use its fastloader.
 |---|---|
 | ![Pimoroni Presto running Elite with an original SteelSeries Nimbus controller](presto-nimbus-elite.jpeg) | ![C64 web interface with on-screen keyboard and connected Nimbus controller](c64-web-interface.png) |
 
+## Gameplay videos
+
+Recorded on Pimoroni Presto, with sound.
+
+### Elite — Commodore 64
+
+https://github.com/user-attachments/assets/acca71d1-84e7-4a5f-bc91-ceeebc5a8c98
+
+### Ghosts ’n Goblins — Commodore 64
+
+https://github.com/user-attachments/assets/c2f20f99-e762-4cea-ad45-c583d763a71b
+
+### Repton 3 — BBC Master
+
+https://github.com/user-attachments/assets/648c8668-27c7-495a-b540-f22d90917808
+
 ## Build on a Raspberry Pi or Linux computer
 
 Start in the extracted release source folder or clone this repository:
