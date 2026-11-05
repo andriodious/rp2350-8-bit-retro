@@ -23,6 +23,7 @@
 #include "board.h"
 #if MACHINE_C64
 #include "t64.h"
+#include "crt.h"
 #endif
 #if BOARD_HAS_NET
 #include "net_if.h"
@@ -591,6 +592,7 @@ static void cmd_bluetooth(api_req_t *r) {
 #if MACHINE_C64
 // The directory is separate from status: even a 64-program archive must not
 // crowd out diagnostics. Reserve the closing JSON before appending each entry.
+static void cmd_cartridge_eject(api_req_t *r) { c64_cartridge_eject(); api_reply(r,200,"{}"); }
 static void cmd_tape(api_req_t *r) {
     if (!r->json) { printf("T64 %u programs\n", c64_tape_count()); return; }
     int written = snprintf(r->out,r->size,"{\"generation\":%lu,\"entries\":[",
@@ -625,6 +627,7 @@ static void cmd_tape_load(api_req_t *r) {
 static const api_cmd_t s_cmds[] = {
     {"status", NULL, false, cmd_status},
 #if MACHINE_C64
+    {"cartridge/eject", NULL, true, cmd_cartridge_eject},
     {"tape", NULL, false, cmd_tape},
     {"tape/load", NULL, true, cmd_tape_load},
 #endif
