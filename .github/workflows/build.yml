@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: deps
-          key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh', 'third_party/c64-sources.json', 'third_party/frank-c64-presto.patch') }}
       - name: Fetch the toolchain, the SDK and Elite
         run: scripts/setup.sh --no-build --roms
       - name: The Master's ROMs and disc
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: deps
-          key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh', 'third_party/c64-sources.json', 'third_party/frank-c64-presto.patch') }}
       - run: scripts/setup.sh --no-build --roms
       - name: The Master's ROMs and disc
         if: matrix.machine == 'master'
@@ -133,7 +133,7 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: deps
-          key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh', 'third_party/c64-sources.json', 'third_party/frank-c64-presto.patch') }}
       - run: scripts/setup.sh --no-build --roms
       - name: Native controller checks
         run: |
