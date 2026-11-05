@@ -31,7 +31,15 @@ diff --git a/src/VIC.cpp b/src/VIC.cpp
 index 53c8748..a126636 100644
 --- a/src/VIC.cpp
 +++ b/src/VIC.cpp
-@@ -1566,15 +1566,10 @@ unsigned MOS6569::EmulateLine(int & retCyclesLeft)
+@@ -250,6 +250,7 @@
+ 	// Initialize VIC registers
+ 	mx8 = 0;
+ 	ctrl1 = ctrl2 = 0;
++	border_40_col = false;
+ 	lpx = lpy = 0;
+ 	me = mxe = mye = mdp = mmc = 0;
+ 	vbase = irq_flag = irq_mask = 0;
+@@ -1566,15 +1567,10 @@ unsigned MOS6569::EmulateLine(int & retCyclesLeft)
  			rc = 0;
  
  			// Read and latch 40 bytes from video matrix and color RAM
