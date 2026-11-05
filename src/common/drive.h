@@ -44,6 +44,9 @@ const char *drive0_name(void);
 const char *drive0_builtin_title(void);
 // back to the built-in disc (its save disc, if any), booted
 void drive0_eject(void);
+#if MACHINE_C64
+void drive0_unload(void);
+#endif
 // the built-in disc as it came (what games saved to it forgotten), booted
 void drive0_restore(void);
 // the image at the start of the staging area as the built-in disc's save disc: a copy of the built-in

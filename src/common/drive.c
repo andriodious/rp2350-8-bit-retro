@@ -11,6 +11,7 @@
 #include "mem.h"
 #if MACHINE_C64
 #include "t64.h"
+#include "crt.h"
 #endif
 
 static const uint8_t *s_golden;     // the built-in disc (NULL: none)
@@ -129,8 +130,10 @@ bool drive0_insert(const char *name, uint32_t size) {
     if (!dot) return false;
     bool valid64 = !strcasecmp(dot,".d64") && (size==174848 || size==175531 || size==196608 || size==197376);
     bool valid81 = !strcasecmp(dot,".d81") && (size==819200 || size==822400);
-    bool tape = !strcasecmp(dot,".t64");
-    if (tape) {
+    bool tape = !strcasecmp(dot,".t64") || !strcasecmp(dot,".p00");
+    if (!strcasecmp(dot,".crt")) {
+        if (!c64_cartridge_insert(ram,size)) return false;
+    } else if (tape) {
         if (!c64_tape_insert(ram, size)) return false;
     } else {
         if (!valid64 && !valid81) return false;
@@ -159,6 +162,12 @@ bool drive0_insert(const char *name, uint32_t size) {
 #endif
 }
 
+#if MACHINE_C64
+void drive0_unload(void) {
+    machine_drive_load(NULL,0,false,true);
+    s_persist=false;snprintf(s_name,sizeof s_name,"NONE");s_last_writes=0;
+}
+#endif
 void drive0_eject(void) {
     load_builtin(true);
     printf("DISC built-in\n");
