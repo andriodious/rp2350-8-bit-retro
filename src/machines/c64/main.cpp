@@ -3,6 +3,7 @@
 #endif
 #include "profile.h"
 #include "t64.h"
+#include "crt.h"
 #include "pixel_convert.h"
 #include <atomic>
 #include <cstdio>
@@ -159,7 +160,7 @@ extern "C" void machine_break(){if(recovery){watchdog_reboot(0,0,10);return;}res
     boot_requested=false;
 }
 extern "C" void machine_boot_shift(){
-    boot_requested=true;boot_frames=100;
+    boot_requested=true;boot_frames=c64_crt_active()?0:100;
     if(tape.count){tape_pending=true;tape_state="loading";}
 }
 extern "C" bool machine_turbo_get(){return turbo;}
@@ -178,6 +179,7 @@ if(!strcmp(cmd,"c64prof")){c64_profile::print();return true;}
 if(!strcmp(cmd,"restore")){c64_nmi();return true;}return false;}
 extern "C" void machine_drive_load(const uint8_t *image,uint32_t n,bool,bool boot){
     if(recovery)return;
+    c64_crt_detach();
     tape={};tape_generation++;tape_pending=false;tape_state="none";
     c64_unmount_disk();typing=nullptr;boot_frames=0;
     uint8_t *dst=board_psram()+1024*1024;
@@ -198,6 +200,7 @@ extern "C" bool c64_tape_select(unsigned index,bool run){
 extern "C" bool c64_tape_insert(const uint8_t *image,uint32_t n){
     t64_archive candidate;
     if(recovery || n>DRIVE_IMAGE_MAX || t64_open(&candidate,image,n))return false;
+    c64_crt_detach();
     c64_unmount_disk();c64_disk_set(nullptr,0);typing=nullptr;boot_frames=0;tape_pending=false;
     uint8_t *dst=board_psram()+1024*1024;
     memmove(dst,image,n);candidate.data=dst;tape=candidate;tape_generation++;
@@ -205,9 +208,20 @@ extern "C" bool c64_tape_insert(const uint8_t *image,uint32_t n){
     if(tape.count==1){t64_entry e;t64_entry_get(&tape,0,&e);c64_tape_select(0,e.runnable);}
     return true;
 }
+extern "C" bool c64_cartridge_insert(const uint8_t *image,uint32_t n){
+    if(recovery || c64_crt_prepare(image,n))return false;
+    c64_unmount_disk();c64_disk_set(nullptr,0);
+    tape={};tape_generation++;tape_pending=false;tape_state="none";
+    typing=nullptr;boot_frames=0;reset_pending=true;return true;
+}
+extern "C" void c64_cartridge_eject(){
+    if(recovery || !c64_crt_active())return;
+    drive0_unload();
+}
 extern "C" void c64_tape_status(char *out,uint32_t size){
     snprintf(out,size,",\"tape\":{\"generation\":%lu,\"count\":%u,\"selected\":%u,\"state\":\"%s\"}",
         (unsigned long)tape_generation,tape.count,tape_selected,tape_state);
+    size_t used=strlen(out);if(used<size)snprintf(out+used,size-used,",\"cartridge\":{\"active\":%s}",c64_crt_active()?"true":"false");
 }
 extern "C" uint32_t machine_drive_writes(){return c64_disk_writes();}
 extern "C" bool machine_drive_sector(int,int,uint8_t *){return false;}
@@ -300,7 +314,7 @@ reset_pending=false;memset(pressed,0,sizeof pressed);rebuild_keys();}
                 if(t64_load(&tape,tape_selected,c64_get_ram())){
                     tape_state="loaded";if(tape_run)typing="RUN\r";
                 }else tape_state="error";
-            }else if(!tape.count)typing="LOAD\"*\",8,1\rRUN\r";
+            }else if(!tape.count && !c64_crt_active())typing="LOAD\"*\",8,1\rRUN\r";
         }
         if(typing && *typing){uint8_t *ram=c64_get_ram();if(ram[198]<10){ram[631+ram[198]]= *typing++;ram[198]++;}}
         phase(7);frames++;due+=20000;
