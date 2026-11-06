@@ -1,3 +1,4 @@
+#include "startup_diag.h"
 #if C64_FULL_1581
 #include "drive_bridge.h"
 #endif
@@ -262,11 +263,14 @@ static void __no_inline_not_in_flash_func(slow_flash)(){
     hw_write_masked(&qmi_hw->m[0].timing,(3u<<QMI_M0_TIMING_CLKDIV_LSB)|(2u<<QMI_M0_TIMING_RXDELAY_LSB),QMI_M0_TIMING_CLKDIV_BITS|QMI_M0_TIMING_RXDELAY_BITS);
 }
 int main(){
-    slow_flash();vreg_set_voltage(VREG_VOLTAGE_1_25);set_sys_clock_khz(250000,true);
+    startup_diag_mark(0x201);
+    slow_flash();startup_diag_mark(0x202);
+    vreg_set_voltage(VREG_VOLTAGE_1_25);set_sys_clock_khz(250000,true);
+    startup_diag_mark(0x203);
     recovery=watchdog_enable_caused_reboot() && (watchdog_hw->scratch[0]&0xffff0000u)==DIAG_MAGIC;
     previous_phase=watchdog_hw->scratch[0]&511;previous_pc=watchdog_hw->scratch[2];previous_cfsr=watchdog_hw->scratch[1];
     watchdog_disable();
-    stdio_init_all();board_init();board_psram_init();c64_memory_init();
+    stdio_init_all();startup_diag_mark(0x204);board_init();board_psram_init();c64_memory_init();
     if(recovery){
         printf("C64 RECOVERY phase=%lu pc=%08lx cfsr=%08lx\n",(unsigned long)previous_phase,(unsigned long)previous_pc,(unsigned long)previous_cfsr);
         frontend_init();

@@ -1,3 +1,4 @@
+#include "startup_diag.h"
 /*
  * beebjit on the Pimoroni Presto (RP2350): beebjit (its JIT, with the thumb2
  * backend, or its interpreter) and hardware models on core 0, rendering
@@ -590,6 +591,7 @@ static void __no_inline_not_in_flash_func(slow_flash_timing)(void) {
 static void
 setup_clock(void) {
   slow_flash_timing();
+  startup_diag_mark(0x202);
   vreg_set_voltage(VREG_VOLTAGE_1_25);
   set_sys_clock_khz(PRESTO_SYS_CLOCK_KHZ, true);
 }
@@ -1070,9 +1072,12 @@ int
 main(void) {
   uint32_t i;
 
+  startup_diag_mark(0x201);
   boot_guard_begin();   /* reports instead, if the last boot died */
   setup_clock();
+  startup_diag_mark(0x203);
   stdio_init_all();
+  startup_diag_mark(0x204);
   board_init();
 #if PRESTO_BEEBJIT_LOG_ALLOCS
   /* Diagnosis (build with -DPRESTO_BEEBJIT_LOG_ALLOCS=1): wait for the USB

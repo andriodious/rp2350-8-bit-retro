@@ -1,3 +1,5 @@
+option(STARTUP_DIAG "Rear LED startup stage diagnostics" OFF)
+option(STARTUP_DIAG_PREMAIN "Include v6 pre-main LED probes in startup diagnostics" ON)
 option(NIMBUS_TEST "Original Nimbus Bluetooth controller support (legacy option name)" ON)
 # The Pimoroni Presto (RP2350B, 8 MB PSRAM, 480x480 ST7701 panel, WiFi, SD card, piezo, seven
 # LEDs on its back): what a machine's firmware needs of it. Included by the top-level
@@ -12,6 +14,20 @@ list(APPEND PICO_BOARD_HEADER_DIRS ${BOARD_DIR})
 set(BOARD_FLASH_SAVE_SHIFT 0 CACHE STRING "Move the save disc down the flash by this much (testing)")
 
 function(board_setup TARGET)
+    if(STARTUP_DIAG)
+        target_compile_definitions(${TARGET} PRIVATE STARTUP_DIAG=1)
+        target_sources(${TARGET} PRIVATE ${BOARD_DIR}/startup_diag.c ${BOARD_DIR}/startup_usb_diag.c)
+        if(STARTUP_DIAG_PREMAIN)
+            target_sources(${TARGET} PRIVATE ${BOARD_DIR}/startup_runtime_diag.c)
+            target_link_options(${TARGET} PRIVATE "LINKER:--wrap=main")
+        endif()
+        target_link_options(${TARGET} PRIVATE
+            "LINKER:--wrap=stdio_usb_init" "LINKER:--wrap=tusb_rhport_init"
+            "LINKER:--wrap=dcd_init" "LINKER:--wrap=rp2040_usb_init")
+        if(NOT AMBIENT)
+            pico_generate_pio_header(${TARGET} ${BOARD_DIR}/ws2812.pio)
+        endif()
+    endif()
     target_compile_definitions(${TARGET} PRIVATE WEBDIAG=$<BOOL:${WEBDIAG}>)
     if(NIMBUS_TEST)
         target_sources(${TARGET} PRIVATE ${BOARD_DIR}/presto_bluetooth.c ${COMMON_DIR}/controller.c ${COMMON_DIR}/controller_store.c

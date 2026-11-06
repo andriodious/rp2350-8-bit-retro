@@ -1,3 +1,4 @@
+#include "startup_diag.h"
 #include "system.h"
 // Kieran Connell's BBC Master 128 (src/cores/kc-beeb/) on the Pimoroni Presto (RP2350, 250 MHz).
 //
@@ -477,11 +478,15 @@ static void run(void)
 
 int main(void)
 {
+    startup_diag_mark(0x201);
     system_capture_c64_failure();
     slow_flash_timing();
+    startup_diag_mark(0x202);
     vreg_set_voltage(VREG_VOLTAGE_1_25);
     set_sys_clock_khz(250000, true);
+    startup_diag_mark(0x203);
     stdio_init_all();
+    startup_diag_mark(0x204);
     stack_guard_init();     // core 0's stack: SCRATCH_Y and no further (a plugin's deep calls ran on into core 1's)
     board_init();
     board_psram_init();

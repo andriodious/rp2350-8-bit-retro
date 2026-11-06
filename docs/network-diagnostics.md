@@ -153,3 +153,72 @@ presence; combined UF2 partition/payload validation; SRAM placement checks.
 The preceding 2 ms implementation also passed a 10,000-frame native D81 run
 with 20 screen and 20 drive-RAM captures matching the accepted idle-SRAM build.
 That game run was not repeated for the interval-only 5 ms change.
+
+## V6 post-reboot interruption, 2026-11-06 19:21 UTC
+
+Reference firmware remains the exact saved startup-diag-v6 UF2. No radio,
+network or emulator behaviour was changed for this investigation.
+
+In the supplied 19:21:29–19:22:01 trace, Master was already serving HTTP at
+uptime 22,923 ms. Automatic Nimbus reconnect had re-enabled on boot, although
+it had been disabled in the preceding D81 session. Source confirms this flag
+is initially true and Disconnect changes session state only.
+
+The second failure was recorded at uptime 18,747 ms. The existing 10,000 ms
+backoff therefore scheduled attempt three for approximately uptime 28,747 ms
+(wall time 19:21:36.070, inferred from received samples). Failure three was
+recorded at uptime 33,888 ms: approximately 5,141 ms later. The configured
+page timeout is 0x2000 Bluetooth slots = 5.12 seconds; BTstack error 4 denotes
+PAGE_TIMEOUT. The browser request started about 19:21:36.550 and timed out at
+19:21:40.555, inside that inferred attempt interval. Status was received again
+at 19:21:42.827, followed by mostly ~95 ms requests.
+
+During the available samples Wi-Fi link=3, joins=1, transitions=3 and IP changes=1
+remained unchanged. The lifetime maximum network poll gap remained 116,516 us,
+maximum poll cost 2,107 us; the server recorded no errors, rejected connections
+or expirations. This argues against a four-second CPU/network polling stall.
+Outgoing Bluetooth paging disrupting Wi-Fi traffic on the shared radio is the
+leading explanation for this specific timeout, but the trace does not include
+packet captures or an exact attempt-start timestamp, so causality is unproven.
+Do not generalise it to all historical web outages.
+
+Next controlled test needs no new firmware: on unchanged v6, let Master run
+with the remembered Nimbus switched off and retries enabled; collect a trace
+covering several attempts. Then use Disconnect, verify reconnect_enabled=false
+(and no ongoing connection attempt), clear the trace and observe for another
+2–3 minutes without rebooting. Optionally repeat with Nimbus powered on and
+connected. Compare new timeout increments with attempt/failure increments,
+not lifetime error totals. Disconnect does not forget the controller; Reconnect
+restores the existing policy. Reboot re-enables retries and is not part of the
+within-session comparison. Avoid changing paging timeout/backoff until this
+comparison, since doing so could regress the tested machine-switch reconnect.
+
+## Shorter outgoing page candidate (Bluetooth build 8)
+
+The follow-up enabled-retry trace showed six browser status timeouts over about
+three minutes, tracking retry attempts, with no Wi-Fi rejoin and a constant
+55,309 us maximum polling gap. The subsequent same-session disabled-retry trace
+covered 179.86 seconds and 106 successful responses with zero timeouts/errors;
+attempts stayed at seven. Successful-response medians were 96/97 ms respectively.
+This strongly implicates outgoing paging for this particular interruption.
+
+Candidate build 8 changes gap_set_page_timeout from 0x2000 (5.12 s) to 0x1000
+(2.56 s). It retains the initial listening window, 3/10/30/60-second failure
+backoff, Wi-Fi readiness gate, incoming acceptance and manual controls. Existing
+D81 optimisations and 5 ms polling remain. STARTUP_DIAG_PREMAIN is explicitly ON
+in all four images, retaining v6 startup instrumentation. The exact saved v6
+reference is not overwritten. Status exposes build=8 and page_timeout_ms=2560.
+
+This may shorten shared-radio disruption; it does not guarantee HTTP response
+time or successful controller reconnection. Shorter paging can reduce the chance
+of finding a controller on a particular attempt, so controller-on hardware tests
+are essential. No browser timeout is enlarged to hide missed requests.
+
+Validation: all targets built, reconnect/backoff and Wi-Fi gate tests passed,
+5 ms polling passed, runtime/partition placement passed, UF2 payload checks
+passed at 11,782 blocks. C64 static headroom remains 32,564 bytes. Hardware pending.
+
+Test cold boot first. With Nimbus off and retries enabled, clear the trace and
+capture 3 minutes on Master. Then power Nimbus on and verify connection, controls,
+and repeated Master -> C64 -> Model B -> Master switches. Send the trace and note
+any need for manual reconnect or a controller power cycle. Retain v6 as fallback.

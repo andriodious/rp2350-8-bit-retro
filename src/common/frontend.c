@@ -1,3 +1,4 @@
+#include "startup_diag.h"
 #if NIMBUS_TEST
 #include "controller.h"
 #include "presto_bluetooth.h"
@@ -252,7 +253,10 @@ void frontend_poll(void) {
 
 void frontend_frame(void) {
     static unsigned frames;
-    if (frames < 100 && ++frames == 100) boot_guard_ok();     // running: disarm the boot guard (boot_guard.c)
+    if (frames < 100 && ++frames == 100) {
+        boot_guard_ok();     // running: disarm the boot guard (boot_guard.c)
+        startup_diag_mark(7);
+    }
     usb_poll();
     api_frame();
     drive0_frame();     // the save disc

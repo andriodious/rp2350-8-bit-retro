@@ -1,3 +1,4 @@
+#include "startup_diag.h"
 /*
  * The Presto's 8MB PSRAM (an APS6404 on QMI chip select 1, GPIO 47), mapped at 0x11000000.
  * Used to hold disc images loaded from the SD card. The setup follows the usual RP2350 recipe:
@@ -84,6 +85,7 @@ static uint32_t psram_timing(void) {
 }
 
 size_t board_psram_init(void) {
+    startup_diag_mark(3);
     gpio_set_function(PSRAM_CS_PIN, GPIO_FUNC_XIP_CS1);
     psram_setup(psram_timing());
     // check it's there: patterns at a few places in the 8MB, through the uncached alias

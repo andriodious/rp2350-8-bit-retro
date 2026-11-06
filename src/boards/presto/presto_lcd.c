@@ -1,3 +1,4 @@
+#include "startup_diag.h"
 /*
  * ST7701 480x480 RGB panel driver for the Pimoroni Presto.
  *
@@ -315,6 +316,7 @@ void board_display_backlight(uint8_t brightness) {
 }
 
 void board_display_init(const uint16_t *const *rows) {
+    startup_diag_mark(4);
     row_table = rows;
 
     pwm_config cfg = pwm_get_default_config();
@@ -455,6 +457,7 @@ void board_display_init(const uint16_t *const *rows) {
 
     sleep_ms(50);
     board_display_backlight(255);
+    startup_diag_mark(5);
 }
 
 const uint16_t *const *board_display_get_rows(void) { return row_table; }

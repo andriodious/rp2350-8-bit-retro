@@ -22,3 +22,16 @@ pico_set_linker_script(presto_launcher ${CMAKE_CURRENT_LIST_DIR}/memmap_launcher
 # the partition table, in its block loop
 pico_embed_pt_in_binary(presto_launcher ${CMAKE_CURRENT_LIST_DIR}/partitions.json)
 pico_add_extra_outputs(presto_launcher)
+
+if(STARTUP_DIAG)
+    target_compile_definitions(presto_launcher PRIVATE STARTUP_DIAG=1 STARTUP_DIAG_LAUNCHER=1)
+    target_sources(presto_launcher PRIVATE ${BOARD_DIR}/startup_diag.c)
+    if(STARTUP_DIAG_PREMAIN)
+        target_sources(presto_launcher PRIVATE ${BOARD_DIR}/startup_runtime_diag.c)
+        target_link_options(presto_launcher PRIVATE "LINKER:--wrap=main")
+    endif()
+    # Preserve the v6 launcher link order for controlled warm-reset comparisons.
+    target_sources(presto_launcher PRIVATE partition_diag.c)
+    target_link_libraries(presto_launcher PRIVATE hardware_pio)
+    pico_generate_pio_header(presto_launcher ${BOARD_DIR}/ws2812.pio)
+endif()

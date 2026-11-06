@@ -1,3 +1,4 @@
+#include "startup_diag.h"
 // The launcher (docs/dual-boot.md): what the boot ROM runs first when both machines are in the
 // flash. It reads which machine was chosen (the settings sector, system.h) and has the boot ROM
 // chain into that machine's slot, mapped to 0x10000000 as if it were the only firmware there.
@@ -22,17 +23,28 @@ static uint8_t s_work[4096] __aligned(4);
 
 // boot the image in a slot: only returns if there's no bootable image there
 static void chain(int slot) {
+    startup_diag_mark(0x103);
     uint32_t info[3];
     int n = rom_get_partition_table_info(info, 3, PT_INFO_PARTITION_LOCATION_AND_FLAGS | PT_INFO_SINGLE_PARTITION |
                                                   ((uint32_t) slot << 24));
+    startup_diag_mark(0x104);
     if (n != 3) return;
     uint32_t first = (info[1] & PICOBIN_PARTITION_LOCATION_FIRST_SECTOR_BITS) >> PICOBIN_PARTITION_LOCATION_FIRST_SECTOR_LSB;
     uint32_t last = (info[1] & PICOBIN_PARTITION_LOCATION_LAST_SECTOR_BITS) >> PICOBIN_PARTITION_LOCATION_LAST_SECTOR_LSB;
+    startup_diag_mark(0x105);
     rom_chain_image(s_work, sizeof s_work, XIP_BASE + first * FLASH_SECTOR_SIZE, (last + 1 - first) * FLASH_SECTOR_SIZE);
+    startup_diag_mark(0x106);
 }
 
 int main(void) {
+    startup_diag_mark(0x101);
+#if STARTUP_DIAG
+    extern int partition_diag_load(uint8_t *, uint32_t);
+    partition_diag_load(s_work, sizeof s_work);
+#else
     rom_load_partition_table(s_work, sizeof s_work, false);
+#endif
+    startup_diag_mark(0x102);
     const system_settings_t *s = (const system_settings_t *) (XIP_NOCACHE_NOALLOC_BASE + BOARD_FLASH_SYSTEM_OFFSET);
     // Power-on and external reset start Master. Watchdog/software restarts
     // retain the selected machine for web switching and C64 recovery.
@@ -47,5 +59,6 @@ int main(void) {
         const int slots[] = {SYSTEM_SLOT_MASTER, SYSTEM_SLOT_BEEB, SYSTEM_SLOT_C64};
         if (slots[i] != slot) chain(slots[i]);
     }
+    startup_diag_mark(0x107);
     reset_usb_boot(0, 0);
 }

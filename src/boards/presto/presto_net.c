@@ -1,3 +1,4 @@
+#include "startup_diag.h"
 /*
  * The Presto's network (net_if.h): WiFi through its RM2 module (CYW43439), DHCP, mDNS (8bitretro.local),
  * the WiFi network saved in flash, and a small HTTP server: the web page and /api/<name>, each
@@ -155,6 +156,7 @@ static void net_start_step(uint32_t n) {
 #endif
 }
 static void net_start(bool boot_banner) {
+    startup_diag_mark(6);
     const cred_t *c = saved_cred();
     if (!c) {
         printf("NET no WiFi network saved (!wifi <ssid> <password>)\n");

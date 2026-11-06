@@ -1,3 +1,7 @@
+#include "startup_diag.h"
+#ifndef STARTUP_DIAG
+#define STARTUP_DIAG 0
+#endif
 /*
  * The seven WS2812 LEDs on the Presto's back (GPIO 33, GRB), lit with what's on screen.
  *
@@ -91,7 +95,8 @@ void board_leds_init(void) {
                              (800000.0f * (ws2812_T1 + ws2812_T2 + ws2812_T3)));
     pio_sm_init(s_pio, (uint) s_sm, offset, &c);
     pio_sm_set_enabled(s_pio, (uint) s_sm, true);
-    for (int i = 0; i < NUM_LEDS; i++) pio_sm_put(s_pio, (uint) s_sm, 0);
+    for (int i = 0; i < NUM_LEDS; i++)
+        pio_sm_put(s_pio, (uint) s_sm, STARTUP_DIAG && i < 3 ? 0x08000000u : 0);
 }
 
 void board_leds_frame(uint8_t locks) {
@@ -101,7 +106,7 @@ void board_leds_frame(uint8_t locks) {
 }
 
 bool __not_in_flash_func(board_leds_due)(void) {
-    return (s_sm >= 0) && ((s_frames - s_updated_frames) >= 2);
+    return !STARTUP_DIAG && (s_sm >= 0) && ((s_frames - s_updated_frames) >= 2);
 }
 
 // the seven colours out, if the PIO has sent the last lot
@@ -306,3 +311,12 @@ void board_leds_command(const char *args) {
            (unsigned long) (s_box_w0 * 8), (unsigned long) (s_box_w1 * 8),
            (unsigned long) s_box_y0, (unsigned long) s_box_y1);
 }
+
+#if STARTUP_DIAG
+bool startup_diag_ambient(unsigned stage) {
+    if(s_sm<0)return false;
+    for(unsigned i=0;i<7;i++)pio_sm_put_blocking(s_pio,s_sm,startup_diag_pixel(stage,i));
+    busy_wait_us_32(600);
+    return true;
+}
+#endif
