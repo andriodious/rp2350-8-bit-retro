@@ -170,7 +170,7 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 <p>One completed timing sample about every five seconds. Keep this page open and the game scene unchanged. Browser polling adds some measurement overhead.</p>
 <button id="profilesave">Save performance data</button> <button id="profileclear">Clear performance data</button>
 <pre id="profileout" style="max-height:200px;overflow:auto;white-space:pre-wrap;font-size:12px">Waiting for a complete sample…</pre></details>
-<details id="tracepanel" hidden open><summary>Diagnostic trace</summary><p>Last received messages stay here if the board stops responding. Select and copy the text, or save it below.</p><button id="tracesave">Save trace</button> <button id="traceclear">Clear trace</button><pre id="traceout" style="max-height:240px;overflow:auto;white-space:pre-wrap;font-size:12px"></pre></details>
+<details id="tracepanel" hidden open><summary>Diagnostic trace</summary><p>Last received messages stay here if the board stops responding. Select and copy the text, or save it below.</p><button id="tracesave">Save trace</button> <button id="traceclear">Clear trace</button><p id="webperf">Request timings will appear here.</p><pre id="traceout" style="max-height:240px;overflow:auto;white-space:pre-wrap;font-size:12px"></pre></details>
 <section id="c64notice" hidden><span id="c64diag"></span> <button id="c64retry">Retry C64</button></section>
 <section id="av">
   <div class="row">
@@ -498,18 +498,47 @@ function trace(message) {
   $('traceout').textContent=traceLines.join('\n');$('traceout').scrollTop=$('traceout').scrollHeight;
   try {sessionStorage.setItem('presto-trace',JSON.stringify(traceLines));} catch(e) {}
 }
-$('traceclear').onclick=()=>{traceLines=[];trace('Trace cleared');};
+$('traceclear').onclick=()=>{traceLines=[];resetWebPerf();trace('Trace cleared; responsiveness counters reset');};
 $('tracesave').onclick=()=>{const url=URL.createObjectURL(new Blob([traceLines.join('\n')],{type:'text/plain'}));const a=document.createElement('a');a.href=url;a.download='presto-trace.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 trace('Web trace r11 opened; samples are last received status, not an instruction-level crash trace');
+// Browser-observed request completion time: includes Wi-Fi, server and body parsing.
+// No extra polling; bounded successful-request windows, totals since page load/clear.
+let webPerf;
+function resetWebPerf() {
+  webPerf={status:{ok:0,errors:0,timeouts:0,ms:[],last:null},controls:{ok:0,errors:0,timeouts:0,ms:[],last:null}};
+  $('webperf').textContent='Waiting for request timings…';
+}
+function webPerfSummary() {
+  const result={window:100,visibility:document.visibilityState};
+  for(const key of ['status','controls']) {
+    const p=webPerf[key],sorted=[...p.ms].sort((a,b)=>a-b);
+    const pct=q=>sorted.length?sorted[Math.ceil(q*sorted.length)-1]:null;
+    result[key]={ok:p.ok,errors:p.errors,timeouts:p.timeouts,n:sorted.length,p50_ms:pct(.5),p95_ms:pct(.95),max_ms:sorted.length?sorted[sorted.length-1]:null,last:p.last};
+  }
+  return result;
+}
+function recordWebRequest(path,method,started,code,outcome) {
+  if(!WEBDIAG)return;
+  const ms=Math.round(performance.now()-started),key=path==='/api/status'?'status':'controls',p=webPerf[key];
+  p.last={ms,outcome,http:code};
+  if(outcome==='ok'){++p.ok;p.ms.push(ms);if(p.ms.length>100)p.ms.shift();}
+  else if(outcome==='timeout')++p.timeouts;else ++p.errors;
+  const summary=webPerfSummary(),r=summary.status;
+  $('webperf').textContent=`Status response: last ${r.last?.ms ?? '—'} ms; p50 ${r.p50_ms ?? '—'} ms; p95 ${r.p95_ms ?? '—'} ms; max ${r.max_ms ?? '—'} ms. Timeouts ${r.timeouts}; errors ${r.errors}. Last 100 successes; end-to-end browser timing.`;
+  if(key==='controls'||outcome!=='ok')trace('WEB_REQUEST '+JSON.stringify({path,method,ms,outcome,http:code,visibility:document.visibilityState}));
+}
+resetWebPerf();
 // --- machine controls and status
 let status = {};
 async function api(path, body, method = 'POST') {
+  const started=WEBDIAG?performance.now():0;let outcome='error';
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),4000);
   let r;try {r=await fetch(path,{...(method === 'GET' ? {} : {method, body: body ?? ''}),signal:controller.signal});
-  const j = await r.json().catch(() => ({}));
+  const j = await r.json().catch(e => {if(e.name==='AbortError')throw e;return {};});
   if (!r.ok) throw new Error(j.error || r.statusText);
-  return j;
-  } finally {clearTimeout(timer);}
+  outcome='ok';return j;
+  } catch(e) {outcome=e.name==='AbortError'?'timeout':'error';throw e;}
+  finally {clearTimeout(timer);recordWebRequest(path,method,started,r?.status ?? null,outcome);}
 }
 
 let profileLines=[], profileSequence=null, profileUptime=0;
@@ -522,7 +551,7 @@ function showProfile(s) {
   profileUptime=uptime;
   if(!p.frames || p.sequence===profileSequence)return;
   profileSequence=p.sequence;
-  const fields=['window_us','frames','rendered','turbo','cpu_us','vic_us','sid_us','cia_us','emulation_us','conversion_us','wait_us','frontend_us','pacing_us'];
+  const fields=['window_us','frames','rendered','turbo','cpu_us','vic_us','sid_us','cia_us','emulation_us','conversion_us','wait_us','frontend_us','pacing_us','drive_us'];
   profileLines.push('C64PROF '+fields.map(k=>k+'='+p[k]).join(' '));
   profileLines=profileLines.slice(-120);
   $('profileout').textContent=`${profileLines.length} samples collected; latest ${(p.frames*1000000/p.window_us).toFixed(1)} frames/sec; Turbo ${p.turbo?'ON':'OFF'}\n`+profileLines.slice(-3).join('\n');
@@ -676,7 +705,7 @@ let pollFails = 0, pollTimer;
 function pollSoon() { clearTimeout(pollTimer); pollTimer = setTimeout(poll, 250); }
 async function poll() {
   clearTimeout(pollTimer);
-  try { const sample=await api('/api/status', null, 'GET');trace('STATUS '+JSON.stringify({machine:sample.machine,core0:sample.core0,core1:sample.core1,c64:sample.c64,c64_audio:sample.c64_audio,c64_failure:sample.c64_failure}));show(sample); pollFails = 0; }
+  try { const sample=await api('/api/status', null, 'GET');trace('STATUS '+JSON.stringify({machine:sample.machine,core0:sample.core0,core1:sample.core1,c64:sample.c64,c64_audio:sample.c64_audio,c64_failure:sample.c64_failure,drive1581:sample.drive1581,c64_net:sample.c64_net,network:sample.network,bluetooth:sample.bluetooth,c64_profile:sample.c64_profile,speed:sample.speed,mem:sample.mem,web:webPerfSummary()}));show(sample); pollFails = 0; }
   // one failed poll can be a dropped WiFi packet: only say so after two in a row
   catch (e) {
     trace('STATUS LOST: '+(e.name==='AbortError'?'no complete response within 4 seconds':e.message));

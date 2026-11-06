@@ -1,0 +1,45 @@
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    ${TOP_DIR}/experiments/c64-1581/firmware/prepare.py
+    ${TOP_DIR}/experiments/c64-1581/firmware/lib.rs
+    ${TOP_DIR}/experiments/c64-1581/portable/idle_wait.rs
+    ${TOP_DIR}/experiments/c64-1581/portable/idle_validation.rs
+    ${TOP_DIR}/experiments/c64-1581/portable/prepare.py
+    ${TOP_DIR}/experiments/c64-1581/bridge/prepare.py)
+set(C64_TRX64_SOURCE "${TOP_DIR}/deps/trx64-1581" CACHE PATH "Pinned TRX64 checkout for experimental 1581")
+find_program(C64_CARGO cargo REQUIRED)
+set(DRIVE1581_DIR ${CMAKE_CURRENT_BINARY_DIR}/drive1581)
+set(DRIVE1581_GLUE ${TOP_DIR}/experiments/c64-1581/firmware)
+option(C64_1581_IDLE_SRAM "Experimental small 1581 waiting-loop handler in SRAM" OFF)
+set(DRIVE1581_PREPARE_FLAGS)
+if(C64_1581_IDLE_SRAM)
+    list(APPEND DRIVE1581_PREPARE_FLAGS --idle-sram)
+endif()
+execute_process(COMMAND python3 ${DRIVE1581_GLUE}/prepare.py ${DRIVE1581_PREPARE_FLAGS} --output ${DRIVE1581_DIR} --trx64 ${C64_TRX64_SOURCE} RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Could not prepare experimental 1581")
+endif()
+execute_process(COMMAND python3 ${TOP_DIR}/scripts/fetch-1581-rom.py RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Could not verify 1581 ROM")
+endif()
+set(FRANK ${DRIVE1581_DIR}/core)
+set(DRIVE1581_LIB ${DRIVE1581_DIR}/rust/target/thumbv8m.main-none-eabi/release/libretro_1581_firmware.a)
+add_custom_command(OUTPUT ${DRIVE1581_LIB}
+    COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${DRIVE1581_DIR}/rust/target ${C64_CARGO} build --release --target thumbv8m.main-none-eabi --manifest-path ${DRIVE1581_DIR}/rust/Cargo.toml
+    DEPENDS ${DRIVE1581_DIR}/rust/src/lib.rs
+    VERBATIM)
+option(C64_1581_CPU_SRAM "Experimental 1581 instruction dispatcher in SRAM" OFF)
+if(C64_1581_CPU_SRAM)
+    set(DRIVE1581_FLASH_LIB ${DRIVE1581_LIB})
+    set(DRIVE1581_LIB ${DRIVE1581_DIR}/libretro_1581_sram.a)
+    add_custom_command(OUTPUT ${DRIVE1581_LIB}
+        COMMAND python3 ${DRIVE1581_GLUE}/place_cpu_sram.py
+            --objdump ${CMAKE_OBJDUMP} --objcopy ${CMAKE_OBJCOPY}
+            --input ${DRIVE1581_FLASH_LIB} --output ${DRIVE1581_LIB}
+        DEPENDS ${DRIVE1581_FLASH_LIB} ${DRIVE1581_GLUE}/place_cpu_sram.py
+        VERBATIM)
+endif()
+add_custom_target(c64_drive1581 DEPENDS ${DRIVE1581_LIB})
+add_custom_command(OUTPUT ${DRIVE1581_DIR}/rom.c
+    COMMAND python3 ${TOP_DIR}/src/machines/master/embed.py ${DRIVE1581_DIR}/rom.c retro_1581_rom=${TOP_DIR}/roms/1581/dos1581-318045-02.bin
+    DEPENDS ${TOP_DIR}/roms/1581/dos1581-318045-02.bin)

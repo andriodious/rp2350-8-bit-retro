@@ -9,26 +9,39 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
+#if C64_FULL_1581
+extern "C" uint64_t retro_drive_run_us(void);
+#endif
 namespace c64_profile {
+inline uint64_t drive_clock() {
+#if C64_FULL_1581
+    return retro_drive_run_us();
+#else
+    return 0;
+#endif
+}
 enum Stage { CPU, VIC, SID, CIA, EMULATION, CONVERSION, WAIT, FRONTEND, PACING, COUNT };
 struct Sample {
     uint64_t us[COUNT] = {};
-    uint64_t elapsed = 0;
+    uint64_t elapsed = 0, drive_us = 0;
     uint32_t frames = 0, rendered = 0;
     bool turbo = false;
 };
 inline Sample active, last;
-inline uint64_t started;
+inline uint64_t started, previous_drive;
 inline bool running;
 inline uint32_t sequence;
 inline void reset() { active = {}; running = false; }
 inline void begin(uint64_t now, bool turbo) {
     if (!running || active.turbo != turbo) {
-        active = {}; active.turbo = turbo; started = now; running = true;
+        active = {}; active.turbo = turbo; started = now; running = true; previous_drive = drive_clock();
     }
 }
 inline void add(Stage stage, uint32_t us) { active.us[stage] += us; }
 inline bool finish(uint64_t now, bool rendered) {
+    uint64_t current_drive = drive_clock();
+    active.drive_us += current_drive >= previous_drive ? current_drive - previous_drive : current_drive;
+    previous_drive = current_drive;
     ++active.frames;
     active.rendered += rendered;
     if (now - started < 5000000) return false;
@@ -40,25 +53,25 @@ inline bool finish(uint64_t now, bool rendered) {
 inline void json(char *out, size_t size) {
     if (!size) return;
     int n = snprintf(out,size,
-        ",\"c64_profile\":{\"sequence\":%lu,\"window_us\":%llu,\"frames\":%lu,\"rendered\":%lu,\"turbo\":%u,\"cpu_us\":%llu,\"vic_us\":%llu,\"sid_us\":%llu,\"cia_us\":%llu,\"emulation_us\":%llu,\"conversion_us\":%llu,\"wait_us\":%llu,\"frontend_us\":%llu,\"pacing_us\":%llu}",
+        ",\"c64_profile\":{\"sequence\":%lu,\"window_us\":%llu,\"frames\":%lu,\"rendered\":%lu,\"turbo\":%u,\"cpu_us\":%llu,\"vic_us\":%llu,\"sid_us\":%llu,\"cia_us\":%llu,\"emulation_us\":%llu,\"conversion_us\":%llu,\"wait_us\":%llu,\"frontend_us\":%llu,\"pacing_us\":%llu,\"drive_us\":%llu}",
         (unsigned long)sequence, (unsigned long long)last.elapsed,
         (unsigned long)last.frames, (unsigned long)last.rendered, last.turbo,
         (unsigned long long)last.us[CPU], (unsigned long long)last.us[VIC],
         (unsigned long long)last.us[SID], (unsigned long long)last.us[CIA],
         (unsigned long long)last.us[EMULATION], (unsigned long long)last.us[CONVERSION],
         (unsigned long long)last.us[WAIT], (unsigned long long)last.us[FRONTEND],
-        (unsigned long long)last.us[PACING]);
+        (unsigned long long)last.us[PACING], (unsigned long long)last.drive_us);
     if (n < 0 || (size_t)n >= size) out[0] = 0;
 }
 inline void print() {
-    printf("C64PROF window_us=%llu frames=%lu rendered=%lu turbo=%u cpu_us=%llu vic_us=%llu sid_us=%llu cia_us=%llu emulation_us=%llu conversion_us=%llu wait_us=%llu frontend_us=%llu pacing_us=%llu\n",
+    printf("C64PROF window_us=%llu frames=%lu rendered=%lu turbo=%u cpu_us=%llu vic_us=%llu sid_us=%llu cia_us=%llu emulation_us=%llu conversion_us=%llu wait_us=%llu frontend_us=%llu pacing_us=%llu drive_us=%llu\n",
         (unsigned long long)last.elapsed, (unsigned long)last.frames,
         (unsigned long)last.rendered, last.turbo,
         (unsigned long long)last.us[CPU], (unsigned long long)last.us[VIC],
         (unsigned long long)last.us[SID], (unsigned long long)last.us[CIA],
         (unsigned long long)last.us[EMULATION], (unsigned long long)last.us[CONVERSION],
         (unsigned long long)last.us[WAIT], (unsigned long long)last.us[FRONTEND],
-        (unsigned long long)last.us[PACING]);
+        (unsigned long long)last.us[PACING], (unsigned long long)last.drive_us);
 }
 }
 #define C64_PROFILE_CALL(stage, ...) do { \

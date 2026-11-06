@@ -190,3 +190,75 @@ outgoing-request error, 2 connection-open failure, 3 HID-descriptor failure.
 They reset when the Presto reboots; no extra flash writes are made for logging.
 All three builds pass; combined image matches 10,973 payload blocks. C64 static
 headroom is 41,252 bytes before runtime allocations.
+
+## Retry backoff test (Bluetooth build 6)
+
+An approximately 52-second D81 trace with the controller off and automatic
+reconnection disabled completed all 30 status requests without errors/timeouts
+(p50 166 ms, p95 511 ms, maximum 591 ms). This strongly implicates unavailable
+controller retries in the earlier disruption, without proving its exact cause.
+
+Build 6 retains the initial 3-second incoming-connection listening window and
+5.12-second outgoing page timeout. After consecutive connection failures, wait
+3, 10, 30, then 60 seconds, capped at 60. These are waits AFTER failure, not total
+attempt intervals. Successful connection, a real established-link disconnect,
+or a fresh Bluetooth startup resets the sequence. Failure cleanup does not
+reset backoff. The pairing and per-machine mapping storage are unchanged.
+
+Incoming connections from the remembered controller remain accepted while
+waiting. Reconnect saved controller shortens an idle long-backoff wait to the
+normal 3-second window; repeated clicks do not postpone that window or restart
+an in-flight attempt. Disconnect disables retries without forgetting pairing.
+Explicitly selecting a discovered controller starts a new connection sequence.
+
+Status reports bluetooth.build=6 and retry_streak (saturating at 4), alongside
+retry_ms and attempts. The web trace now includes the Bluetooth status to allow
+correlation with request timeouts. The experimental D81 extra network polling
+is OFF; the inline-bus flash-dispatcher baseline is retained without ThinLTO.
+
+Tests: sanitized retry policy tests cover delays, saturation, repeated clicks,
+busy guard and uint32 clock wrap. Master, Model B and C64 firmware builds and
+UF2 bounds checks pass; web script syntax passes. These do not replace hardware
+radio/reconnection tests. Each individual outgoing attempt may still disturb
+Wi-Fi; backoff reduces how often it happens, not the duration of an attempt.
+
+Hardware test: flash and reload the page. With automatic reconnect enabled and
+Nimbus off, run D81 for 3 minutes and save the trace. Verify retry_streak reaches
+4 and retry_ms counts down from near 60,000. Then switch Nimbus on; it may
+connect by initiating its own request, otherwise use Reconnect saved controller
+to avoid waiting out the full backoff. With Nimbus connected, switch among
+Master, Model B and C64 and confirm controls/reconnection on each machine.
+
+## Wi-Fi boot priority (Bluetooth build 7)
+
+Hardware reported "network not found" with retry build 6, persisting through
+power cycles, while restoring the inline-bus firmware restored Wi-Fi. This is
+strong evidence of a build-dependent regression, but does not identify its
+precise cause. Inspection found the asynchronous Wi-Fi join overlaps automatic
+Bluetooth paging: Bluetooth starts immediately after join() and its three-second
+deadline can expire before DHCP succeeds. That overlap existed previously too;
+we cannot claim the backoff change introduced it or prove the exact trigger.
+
+Build 7 gates the automatic outgoing retry function on net_boot_has_address().
+While Wi-Fi is searching, associating or awaiting DHCP, retry deadlines/failure
+counts remain unchanged and no automatic outgoing HID connection starts. When
+an address arrives, an already-due attempt can start; otherwise the original
+three-second deadline remains. This also protects Wi-Fi rejoining after link
+loss. Bluetooth initialization and incoming-link acceptance are unchanged.
+Manual connection/scan commands remain explicit user actions. If the router is
+unavailable, automatic outgoing reconnection stays paused; incoming controller
+connections are still accepted. The banner reports WAITING FOR WIFI, and JSON
+adds wifi_wait with Bluetooth build 7. Backoff remains 3/10/30/60 seconds.
+
+The actual retry-function host test covers slow/failed Wi-Fi joins, acquisition,
+link loss/rejoin, quick joins and disabled reconnect. Retry timing/wrap tests,
+all three firmware builds and UF2 bounds checks pass. Both prior delivered UF2s
+were verified not to program the reserved settings area; current linked flash
+layouts retain the same Wi-Fi/controller settings regions. No credentials were
+changed or inspected. C64 link-time heap space is 33,728 bytes. Extra D81 network
+polling and SRAM dispatcher remain OFF; explicit ThinLTO remains absent.
+
+This is a candidate fix requiring physical Wi-Fi verification. Cold boot first
+with Nimbus off; confirm an IP address and reachable web page. Repeat with Nimbus
+on, then test machine switching. Only after boot succeeds, run the three-minute
+controller-off D81 trace. Keep the known working inline-bus UF2 for rollback.

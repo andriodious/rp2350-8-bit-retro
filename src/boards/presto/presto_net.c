@@ -118,6 +118,14 @@ void net_restart(bool after_reply) {
 // ---------------------------------------------------------------------------------------
 // The link
 
+// Fixed-size, core-0-only diagnostics; no allocations or credentials.
+static struct {
+    uint32_t joins, transitions, link_ms, ip_changes, ip;
+    uint32_t polls, poll_at, poll_gap, poll_cost, frames, frame_at, frame_gap;
+    uint32_t accepted, rejected, freed, errors, evicted, expired;
+    int last_error;
+    struct { uint32_t ms; int state; } history[8];
+} nd;
 static bool wifi_on;            // the chip is up and there's a network to join
 static int link_status;
 static bool announced;
@@ -125,6 +133,7 @@ static uint32_t last_poll_us, last_link_check_us, joined_at_us;
 static char ssid_ram[33], pass_ram[65];
 
 static void join(void) {
+    nd.joins++;
     cyw43_arch_wifi_connect_async(ssid_ram, pass_ram, pass_ram[0] ? CYW43_AUTH_WPA2_AES_PSK : CYW43_AUTH_OPEN);
     joined_at_us = time_us_32();
 }
@@ -178,6 +187,14 @@ static void net_start(bool boot_banner) {
 static void check_link(void) {
     int s = cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA);
     struct netif *nif = &cyw43_state.netif[CYW43_ITF_STA];
+    if (s != link_status) {
+        nd.link_ms = (uint32_t)(time_us_64() / 1000);
+        nd.history[nd.transitions % 8].ms = nd.link_ms;
+        nd.history[nd.transitions % 8].state = s;
+        nd.transitions++;
+    }
+    uint32_t ip = netif_ip4_addr(nif)->addr;
+    if (ip != nd.ip) { nd.ip = ip; nd.ip_changes++; }
     if (s == CYW43_LINK_UP && !announced) {
         announced = true;
         static bool mdns_started;
@@ -206,7 +223,12 @@ void net_poll(void) {
     uint32_t now = time_us_32();
     if (now - last_poll_us < 500) return;
     last_poll_us = now;
+    if (nd.polls && now - nd.poll_at > nd.poll_gap) nd.poll_gap = now - nd.poll_at;
+    nd.poll_at = now;
+    nd.polls++;
     cyw43_arch_poll();
+    uint32_t cost = time_us_32() - now;
+    if (cost > nd.poll_cost) nd.poll_cost = cost;
     if (now - last_link_check_us > 200000) {
         last_link_check_us = now;
         check_link();
@@ -590,6 +612,7 @@ static void conn_free(conn_t *c) {
     free(c->out);
     free(c);
     conn_count--;
+    nd.freed++;
 }
 
 static err_t conn_close(conn_t *c) {
@@ -728,6 +751,36 @@ void net_status_json(char *j, size_t size) {
     const char *fs = fetch.state == F_BUSY ? "downloading" : fetch.state == F_ERROR ? "error" : fetch.state == F_READY ? "loading" : "idle";
     snprintf(j, size, ",\"fetch\":{\"state\":\"%s\",\"got\":%u,\"length\":%u,\"error\":%s},\"wifi\":\"%s\"",
              fs, (uint) fetch.got, (uint) fetch.length, err, link_name());
+#if WEBDIAG
+    // Small callers request only fetch/Wi-Fi status. Never truncate JSON to fit
+    // the diagnostics into that legacy 400-byte fragment.
+    size_t used = strlen(j);
+    if (size <= used || size - used < 1400) return;
+    uint32_t states[5] = {0}, oldest_ms = 0, now = time_us_32();
+    for (conn_t *c = conns; c; c = c->next) {
+        if (c->state < 5) states[c->state]++;
+        uint32_t age = (now - c->accepted_us) / 1000;
+        if (age > oldest_ms) oldest_ms = age;
+    }
+    int n = snprintf(j + used, size - used,
+        ",\"network\":{\"version\":1,\"uptime_ms\":%u,\"link\":%d,\"joins\":%u,\"transitions\":%u,\"link_ms\":%u,\"ip_changes\":%u,"
+        "\"polls\":%u,\"poll_gap_us\":%u,\"poll_cost_us\":%u,\"frame_gap_us\":%u,"
+        "\"active\":%d,\"states\":[%u,%u,%u,%u,%u],\"oldest_ms\":%u,\"accepted\":%u,\"rejected\":%u,\"freed\":%u,\"errors\":%u,\"last_error\":%d,\"evicted\":%u,\"expired\":%u,\"links\":[",
+        (uint)(time_us_64()/1000), link_status, nd.joins, nd.transitions, nd.link_ms, nd.ip_changes,
+        nd.polls, nd.poll_gap, nd.poll_cost, nd.frame_gap, conn_count,
+        states[0],states[1],states[2],states[3],states[4],oldest_ms,
+        nd.accepted,nd.rejected,nd.freed,nd.errors,nd.last_error,nd.evicted,nd.expired);
+    if (n < 0 || (size_t)n >= size-used) return;
+    used += (size_t)n;
+    uint32_t count = nd.transitions < 8 ? nd.transitions : 8;
+    for (uint32_t i=0; i<count; i++) {
+        uint32_t k=(nd.transitions-count+i)%8;
+        n=snprintf(j+used,size-used,"%s[%u,%d]",i?",":"",nd.history[k].ms,nd.history[k].state);
+        if (n<0 || (size_t)n>=size-used) return;
+        used+=(size_t)n;
+    }
+    snprintf(j+used,size-used,"]}");
+#endif
 }
 
 // between frames: act on a request whose body has all arrived
@@ -922,6 +975,7 @@ static err_t on_sent(void *arg, struct tcp_pcb *pcb, u16_t len) {
 }
 
 static void on_err(void *arg, err_t err) {
+    nd.errors++; nd.last_error = err;
     conn_t *c = arg;
     if (c) {
         c->pcb = NULL;      // lwIP has freed it
@@ -941,6 +995,7 @@ static err_t on_poll(void *arg, struct tcp_pcb *pcb) {
         return c->state == C_DONE ? conn_close(c) : ERR_OK;
     }
     if (c->state != C_WAIT && ++c->idle_polls > 10) {
+        nd.expired++;
         tcp_arg(pcb, NULL);
         c->pcb = NULL;
         tcp_abort(pcb);
@@ -964,6 +1019,7 @@ static bool evict_unused(void) {
         tcp_arg(pcb, NULL);
         tcp_abort(pcb);
     }
+    nd.evicted++;
     oldest->pcb = NULL;
     conn_free(oldest);
     return true;
@@ -973,11 +1029,13 @@ static err_t on_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
     if (err != ERR_OK || !pcb) return ERR_VAL;
     if (conn_count >= MAX_CONNS) evict_unused();
     conn_t *c = conn_count < MAX_CONNS ? calloc(1, sizeof(conn_t)) : NULL;
+    if (!c) nd.rejected++;
     if (!c) {
         tcp_abort(pcb);
         return ERR_ABRT;
     }
     conn_count++;
+    nd.accepted++;
     c->pcb = pcb;
     c->accepted_us = time_us_32();
     c->next = conns;
@@ -1004,6 +1062,9 @@ static void start_server(void) {
 // ---------------------------------------------------------------------------------------
 
 void net_frame(void) {
+    uint32_t diag_now = time_us_32();
+    if (nd.frames && diag_now - nd.frame_at > nd.frame_gap) nd.frame_gap = diag_now - nd.frame_at;
+    nd.frame_at = diag_now; nd.frames++;
     static uint frames;
     if (frames < 50) frames++;
     if (net_wanted && !net_started && frames == 50) {

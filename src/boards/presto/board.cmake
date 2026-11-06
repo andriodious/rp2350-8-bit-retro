@@ -12,6 +12,7 @@ list(APPEND PICO_BOARD_HEADER_DIRS ${BOARD_DIR})
 set(BOARD_FLASH_SAVE_SHIFT 0 CACHE STRING "Move the save disc down the flash by this much (testing)")
 
 function(board_setup TARGET)
+    target_compile_definitions(${TARGET} PRIVATE WEBDIAG=$<BOOL:${WEBDIAG}>)
     if(NIMBUS_TEST)
         target_sources(${TARGET} PRIVATE ${BOARD_DIR}/presto_bluetooth.c ${COMMON_DIR}/controller.c ${COMMON_DIR}/controller_store.c
             ${PICO_BTSTACK_PATH}/src/classic/btstack_link_key_db_memory.c)

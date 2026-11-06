@@ -12,6 +12,7 @@ def fn(name):
   i+=1
  return s[a:i]+'\n'
 head=r'''
+static struct { unsigned expired; } nd;
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>

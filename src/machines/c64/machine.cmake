@@ -1,3 +1,5 @@
+option(C64_1581_NET_SLICES "Experimental intra-frame network polling" OFF)
+option(C64_FULL_1581 "Experimental full 1581 drive for read-only D81 images" OFF)
 option(C64_RAM_CPU "Experimental: execute 6510 interpreter from SRAM" ON)
 option(C64_PACKED_PIXELS "Experimental: fetch four indexed pixels per PSRAM read" ON)
 option(C64_RENDER_OVERLAP "Experimental: double-buffer C64 indexed frames" ON)
@@ -10,6 +12,9 @@ if(NOT C64_FETCH_RESULT EQUAL 0)
     message(FATAL_ERROR "C64 dependencies could not be prepared; see scripts/fetch-c64.py output")
 endif()
 set(FRANK ${TOP_DIR}/deps/frank-c64/src)
+if(C64_FULL_1581)
+    include(${TOP_DIR}/experiments/c64-1581/firmware/build.cmake)
+endif()
 
 add_executable(presto_c64 main.cpp display.cpp memory.cpp disk_file.c t64.c crt.cpp
     ${FRANK}/rp2350/C64_rp2350.cpp ${FRANK}/rp2350/Prefs_rp2350.cpp
@@ -24,7 +29,7 @@ set_property(TARGET presto_c64 PROPERTY SOURCES "${_src}")
 common_setup(presto_c64)
 board_setup(presto_c64)
 target_include_directories(presto_c64 PRIVATE ${MACHINE_DIR} ${FRANK} ${FRANK}/rp2350)
-target_compile_definitions(presto_c64 PRIVATE MACHINE_C64=1 FRODO_RP2350=1
+target_compile_definitions(presto_c64 PRIVATE C64_1581_NET_SLICES=$<BOOL:${C64_1581_NET_SLICES}> MACHINE_C64=1 FRODO_RP2350=1
     C64_RAM_CPU=$<BOOL:${C64_RAM_CPU}> C64_PACKED_PIXELS=$<BOOL:${C64_PACKED_PIXELS}> C64_RENDER_OVERLAP=$<BOOL:${C64_RENDER_OVERLAP}> C64_PROFILE=$<BOOL:${C64_PROFILE}> PSRAM_MAX_FREQ_MHZ=125 ENABLE_DEBUG_LOGS=0 PRESTO_DISC_STAGE_OFFSET=0
     $<$<COMPILE_LANGUAGE:CXX>:PICO_CXX_DISABLE_ALLOCATION_OVERRIDES=1>)
 target_compile_options(presto_c64 PRIVATE -O2 -fwrapv -Wall
@@ -65,3 +70,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/c64_disc.c
     COMMAND python3 ${TOP_DIR}/src/machines/master/embed.py ${CMAKE_CURRENT_BINARY_DIR}/c64_disc.c c64_default_disc=${C64_DISC}
     DEPENDS ${C64_DISC} ${TOP_DIR}/src/machines/master/embed.py)
 target_sources(presto_c64 PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/c64_disc.c)
+
+if(C64_FULL_1581)
+    add_dependencies(presto_c64 c64_drive1581)
+    target_sources(presto_c64 PRIVATE ${DRIVE1581_GLUE}/panic.c ${DRIVE1581_DIR}/rom.c)
+    target_include_directories(presto_c64 PRIVATE ${DRIVE1581_GLUE})
+    target_link_libraries(presto_c64 PRIVATE ${DRIVE1581_LIB})
+    target_compile_definitions(presto_c64 PRIVATE C64_FULL_1581=1)
+endif()

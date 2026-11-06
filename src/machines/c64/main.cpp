@@ -1,3 +1,6 @@
+#if C64_FULL_1581
+#include "drive_bridge.h"
+#endif
 #if NIMBUS_TEST
 #include "controller.h"
 #endif
@@ -20,6 +23,9 @@
 #include "board.h"
 #include "machine_if.h"
 #include "frontend.h"
+#if BOARD_HAS_NET
+#include "net_if.h"
+#endif
 #include "drive.h"
 #include "psram_allocator.h"
 extern "C" {
@@ -35,6 +41,24 @@ void c64_disk_set(uint8_t *,size_t);uint32_t c64_disk_writes(void);uint32_t c64_
 #if !WITH_SOUND
 extern "C" void sid_add_sample(int16_t,int16_t){}
 extern "C" int sid_get_buffer_fill(){return 0;}
+#endif
+#if C64_FULL_1581
+static uint32_t drive_net_calls, drive_net_max_gap, drive_net_last;
+static uint64_t drive_net_us;
+extern "C" void retro_drive_network_poll(void) {
+#if BOARD_HAS_NET
+    const uint32_t now=time_us_32();
+    // Bound radio servicing overhead while the full drive saturates core 0.
+    if(drive_net_calls && (uint32_t)(now-drive_net_last)<5000u)return;
+    if(drive_net_calls){const uint32_t gap=now-drive_net_last;if(gap>drive_net_max_gap)drive_net_max_gap=gap;}
+    drive_net_last=now;
+    // Only move packets. net_frame/USB/API commands may replace the emulated
+    // machine or mounted media, so those must remain at the frame boundary.
+    net_poll();
+    drive_net_us+=(uint32_t)(time_us_32()-now);
+    drive_net_calls++;
+#endif
+}
 #endif
 // Scratch 0..3 survive watchdog resets; SDK boot control uses 4..7.
 static constexpr uint32_t DIAG_MAGIC=0x64360000;
@@ -185,7 +209,11 @@ extern "C" void machine_drive_load(const uint8_t *image,uint32_t n,bool,bool boo
     uint8_t *dst=board_psram()+1024*1024;
     if(image && n){memmove(dst,image,n);c64_disk_set(dst,n);c64_mount_disk(dst,n,"presto.d64");}
     else c64_disk_set(nullptr,0);
-    if(boot){reset_pending=true;boot_frames=image?100:0;}
+    if(boot){reset_pending=true;boot_frames=image?100:0;
+#if C64_FULL_1581
+        if(retro_drive_active())boot_frames=250; // Original KERNAL performs its RAM test.
+#endif
+    }
 }
 // Retain the archive in the mounted-media PSRAM region, never in upload staging.
 extern "C" unsigned c64_tape_count(){return tape.count;}
@@ -222,6 +250,10 @@ extern "C" void c64_tape_status(char *out,uint32_t size){
     snprintf(out,size,",\"tape\":{\"generation\":%lu,\"count\":%u,\"selected\":%u,\"state\":\"%s\"}",
         (unsigned long)tape_generation,tape.count,tape_selected,tape_state);
     size_t used=strlen(out);if(used<size)snprintf(out+used,size-used,",\"cartridge\":{\"active\":%s}",c64_crt_active()?"true":"false");
+#if C64_FULL_1581
+    used=strlen(out);if(used<size)snprintf(out+used,size-used,",\"c64_net\":{\"calls\":%lu,\"poll_us\":%llu,\"max_gap_us\":%lu}",(unsigned long)drive_net_calls,(unsigned long long)drive_net_us,(unsigned long)drive_net_max_gap);
+    used=strlen(out);if(used<size)snprintf(out+used,size-used,",\"drive1581\":{\"active\":%s,\"read_only\":true,\"pc\":\"%04x\",\"run_us\":%llu,\"run_calls\":%llu,\"instructions\":%llu,\"empty_calls\":%llu,\"empty_us\":%llu,\"idle_loops\":%llu,\"idle_tail_instructions\":%llu}",retro_drive_active()?"true":"false",retro_drive_active()?retro_drive_pc():0,(unsigned long long)retro_drive_run_us(),(unsigned long long)retro_drive_run_calls(),(unsigned long long)retro_drive_instructions(),(unsigned long long)retro_drive_empty_calls(),(unsigned long long)retro_drive_empty_us(),(unsigned long long)retro_drive_idle_loops(),(unsigned long long)retro_drive_idle_tail_instructions());
+#endif
 }
 extern "C" uint32_t machine_drive_writes(){return c64_disk_writes();}
 extern "C" bool machine_drive_sector(int,int,uint8_t *){return false;}
@@ -271,6 +303,9 @@ int main(){
 reset_pending=false;memset(pressed,0,sizeof pressed);rebuild_keys();}
 #if C64_PROFILE
         c64_profile::begin(time_us_64(),turbo);
+#endif
+#if C64_FULL_1581
+        if(!retro_drive_enabled){drive_net_calls=0;drive_net_us=0;drive_net_max_gap=0;drive_net_last=0;}
 #endif
         phase(4);uint64_t t=time_us_64();
         C64_PROFILE_CALL(EMULATION, c64_run_frame());
