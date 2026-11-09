@@ -52,3 +52,20 @@ void operator delete(void *p,size_t) noexcept {psram_free(p);}
 void operator delete[](void *p,size_t) noexcept {psram_free(p);}
 
 extern "C" uint32_t c64_memory_used(void){uint32_t n=2*1024*1024;for(Block *b=first;b;b=b->next)n+=sizeof(Block)+(b->free?0:b->size);return n;}
+
+// DigitalRenderer's class-specific allocator bypasses the C++ PSRAM heap.
+// Called on core 0 only. Keep other C64 allocations and waveform tables unchanged.
+static uint32_t sid_state_bytes;
+static bool sid_state_sram;
+extern "C" void *c64_sid_state_alloc(size_t n) {
+    void *p=malloc(n);
+    if(!p)panic("C64 SID SRAM exhausted");
+    sid_state_bytes=(uint32_t)n;
+    sid_state_sram=(uintptr_t)p>=0x20000000u && (uintptr_t)p+n<=0x20082000u;
+    return p;
+}
+extern "C" void c64_sid_state_free(void *p) {
+    free(p); sid_state_bytes=0; sid_state_sram=false;
+}
+extern "C" uint32_t c64_sid_state_size(void) { return sid_state_bytes; }
+extern "C" bool c64_sid_state_in_sram(void) { return sid_state_sram; }

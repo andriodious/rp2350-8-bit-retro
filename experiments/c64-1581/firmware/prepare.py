@@ -8,6 +8,7 @@ p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p
 p.add_argument('--idle-sram',action='store_true')
 p.add_argument('--drive-profile',action='store_true')
 p.add_argument('--flush-lines',type=int,choices=[1,4,8,16],default=1)
+p.add_argument('--sid-fast-state',action='store_true')
 a=p.parse_args();out=a.output.resolve()
 if not a.trx64.exists():
  subprocess.run(['git','clone','https://github.com/Jondalar/TRX64',str(a.trx64)],check=True)
@@ -49,6 +50,13 @@ change('rp2350/C64_rp2350.cpp','    TheC64->MountDrive8(false, filename);','''  
 change('rp2350/C64_rp2350.cpp','void c64_unmount_disk(void) {','''void c64_unmount_disk(void) {
     retro_drive_close();
     if (TheC64) {TheC64->Kernal=c64_fast_reset_rom;TheC64->TheCPU->SetKernal(TheC64->Kernal);}''')
+if a.sid_fast_state:
+ # The class-specific allocator moves only the small renderer object. Waveform
+ # tables, C64 RAM, SID maths, register ordering and sample cadence are unchanged.
+ change('rp2350/SID_rp2350.cpp', 'class DigitalRenderer : public SIDRenderer {',
+        'extern "C" void *c64_sid_state_alloc(size_t);\nextern "C" void c64_sid_state_free(void *);\nclass DigitalRenderer : public SIDRenderer {')
+ change('rp2350/SID_rp2350.cpp', '    DigitalRenderer(MOS6581 *sid);',
+        '    static void *operator new(size_t n) { return c64_sid_state_alloc(n); }\n    static void operator delete(void *p) noexcept { c64_sid_state_free(p); }\n    DigitalRenderer(MOS6581 *sid);')
 rust=out/'rust';(rust/'src').mkdir(parents=True)
 (rust/'src/lib.rs').write_bytes((HERE/'lib.rs').read_bytes())
 (rust/'Cargo.toml').write_text('''[package]

@@ -47,3 +47,7 @@ Power cycle after flashing; verify e2a899f4c3ea3ead. Use the same settings: soun
 ## Hardware checkpoint
 
 Image e2a899f4c3ea3ead sustained 1332 frames over 27.266 seconds: 48.85 fps, with 3.21–3.30 ms/frame drive cost. CRT returned to 50 fps with drive inactive. The user confirmed the web page remains responsive. With sound enabled at volume 5, a later 20.971-second interval delivered 1019 frames (48.59 fps) and underruns increased by 26211 (~1250/s). Audio is substantially improved but still choppy. Wi-Fi remained on its original join. D81 gameplay/scene-loading validation and intermittent warm-reset diagnosis remain outstanding; this is not a stable release.
+
+Subsequent hardware reset report on the batching run: first press seven green LEDs, second seven green, third one blue, subsequent presses five blue, with two white also observed after multiple presses. Web unavailable; power-on reset restored operation and web access. This supersedes any inference that the performance build resolved warm-reset reliability. USB presence was not specified for this event.
+
+Follow-up: the same reset sequence eventually reached USB firmware-download mode. No cause is inferred from this observation.

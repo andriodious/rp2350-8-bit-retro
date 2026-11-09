@@ -85,9 +85,11 @@ void audio_test(const char *args){(void)args;tone_remaining=44100;printf("C64 sp
 void audio_set_ring(void *p){(void)p;}size_t audio_ring_size(void){return sizeof ring;}
 void audio_sn_write(uint64_t t,uint8_t v){(void)t;(void)v;}void audio_frame(uint64_t t,bool mute){(void)t;(void)mute;}
 
+extern uint32_t c64_sid_state_size(void);
+extern bool c64_sid_state_in_sram(void);
 void c64_audio_json(char *out,uint32_t size){
- snprintf(out,size,",\"c64_audio\":{\"ready\":%s,\"on\":%s,\"volume\":%u,\"samples\":%lu,\"blocks\":%lu,\"underruns\":%lu,\"sid_min\":%d,\"sid_max\":%d,\"pwm_min\":%u,\"pwm_max\":%u}",
- initialized?"true":"false",enabled?"true":"false",volume,(unsigned long)produced,(unsigned long)blocks,(unsigned long)underruns,sid_min,sid_max,pwm_min,pwm_max);
+ snprintf(out,size,",\"c64_audio\":{\"ready\":%s,\"on\":%s,\"volume\":%u,\"samples\":%lu,\"blocks\":%lu,\"underruns\":%lu,\"sid_min\":%d,\"sid_max\":%d,\"pwm_min\":%u,\"pwm_max\":%u,\"sid_state_bytes\":%lu,\"sid_state_sram\":%s}",
+ initialized?"true":"false",enabled?"true":"false",volume,(unsigned long)produced,(unsigned long)blocks,(unsigned long)underruns,sid_min,sid_max,pwm_min,pwm_max,(unsigned long)c64_sid_state_size(),c64_sid_state_in_sram()?"true":"false");
 }
 
 #if WEBDIAG

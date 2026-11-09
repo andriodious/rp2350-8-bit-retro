@@ -11,8 +11,9 @@ p.add_argument('--benchmark',action='store_true')
 p.add_argument('--reuse-prepared',action='store_true')
 p.add_argument('--flush-lines',type=int,choices=[1,4,8,16],default=1)
 p.add_argument('--bus-trace',action='store_true')
+p.add_argument('--sid-fast-state',action='store_true')
 a=p.parse_args();out=a.output.resolve()
-if not a.reuse_prepared: subprocess.run([sys.executable,str(HERE/'prepare.py'),'--output',str(out),'--trx64',a.trx64,'--flush-lines',str(a.flush_lines),*(['--idle-sram'] if a.idle_sram else []),*(['--drive-profile'] if a.drive_profile else [])],check=True)
+if not a.reuse_prepared: subprocess.run([sys.executable,str(HERE/'prepare.py'),'--output',str(out),'--trx64',a.trx64,'--flush-lines',str(a.flush_lines),*(['--idle-sram'] if a.idle_sram else []),*(['--drive-profile'] if a.drive_profile else []),*(['--sid-fast-state'] if a.sid_fast_state else [])],check=True)
 subprocess.run(['cargo','build','--release','--manifest-path',str(out/'rust/Cargo.toml')],check=True)
 s=(HERE.parent/'bridge/main.cpp').read_text().replace('#include <cassert>','#include <cassert>\n#include <chrono>')
 s=s.replace('void *psram_malloc(size_t n){return malloc(n);}void psram_free(void *p){free(p);}void *psram_realloc(void *p,size_t n){return realloc(p,n);}', '''static size_t live,peak;
@@ -55,6 +56,28 @@ if a.bus_trace:
  p=out/'core/CIA.cpp';t=p.read_text()
  t=t.replace('retro_drive_read()', 'observed_drive_read()').replace('retro_drive_write(', 'observed_drive_write(')
  t='#include <stdint.h>\nextern "C" uint8_t observed_drive_read();\nextern "C" void observed_drive_write(uint8_t);\n'+t;p.write_text(t)
+s=s.replace('void sid_add_sample(int16_t,int16_t){}', '''static uint64_t audio_hash=1469598103934665603ULL,audio_samples;
+void sid_add_sample(int16_t l,int16_t r){for(uint16_t v:{(uint16_t)l,(uint16_t)r}){audio_hash=(audio_hash^(v&255))*1099511628211ULL;audio_hash=(audio_hash^(v>>8))*1099511628211ULL;}audio_samples++;}
+static size_t sid_live,sid_peak;
+void *c64_sid_state_alloc(size_t n){assert(sid_live==0);void *p=malloc(n);assert(p);sid_live=n;if(n>sid_peak)sid_peak=n;return p;}
+void c64_sid_state_free(void *p){assert(sid_live);free(p);sid_live=0;}
+''')
+s=s.replace('assert(argc==5);', 'atexit([](){printf("PCM samples=%llu hash=%016llx sid_live=%zu sid_peak=%zu\\n",(unsigned long long)audio_samples,(unsigned long long)audio_hash,sid_live,sid_peak);});assert(argc==5);')
+# Exercise the actual virtual destructor/class-specific delete after the game.
+p=out/'core/rp2350/C64_rp2350.cpp'
+p.write_text(p.read_text()+'''
+extern "C" void c64_sid_lifecycle_probe() {
+    Prefs saved=ThePrefs,off=ThePrefs;off.SIDType=SIDTYPE_NONE;
+    for(int i=0;i<20;i++) {
+        TheC64->TheSID->NewPrefs(&off);ThePrefs=off;
+        TheC64->TheSID->NewPrefs(&saved);ThePrefs=saved;
+        TheC64->TheSID->Reset();
+    }
+    TheC64->TheSID->NewPrefs(&off);ThePrefs=off;
+}
+''')
+s=s.replace('void c64_init();', 'void c64_sid_lifecycle_probe();\nvoid c64_init();')
+s=s.replace('sid_live,sid_peak);});assert(argc==5);', 'sid_live,sid_peak);c64_sid_lifecycle_probe();assert(sid_live==0);puts("SID renderer lifecycle passed");});assert(argc==5);')
 (out/'main.cpp').write_text(s)
 rom=ROOT/'roms/1581/dos1581-318045-02.bin'
 subprocess.run([sys.executable,str(ROOT/'src/machines/master/embed.py'),str(out/'rom.c'),'retro_1581_rom='+str(rom)],check=True)
