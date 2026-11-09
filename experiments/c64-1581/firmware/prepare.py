@@ -7,6 +7,7 @@ ROOT=HERE.parents[2]
 p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--trx64',type=Path,required=True)
 p.add_argument('--idle-sram',action='store_true')
 p.add_argument('--drive-profile',action='store_true')
+p.add_argument('--flush-lines',type=int,choices=[1,4,8,16],default=1)
 a=p.parse_args();out=a.output.resolve()
 if not a.trx64.exists():
  subprocess.run(['git','clone','https://github.com/Jondalar/TRX64',str(a.trx64)],check=True)
@@ -28,7 +29,10 @@ change('CPU_emulline.h','retro_drive_tick(last_cycles);','retro_drive_add_cycles
 change('CIA.cpp','(retro_drive_read() & 0xc0)','(retro_drive_active() ? (retro_drive_read() & 0xc0) : ((the_cpu_1541->CalcIECLines() & 0x30) << 2))')
 change('CIA.cpp','retro_drive_write(~inv_out);','if (retro_drive_active()) retro_drive_write(~inv_out);')
 change('rp2350/C64_rp2350.cpp','retro_drive_tick(CYCLES_PER_LINE - cycles_left);','retro_drive_add_cycles(CYCLES_PER_LINE - cycles_left);')
-change('rp2350/C64_rp2350.cpp','retro_drive_flush();','if (retro_drive_active()) retro_drive_flush();')
+# Every serial read/write still catches up immediately in the bridge. Only
+# otherwise-unobserved scanline flushes are batched; frames always end caught up.
+change('rp2350/C64_rp2350.cpp','retro_drive_flush();',
+       f'if (retro_drive_active() && (((line_count + 1) % {a.flush_lines}) == 0 || (vic_flags & VIC_VBLANK) || line_count + 1 == MAX_LINES_PER_FRAME)) retro_drive_flush();')
 # Poll transport after completed CPU/drive work, never from a Rust borrow or opcode.
 change('rp2350/C64_rp2350.cpp','        line_count++;', '        line_count++;\n#if C64_1581_NET_SLICES\n        if (retro_drive_enabled) retro_drive_network_poll();\n#endif')
 change('rp2350/C64_rp2350.cpp','void C64::Reset(bool clear_memory)\n{','void C64::Reset(bool clear_memory)\n{\n    retro_drive_reset();')
