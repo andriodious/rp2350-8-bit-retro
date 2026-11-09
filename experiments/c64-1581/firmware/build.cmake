@@ -56,6 +56,17 @@ if(C64_1581_CPU_SRAM)
         DEPENDS ${DRIVE1581_FLASH_LIB} ${DRIVE1581_GLUE}/place_cpu_sram.py
         VERBATIM)
 endif()
+option(C64_1581_LOADING_SRAM "Place drive scheduler and mapped reads in SRAM" OFF)
+if(C64_1581_LOADING_SRAM)
+    set(DRIVE1581_LOADING_INPUT ${DRIVE1581_LIB})
+    set(DRIVE1581_LIB ${DRIVE1581_DIR}/libretro_1581_loading_sram.a)
+    add_custom_command(OUTPUT ${DRIVE1581_LIB}
+        COMMAND python3 ${DRIVE1581_GLUE}/place_loading_sram.py
+            --objdump ${CMAKE_OBJDUMP} --objcopy ${CMAKE_OBJCOPY}
+            --input ${DRIVE1581_LOADING_INPUT} --output ${DRIVE1581_LIB}
+        DEPENDS ${DRIVE1581_LOADING_INPUT} ${DRIVE1581_GLUE}/place_loading_sram.py
+        VERBATIM)
+endif()
 add_custom_target(c64_drive1581 DEPENDS ${DRIVE1581_LIB})
 add_custom_command(OUTPUT ${DRIVE1581_DIR}/rom.c
     COMMAND python3 ${TOP_DIR}/src/machines/master/embed.py ${DRIVE1581_DIR}/rom.c retro_1581_rom=${TOP_DIR}/roms/1581/dos1581-318045-02.bin
