@@ -24,6 +24,7 @@ uint8_t retro_drive_read(void);
 void retro_drive_write(uint8_t);
 uint8_t retro_drive_peek(uint16_t);
 uint16_t retro_drive_pc(void);
+uint64_t retro_drive_profile(uint32_t index);
 uint64_t retro_drive_run_us(void);
 uint64_t retro_drive_run_calls(void);
 uint64_t retro_drive_instructions(void);

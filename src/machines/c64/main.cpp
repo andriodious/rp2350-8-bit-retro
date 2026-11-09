@@ -274,6 +274,12 @@ extern "C" void c64_tape_status(char *out,uint32_t size){
     size_t used=strlen(out);if(used<size)snprintf(out+used,size-used,",\"cartridge\":{\"active\":%s}",c64_crt_active()?"true":"false");
 #if C64_FULL_1581
     used=strlen(out);if(used<size)snprintf(out+used,size-used,",\"c64_net\":{\"calls\":%lu,\"poll_us\":%llu,\"max_gap_us\":%lu}",(unsigned long)drive_net_calls,(unsigned long long)drive_net_us,(unsigned long)drive_net_max_gap);
+    if (retro_drive_profile(0)) {
+        used=strlen(out);if(used<size)snprintf(out+used,size-used,",\"drive_profile\":{\"version\":1,\"calls\":%llu,\"samples\":%llu,\"sync_us\":%llu,\"alarm_us\":%llu,\"idle_us\":%llu,\"cpu_us\":%llu}",
+            (unsigned long long)retro_drive_profile(0),(unsigned long long)retro_drive_profile(1),
+            (unsigned long long)retro_drive_profile(2),(unsigned long long)retro_drive_profile(3),
+            (unsigned long long)retro_drive_profile(4),(unsigned long long)retro_drive_profile(5));
+    }
     used=strlen(out);if(used<size)snprintf(out+used,size-used,",\"drive1581\":{\"active\":%s,\"read_only\":true,\"pc\":\"%04x\",\"run_us\":%llu,\"run_calls\":%llu,\"instructions\":%llu,\"empty_calls\":%llu,\"empty_us\":%llu,\"idle_loops\":%llu,\"idle_tail_instructions\":%llu}",retro_drive_active()?"true":"false",retro_drive_active()?retro_drive_pc():0,(unsigned long long)retro_drive_run_us(),(unsigned long long)retro_drive_run_calls(),(unsigned long long)retro_drive_instructions(),(unsigned long long)retro_drive_empty_calls(),(unsigned long long)retro_drive_empty_us(),(unsigned long long)retro_drive_idle_loops(),(unsigned long long)retro_drive_idle_tail_instructions());
 #endif
 }

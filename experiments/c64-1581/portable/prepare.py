@@ -88,6 +88,13 @@ for name in modules:
         text = text.replace('fn run_slice<F: BoardFdc>(', 'fn run_slice_impl<F: BoardFdc, const OPT: bool>(')
         text = text.replace('        drive_6510core_execute(core, &mut bus, int);',
                             '        if OPT && matches!(core.reg_pc, 0x06e4 | 0x06e7) && skip_data_wait(core, int, stop_clk, &mut bus) { continue; }\n        drive_6510core_execute(core, &mut bus, int);')
+        # Feature-gated instrumentation; release builds contain none of these calls.
+        s0 = '        drive_6510core_execute(core, &mut bus, int);'
+        text = text.replace(s0, '        #[cfg(feature="drive-profile")] crate::profile::mark(3);\n' + s0 + '\n        #[cfg(feature="drive-profile")] crate::profile::mark(0);')
+        text = text.replace('        let clk = core.clk;\n        bus.process_alarms(clk);', '        #[cfg(feature="drive-profile")] crate::profile::mark(1);\n        let clk = core.clk;\n        bus.process_alarms(clk);')
+        needle = '        if OPT && matches!(core.reg_pc, 0x06e4 | 0x06e7) && skip_data_wait(core, int, stop_clk, &mut bus) { continue; }'
+        assert needle in text
+        text = text.replace(needle, '        #[cfg(feature="drive-profile")] crate::profile::mark(2);\n' + needle.replace('{ continue; }', '{ #[cfg(feature="drive-profile")] crate::profile::mark(0); continue; }'))
         text += (Path(__file__).with_name('idle_wait.rs')).read_text()
         text += '\n#[cfg(feature="idle-validation")]\n' + (Path(__file__).with_name('idle_validation.rs')).read_text()
     if name == 'drive_6510core':
@@ -150,8 +157,10 @@ impl SingleCoreStatus {
 
 ''' + text[end:]
     (src / (name + '.rs')).write_text(text)
+(src / 'profile.rs').write_bytes(Path(__file__).with_name('profile.rs').read_bytes())
 (src / 'lib.rs').write_text('''#![no_std]
 extern crate alloc;
+#[cfg(feature="drive-profile")] pub mod profile;
 pub mod expansion {
     pub trait AsAny { fn as_any_mut(&mut self) -> &mut dyn core::any::Any; }
     impl<T: core::any::Any> AsAny for T {
@@ -168,6 +177,7 @@ snapshots=[]
 idle-validation=[]
 idle-reference=[]
 idle-sram=[]
+drive-profile=[]
 [profile.release]
 panic="abort"
 opt-level=2

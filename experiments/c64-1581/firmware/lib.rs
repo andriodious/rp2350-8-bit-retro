@@ -49,7 +49,9 @@ impl Bridge {
  const BUS:[u8;16]=[0xff;16];
  let before=self.a.core.instructions;
  let started=unsafe{retro_drive_time_us()};
+ #[cfg(feature="drive-profile")] retro_drive1581::profile::begin();
  self.a.run_cycles(target-self.last, ((65536u64*1_000_000)/985248) as u32,0,self.iec.drv_port(),self.iec.cpu_bus(),&BUS);
+ #[cfg(feature="drive-profile")] retro_drive1581::profile::end();
  let elapsed=unsafe{retro_drive_time_us()}.wrapping_sub(started) as u64;
  self.run_us+=elapsed;
  if self.a.core.instructions==before {self.empty_calls+=1;self.empty_us+=elapsed;}
@@ -86,8 +88,12 @@ pub extern "C" fn retro_drive_peek(address:u16)->u8 {DRIVE.with(|s|s.borrow().as
 pub extern "C" fn retro_drive_pc()->u16 {DRIVE.with(|s|s.borrow().as_ref().unwrap().a.core.reg_pc)}
 
 #[no_mangle] pub extern "C" fn retro_drive_active()->bool {DRIVE.with(|s|s.borrow().is_some())}
-#[no_mangle] pub extern "C" fn retro_drive_close(){unsafe{retro_drive_enabled=false;retro_drive_pending=0;}DRIVE.with(|s|*s.borrow_mut()=None);}
-#[no_mangle] pub extern "C" fn retro_drive_reset(){unsafe{retro_drive_pending=0;}DRIVE.with(|s|{if let Some(d)=s.borrow_mut().as_mut(){d.a.reset(0);d.clock=0;d.last=0;d.run_us=0;d.run_calls=0;d.empty_calls=0;d.empty_us=0;d.pa=0xff;d.iec=IecCore::new();d.configure_bus();d.fold();}});}
+#[no_mangle] pub extern "C" fn retro_drive_close(){
+#[cfg(feature="drive-profile")] retro_drive1581::profile::reset();
+unsafe{retro_drive_enabled=false;retro_drive_pending=0;}DRIVE.with(|s|*s.borrow_mut()=None);}
+#[no_mangle] pub extern "C" fn retro_drive_reset(){
+#[cfg(feature="drive-profile")] retro_drive1581::profile::reset();
+unsafe{retro_drive_pending=0;}DRIVE.with(|s|{if let Some(d)=s.borrow_mut().as_mut(){d.a.reset(0);d.clock=0;d.last=0;d.run_us=0;d.run_calls=0;d.empty_calls=0;d.empty_us=0;d.pa=0xff;d.iec=IecCore::new();d.configure_bus();d.fold();}});}
 
 // Cumulative counters since mount/reset; consumers take deltas between samples.
 #[no_mangle] pub extern "C" fn retro_drive_run_us()->u64 {DRIVE.with(|s|s.borrow().as_ref().map_or(0,|d|d.run_us))}
@@ -102,3 +108,8 @@ pub extern "C" fn retro_drive_pc()->u16 {DRIVE.with(|s|s.borrow().as_ref().unwra
 #[no_mangle] pub extern "C" fn retro_drive_idle_loops()->u64 {DRIVE.with(|s|s.borrow().as_ref().map_or(0,|d|d.a.core.idle_loops))}
 
 #[no_mangle] pub extern "C" fn retro_drive_idle_tail_instructions()->u64 {DRIVE.with(|s|s.borrow().as_ref().map_or(0,|d|d.a.core.idle_tail_instructions))}
+
+#[no_mangle] pub extern "C" fn retro_drive_profile(index:u32)->u64 {
+ #[cfg(feature="drive-profile")] { return retro_drive1581::profile::get(index); }
+ #[cfg(not(feature="drive-profile"))] { let _=index; 0 }
+}

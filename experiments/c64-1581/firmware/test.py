@@ -5,8 +5,9 @@ from pathlib import Path
 HERE=Path(__file__).resolve().parent;ROOT=HERE.parents[2]
 p=argparse.ArgumentParser();p.add_argument('--trx64',required=True);p.add_argument('--image',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
 p.add_argument('--idle-sram',action='store_true')
+p.add_argument('--drive-profile',action='store_true')
 a=p.parse_args();out=a.output.resolve()
-subprocess.run([sys.executable,str(HERE/'prepare.py'),'--output',str(out),'--trx64',a.trx64,*(['--idle-sram'] if a.idle_sram else [])],check=True)
+subprocess.run([sys.executable,str(HERE/'prepare.py'),'--output',str(out),'--trx64',a.trx64,*(['--idle-sram'] if a.idle_sram else []),*(['--drive-profile'] if a.drive_profile else [])],check=True)
 subprocess.run(['cargo','build','--release','--manifest-path',str(out/'rust/Cargo.toml')],check=True)
 s=(HERE.parent/'bridge/main.cpp').read_text().replace('#include <cassert>','#include <cassert>\n#include <chrono>')
 s=s.replace('void *psram_malloc(size_t n){return malloc(n);}void psram_free(void *p){free(p);}void *psram_realloc(void *p,size_t n){return realloc(p,n);}', '''static size_t live,peak;

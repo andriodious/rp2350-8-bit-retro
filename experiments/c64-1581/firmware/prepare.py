@@ -6,6 +6,7 @@ HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[2]
 p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--trx64',type=Path,required=True)
 p.add_argument('--idle-sram',action='store_true')
+p.add_argument('--drive-profile',action='store_true')
 a=p.parse_args();out=a.output.resolve()
 if not a.trx64.exists():
  subprocess.run(['git','clone','https://github.com/Jondalar/TRX64',str(a.trx64)],check=True)
@@ -64,3 +65,9 @@ retro-drive1581={path="../portable"}
 if a.idle_sram:
  p=rust/'Cargo.toml'
  p.write_text(p.read_text().replace('retro-drive1581={path="../portable"}', 'retro-drive1581={path="../portable",features=["idle-sram"]}'))
+
+if a.drive_profile:
+ p=rust/'Cargo.toml'
+ p.write_text(p.read_text()+'\n[features]\ndrive-profile=["retro-drive1581/drive-profile"]\n')
+ # Enable instrumentation for this generated diagnostic crate only.
+ p.write_text(p.read_text().replace('[features]', '[features]\ndefault=["drive-profile"]'))

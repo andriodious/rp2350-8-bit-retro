@@ -10,7 +10,9 @@ pub mod idle_validation {
                 fast_log: &mut d.fast_log, led: &mut d.led, clk: 0 },
             clk_ptr, cpu_last_data: &mut d.cpu_last_data,
         };
+        #[cfg(feature="drive-profile")] crate::profile::begin();
         run_slice_impl::<_, OPT>(&mut d.core, &mut d.int, &mut d.reset_pending, stop, bus);
+        #[cfg(feature="drive-profile")] crate::profile::end();
     }
     fn fixture() -> Drive1581 {
         let mut d = Drive1581::new(8);

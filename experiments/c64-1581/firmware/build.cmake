@@ -1,6 +1,7 @@
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     ${TOP_DIR}/experiments/c64-1581/firmware/prepare.py
     ${TOP_DIR}/experiments/c64-1581/firmware/lib.rs
+    ${TOP_DIR}/experiments/c64-1581/portable/profile.rs
     ${TOP_DIR}/experiments/c64-1581/portable/idle_wait.rs
     ${TOP_DIR}/experiments/c64-1581/portable/idle_validation.rs
     ${TOP_DIR}/experiments/c64-1581/portable/prepare.py
@@ -10,7 +11,11 @@ find_program(C64_CARGO cargo REQUIRED)
 set(DRIVE1581_DIR ${CMAKE_CURRENT_BINARY_DIR}/drive1581)
 set(DRIVE1581_GLUE ${TOP_DIR}/experiments/c64-1581/firmware)
 option(C64_1581_IDLE_SRAM "Experimental small 1581 waiting-loop handler in SRAM" OFF)
+option(C64_1581_DRIVE_PROFILE "Sample drive CPU/idle/alarm/synchronisation costs" OFF)
 set(DRIVE1581_PREPARE_FLAGS)
+if(C64_1581_DRIVE_PROFILE)
+    list(APPEND DRIVE1581_PREPARE_FLAGS --drive-profile)
+endif()
 if(C64_1581_IDLE_SRAM)
     list(APPEND DRIVE1581_PREPARE_FLAGS --idle-sram)
 endif()
