@@ -9,6 +9,7 @@ p.add_argument('--idle-sram',action='store_true')
 p.add_argument('--drive-profile',action='store_true')
 p.add_argument('--flush-lines',type=int,choices=[1,4,8,16],default=1)
 p.add_argument('--sid-fast-state',action='store_true')
+p.add_argument('--sid-hot-code',action='store_true')
 a=p.parse_args();out=a.output.resolve()
 if not a.trx64.exists():
  subprocess.run(['git','clone','https://github.com/Jondalar/TRX64',str(a.trx64)],check=True)
@@ -57,6 +58,11 @@ if a.sid_fast_state:
         'extern "C" void *c64_sid_state_alloc(size_t);\nextern "C" void c64_sid_state_free(void *);\nclass DigitalRenderer : public SIDRenderer {')
  change('rp2350/SID_rp2350.cpp', '    DigitalRenderer(MOS6581 *sid);',
         '    static void *operator new(size_t n) { return c64_sid_state_alloc(n); }\n    static void operator delete(void *p) noexcept { c64_sid_state_free(p); }\n    DigitalRenderer(MOS6581 *sid);')
+if a.sid_hot_code:
+ # SDK copies time_critical sections to SRAM at startup. Keep sample arithmetic
+ # identical and prevent inlining from silently leaving a flash copy in callers.
+ change('rp2350/SID_rp2350.cpp', 'int16_t DigitalRenderer::calc_single_sample()',
+        '#if defined(__arm__) || defined(__thumb__)\n__attribute__((noinline, section(".time_critical.c64_sid_sample")))\n#else\n__attribute__((noinline))\n#endif\nint16_t DigitalRenderer::calc_single_sample()')
 rust=out/'rust';(rust/'src').mkdir(parents=True)
 (rust/'src/lib.rs').write_bytes((HERE/'lib.rs').read_bytes())
 (rust/'Cargo.toml').write_text('''[package]
