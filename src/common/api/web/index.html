@@ -170,7 +170,7 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 <p>One completed timing sample about every five seconds. Keep this page open and the game scene unchanged. Browser polling adds some measurement overhead.</p>
 <button id="profilesave">Save performance data</button> <button id="profileclear">Clear performance data</button>
 <pre id="profileout" style="max-height:200px;overflow:auto;white-space:pre-wrap;font-size:12px">Waiting for a complete sample…</pre></details>
-<details id="tracepanel" hidden open><summary>Diagnostic trace</summary><p>Last received messages stay here if the board stops responding. Select and copy the text, or save it below.</p><button id="tracesave">Save trace</button> <button id="traceclear">Clear trace</button><p id="webperf">Request timings will appear here.</p><pre id="traceout" style="max-height:240px;overflow:auto;white-space:pre-wrap;font-size:12px"></pre></details>
+<details id="tracepanel" hidden open><summary>Diagnostic trace</summary><p>Last received messages stay here if the board stops responding. Select and copy the text, or save it below.</p><button id="tracesave">Save trace</button> <button id="traceclear">Clear trace</button><p id="wdcontrols" hidden>Diagnostic watchdog: <strong id="wdstate"></strong> <button id="wdon">Enable</button> <button id="wdoff">Disable</button><br>Disabling removes automatic C64 crash recovery for this session. A machine restart restores the default.</p><p id="audiohwcontrols" hidden>Diagnostic audio hardware: <strong id="audiohwstate"></strong> <button id="audiohwstop">Stop audio DMA</button><br>Stops audio output until C64 restarts. This is separate from muting sound.</p><p id="webperf">Request timings will appear here.</p><pre id="traceout" style="max-height:240px;overflow:auto;white-space:pre-wrap;font-size:12px"></pre></details>
 <section id="c64notice" hidden><span id="c64diag"></span> <button id="c64retry">Retry C64</button></section>
 <section id="av">
   <div class="row">
@@ -498,6 +498,14 @@ function trace(message) {
   $('traceout').textContent=traceLines.join('\n');$('traceout').scrollTop=$('traceout').scrollHeight;
   try {sessionStorage.setItem('presto-trace',JSON.stringify(traceLines));} catch(e) {}
 }
+for(const [id,on] of [['wdon',1],['wdoff',0]]) $(id).onclick=async()=>{
+  try {const result=await api('/api/c64/watchdog','on='+on);trace('WATCHDOG '+JSON.stringify(result));await poll();}
+  catch(e){trace('WATCHDOG ERROR '+e.message);}
+};
+$('audiohwstop').onclick=async()=>{
+ try{const result=await api('/api/c64/audio-stop','stop=1');trace('AUDIO HARDWARE STOP '+JSON.stringify(result));await poll();}
+ catch(e){trace('AUDIO HARDWARE ERROR '+e.message);}
+};
 $('traceclear').onclick=()=>{traceLines=[];resetWebPerf();trace('Trace cleared; responsiveness counters reset');};
 $('tracesave').onclick=()=>{const url=URL.createObjectURL(new Blob([traceLines.join('\n')],{type:'text/plain'}));const a=document.createElement('a');a.href=url;a.download='presto-trace.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 trace('Web trace r11 opened; samples are last received status, not an instruction-level crash trace');
@@ -616,6 +624,14 @@ async function btCommand(command) {
   catch(e) { $('btError').textContent=String(e); }
 }
 function show(s) {
+  const ah=s.c64_audio_hw;
+  $('audiohwcontrols').hidden=!(WEBDIAG && s.machine==='c64' && ah);
+  if(ah){$('audiohwstate').textContent=ah.stopped?'Stopped':ah.stop_requested?'Stopping':'Running';$('audiohwstop').disabled=ah.stop_requested;}
+
+  const wd=s.c64_watchdog;
+  $('wdcontrols').hidden=!(WEBDIAG && s.machine==='c64' && wd);
+  if(wd){$('wdstate').textContent=wd.enabled?'Enabled':'Disabled';$('wdon').disabled=$('wdoff').disabled=!wd.toggle_allowed;}
+
   $('bluetoothPanel').hidden=!s.bluetooth;
   $('btValues').hidden=!WEBDIAG;
   $('btDownload').hidden=!WEBDIAG;
@@ -705,7 +721,7 @@ let pollFails = 0, pollTimer;
 function pollSoon() { clearTimeout(pollTimer); pollTimer = setTimeout(poll, 250); }
 async function poll() {
   clearTimeout(pollTimer);
-  try { const sample=await api('/api/status', null, 'GET');trace('STATUS '+JSON.stringify({machine:sample.machine,core0:sample.core0,core1:sample.core1,c64:sample.c64,c64_audio:sample.c64_audio,c64_failure:sample.c64_failure,drive1581:sample.drive1581,c64_net:sample.c64_net,network:sample.network,bluetooth:sample.bluetooth,c64_profile:sample.c64_profile,speed:sample.speed,mem:sample.mem,web:webPerfSummary()}));show(sample); pollFails = 0; }
+  try { const sample=await api('/api/status', null, 'GET');trace('STATUS '+JSON.stringify({machine:sample.machine,firmware:sample.firmware,core0:sample.core0,core1:sample.core1,c64:sample.c64,c64_watchdog:sample.c64_watchdog,c64_audio:sample.c64_audio,c64_audio_hw:sample.c64_audio_hw,c64_failure:sample.c64_failure,drive1581:sample.drive1581,c64_net:sample.c64_net,network:sample.network,bluetooth:sample.bluetooth,c64_profile:sample.c64_profile,speed:sample.speed,mem:sample.mem,web:webPerfSummary()}));show(sample); pollFails = 0; }
   // one failed poll can be a dropped WiFi packet: only say so after two in a row
   catch (e) {
     trace('STATUS LOST: '+(e.name==='AbortError'?'no complete response within 4 seconds':e.message));

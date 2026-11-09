@@ -1,3 +1,4 @@
+#include "firmware_identity.h"
 #if NIMBUS_TEST
 #include "presto_bluetooth.h"
 #endif
@@ -160,15 +161,17 @@ static void status_json(char *j, size_t size) {
     else strcpy(disc, "null");
     char builtin[40];
     api_json_str(builtin, sizeof builtin, drive0_builtin_title());
+    char build[160];
+    api_json_str(build, sizeof build, RETRO_BUILD_ID);
     char overlay[8];
     snprintf(overlay, sizeof overlay, "%s", !machine_overlay_has() ? "null" : machine_overlay_get() ? "true" : "false");
     int n = snprintf(j, size, "{\"machine\":\"%s\",\"board\":\"%s\",\"turbo\":%s,\"overlay\":%s,\"speed\":%u,"
                               "\"core0\":%u,\"core1\":%u,\"disc\":%s,\"builtin\":%s,\"saves\":%d,\"free\":%u,\"mhz\":%u,"
-                              "\"temp\":%d,\"leds\":%u,\"program\":%s",
+                              "\"temp\":%d,\"leds\":%u,\"program\":%s,\"firmware\":{\"source\":%s,\"image\":\"%s\",\"launcher_sha256\":\"%s\"}",
                      machine_name(), BOARD_NAME, machine_turbo_get() ? "true" : "false", overlay, speed, c0, c1,
                      disc, builtin, drive0_saves(), free_ram, (unsigned) (clock_get_hz(clk_sys) / 1000000),
                      (frontend_temp_centi() + 50) / 100, machine_leds(),
-                     app_program_json() ? "true" : "false");
+                     app_program_json() ? "true" : "false", build, RETRO_IMAGE_ID, RETRO_LAUNCHER_SHA256);
 #if BOARD_HAS_NET
     if (n > 0 && (size_t) n < size) {
         net_status_json(j + n, size - (size_t) n);
@@ -226,6 +229,10 @@ static void status_json(char *j, size_t size) {
 #if MACHINE_C64 && WITH_SOUND
     extern void c64_audio_json(char *, uint32_t);
     if(n>0 && (size_t)n<size){c64_audio_json(j+n,size-n);n+=(int)strlen(j+n);}
+#if WEBDIAG
+    extern void c64_audio_diag_json(char *, uint32_t);
+    if(n>0 && (size_t)n<size){c64_audio_diag_json(j+n,size-n);n+=(int)strlen(j+n);}
+#endif
 #endif
     if(n>0 && (size_t)n<size){system_failure_json(j+n,size-n);n+=(int)strlen(j+n);}
     if (n > 0 && (size_t) n + 2 <= size) strcpy(j + n, "}");
@@ -242,6 +249,34 @@ static void cmd_status(api_req_t *r) {
         printf("STATUS %s\n", j);
     }
 }
+
+#if MACHINE_C64 && WEBDIAG
+extern bool c64_watchdog_set(bool enabled);
+static void cmd_c64_watchdog(api_req_t *r) {
+    if (strcmp(r->args, "on=0") && strcmp(r->args, "on=1")) {
+        api_reply(r, 400, "{\"error\":\"Expected on=0 or on=1\"}");
+        return;
+    }
+    bool enabled = r->args[3] == '1';
+    if (!c64_watchdog_set(enabled)) {
+        api_reply(r, 409, "{\"error\":\"Unavailable during recovery\"}");
+        return;
+    }
+    api_reply(r, 200, "{\"enabled\":%s}", enabled ? "true" : "false");
+}
+#endif
+
+#if MACHINE_C64 && WITH_SOUND && WEBDIAG
+extern void c64_audio_stop_request(void);
+static void cmd_c64_audio_stop(api_req_t *r) {
+    if (strcmp(r->args,"stop=1")) {
+        api_reply(r,400,"{\"error\":\"Expected stop=1\"}");
+        return;
+    }
+    c64_audio_stop_request();
+    api_reply(r,202,"{\"requested\":true}");
+}
+#endif
 
 static void cmd_stats(api_req_t *r) {
     if (r->json) {
@@ -635,6 +670,12 @@ static const api_cmd_t s_cmds[] = {
     {"bluetooth", NULL, true, cmd_bluetooth},
 #endif
     {"machine", NULL, true, cmd_machine},
+#if MACHINE_C64 && WEBDIAG
+    {"c64/watchdog", NULL, true, cmd_c64_watchdog},
+#endif
+#if MACHINE_C64 && WITH_SOUND && WEBDIAG
+    {"c64/audio-stop", NULL, true, cmd_c64_audio_stop},
+#endif
     {"stats", NULL, false, cmd_stats},
     {"keys", NULL, true, cmd_keys},
     {"turbo", NULL, true, cmd_turbo},

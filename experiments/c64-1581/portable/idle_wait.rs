@@ -26,11 +26,17 @@ fn skip_data_wait<F: BoardFdc>(
     if value & 1 != 0 || bus.cia.last_read != value || core.flag_z != 0
         || core.flag_n != value & 0x80 || core.reg_p & 0x40 != value & 0x40
     { return false; }
+    // Inputs and uploaded code cannot change while executing only this
+    // read-only waiting loop. Reuse validation until the slice/alarm boundary,
+    // rather than returning through the dispatcher after each tail instruction.
+    let mut progressed = false;
+    loop {
+        if core.clk >= stop { return progressed; }
     // Finish a taken branch without entering the general opcode dispatcher.
     // Like the interpreter, one instruction can finish beyond the slice target.
     // Do not cross any alarm even when it would only be serviced next time.
     if core.reg_pc == 0x06e7 {
-        if bus.cia.next_alarm_clk().saturating_sub(core.clk) <= 3 { return false; }
+        if bus.cia.next_alarm_clk().saturating_sub(core.clk) <= 3 { return progressed; }
         core.clk += 3;
         core.reg_pc = 0x06e4;
         core.d_bank_start = 0;
@@ -41,12 +47,13 @@ fn skip_data_wait<F: BoardFdc>(
         core.instructions = core.instructions.wrapping_add(1);
         core.idle_tail_instructions = core.idle_tail_instructions.wrapping_add(1);
         *bus.cpu_last_data = 0x78;
-        return true;
+        progressed = true;
+        continue;
     }
     let end = stop.min(bus.cia.next_alarm_clk().saturating_sub(1));
     let loops = end.saturating_sub(core.clk) / 7;
     if loops == 0 {
-        if bus.cia.next_alarm_clk().saturating_sub(core.clk) <= 4 { return false; }
+        if bus.cia.next_alarm_clk().saturating_sub(core.clk) <= 4 { return progressed; }
         // BIT absolute: operand read at +3, instruction boundary at +4.
         // Guards above established that N/V/Z already equal this input.
         bus.cia.clk = core.clk + 3;
@@ -61,7 +68,8 @@ fn skip_data_wait<F: BoardFdc>(
         core.instructions = core.instructions.wrapping_add(1);
         core.idle_tail_instructions = core.idle_tail_instructions.wrapping_add(1);
         *bus.cpu_last_data = value;
-        return true;
+        progressed = true;
+        continue;
     }
     core.clk += loops * 7;
     core.instructions = core.instructions.wrapping_add(loops * 2);
@@ -72,7 +80,8 @@ fn skip_data_wait<F: BoardFdc>(
     bus.cia.read_offset = 0;
     bus.ports.clk = core.clk - 4;
     *bus.cpu_last_data = 0x78; // BEQ's dummy read of the following SEI.
-    true
+    progressed = true;
+    }
 }
 
 fn run_slice<F: BoardFdc>(core: &mut DriveCore6510, int: &mut IntStatus,

@@ -83,11 +83,26 @@ extern "C" void __attribute__((naked)) isr_hardfault(){
     __asm volatile("tst lr, #4\n ite eq\n mrseq r0, msp\n mrsne r0, psp\n"
                    "b c64_fault\n");
 }
+#if WEBDIAG
+extern "C" bool c64_watchdog_set(bool enabled) {
+    if (recovery || fault_seen) return false;
+    if (enabled) watchdog_enable(8000, true);
+    else watchdog_disable();
+    return true;
+}
+#endif
 extern "C" void c64_diagnostics_json(char *out,uint32_t size){
     snprintf(out,size,",\"c64\":{\"build\":\"r11\",\"recovery\":%s,\"phase\":%lu,\"pc\":\"%08lx\",\"cfsr\":\"%08lx\",\"uptime_ms\":%lu,\"live_phase\":%lu,\"frames\":%lu,\"rendered\":%lu}",
         recovery?"true":"false",(unsigned long)previous_phase,(unsigned long)previous_pc,(unsigned long)previous_cfsr,
         (unsigned long)to_ms_since_boot(get_absolute_time()),(unsigned long)(watchdog_hw->scratch[0]&511),
         (unsigned long)trace_frames,(unsigned long)trace_rendered);
+#if WEBDIAG
+    size_t wd_used = strlen(out);
+    if (wd_used < size) snprintf(out + wd_used, size - wd_used,
+        ",\"c64_watchdog\":{\"enabled\":%s,\"toggle_allowed\":%s}",
+        (watchdog_hw->ctrl & WATCHDOG_CTRL_ENABLE_BITS) ? "true" : "false",
+        (!recovery && !fault_seen) ? "true" : "false");
+#endif
 #if C64_PROFILE
     size_t used = strlen(out);
     if (used < size) c64_profile::json(out + used, size - used);
@@ -138,12 +153,18 @@ static void convert_frame(){
 #endif
     }
 }
+#if WITH_SOUND && WEBDIAG
+extern "C" void c64_audio_diag_poll(void);
+#endif
 static void core1(){
     flash_safe_execute_core_init();
 #if WITH_SOUND
     audio_init();
 #endif
     for(;;){
+#if WITH_SOUND && WEBDIAG
+        c64_audio_diag_poll();
+#endif
         if(!frame_ready.load(std::memory_order_acquire)){__wfe();continue;}
         __dmb();uint32_t t=time_us_32();convert_frame();trace_rendered++;conversion_us=time_us_32()-t;
 #if WITH_AMBIENT
@@ -277,7 +298,10 @@ int main(){
         for(;;){frontend_frame();sleep_ms(20);}
     }
     watchdog_hw->scratch[0]=DIAG_MAGIC;watchdog_hw->scratch[1]=0;watchdog_hw->scratch[2]=0;watchdog_hw->scratch[3]=0;
-    phase(1);watchdog_enable(8000,true);
+    phase(1);
+#if C64_WATCHDOG
+    watchdog_enable(8000,true);
+#endif
     memset(keys,255,8);memset(reverse_keys,255,8);
     for(int i=0;i<16;i++){
         uint32_t p=palette[i],v=((p>>8)&0xf800)|((p>>5)&0x07e0)|((p>>3)&0x1f),rev;
@@ -289,7 +313,10 @@ int main(){
     for(int y=0;y<480;y++)rows[y]=pixels[y*272/480];
     rows[480]=nullptr;
     board_display_init(rows);phase(2);c64_init();phase(3);drive0_init(c64_default_disc,c64_default_disc_size,board_psram());boot_frames=100;frontend_init();
-    multicore_launch_core1(core1);watchdog_enable(8000,true);
+    multicore_launch_core1(core1);
+#if C64_WATCHDOG
+    watchdog_enable(8000,true);
+#endif
     uint64_t due=time_us_64(),stat=due,busy=0;unsigned frames=0;
     for(;;){
         if(install_hold){

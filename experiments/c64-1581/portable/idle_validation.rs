@@ -40,6 +40,21 @@ pub mod idle_validation {
         assert_eq!(a.led, b.led);
     }
     pub fn validate() {
+        // Irregular IEC time slices, including clocks crossing 32-bit range.
+        // Compare complete CPU/CIA/bus state after every slice, not only output.
+        for base in [100u64, u32::MAX as u64 - 100, u32::MAX as u64 + 100] {
+            for seed in 1..25u32 {
+                let mut a=fixture(); let mut b=fixture();
+                a.core.clk=base; b.core.clk=base;
+                let mut stop=base; let mut random=seed;
+                for i in 0..128 {
+                    random=random.wrapping_mul(1664525).wrapping_add(1013904223);
+                    stop += 1 + (random % 127) as u64;
+                    if i==91 {a.iecbus.drv_port^=1;b.iecbus.drv_port^=1;}
+                    run::<true>(&mut a,stop);run::<false>(&mut b,stop);equal(&a,&b);
+                }
+            }
+        }
         let mut skips = 0;
         let mut tails = 0;
         // Every possible stopping point, including partial BIT/BEQ instructions.

@@ -1,3 +1,4 @@
+option(C64_WATCHDOG "Keep C64 watchdog recovery enabled (disable only for reset diagnosis)" ON)
 option(C64_1581_NET_SLICES "Experimental intra-frame network polling" OFF)
 option(C64_FULL_1581 "Experimental full 1581 drive for read-only D81 images" OFF)
 option(C64_RAM_CPU "Experimental: execute 6510 interpreter from SRAM" ON)
@@ -29,7 +30,7 @@ set_property(TARGET presto_c64 PROPERTY SOURCES "${_src}")
 common_setup(presto_c64)
 board_setup(presto_c64)
 target_include_directories(presto_c64 PRIVATE ${MACHINE_DIR} ${FRANK} ${FRANK}/rp2350)
-target_compile_definitions(presto_c64 PRIVATE C64_1581_NET_SLICES=$<BOOL:${C64_1581_NET_SLICES}> MACHINE_C64=1 FRODO_RP2350=1
+target_compile_definitions(presto_c64 PRIVATE C64_1581_NET_SLICES=$<BOOL:${C64_1581_NET_SLICES}> MACHINE_C64=1 FRODO_RP2350=1 C64_WATCHDOG=$<BOOL:${C64_WATCHDOG}>
     C64_RAM_CPU=$<BOOL:${C64_RAM_CPU}> C64_PACKED_PIXELS=$<BOOL:${C64_PACKED_PIXELS}> C64_RENDER_OVERLAP=$<BOOL:${C64_RENDER_OVERLAP}> C64_PROFILE=$<BOOL:${C64_PROFILE}> PSRAM_MAX_FREQ_MHZ=125 ENABLE_DEBUG_LOGS=0 PRESTO_DISC_STAGE_OFFSET=0
     $<$<COMPILE_LANGUAGE:CXX>:PICO_CXX_DISABLE_ALLOCATION_OVERRIDES=1>)
 target_compile_options(presto_c64 PRIVATE -O2 -fwrapv -Wall

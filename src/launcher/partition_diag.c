@@ -42,7 +42,9 @@ static int __no_inline_not_in_flash_func(partition_call)(PIO pio, uint sm,
     partition_led(pio, sm, 5, 0x080008u);
     bootrom_release_lock(BOOTROM_LOCK_SHA_256);
     partition_led(pio, sm, 6, 0x080008u);
+#if !LAUNCHER_BOOT_REPORT
     if (rc < 0) partition_stop(pio, sm, 3);
+#endif
     return rc;
 }
 

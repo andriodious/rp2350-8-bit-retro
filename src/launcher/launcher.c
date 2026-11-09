@@ -17,31 +17,82 @@
 
 #include "board_config.h"
 #include "system.h"
+#if LAUNCHER_BOOT_REPORT
+#include <stdio.h>
+#include "pico/stdio_usb.h"
+static struct { int slot, lookup, chain; uint32_t first, last; } attempts[3];
+static unsigned attempt_count;
+static int partition_result;
+static boot_info_t boot_info;
+static bool boot_info_valid;
+static void __attribute__((noreturn)) report_fallback(void) {
+    // Only initialise USB after every machine boot attempt has returned.
+    // Do not reboot: preserve the return codes and avoid hiding the failure in BOOTSEL.
+    watchdog_disable();
+    stdio_usb_init();
+    for (;;) {
+        startup_diag_mark(0x107);
+        printf("LAUNCHER_FALLBACK v1 partition=%d boot_valid=%u boot_word=%08lx diagnostic=%08lx\n",
+               partition_result, boot_info_valid, (unsigned long)boot_info.boot_word,
+               (unsigned long)boot_info.boot_diagnostic);
+        for (unsigned i=0; i<attempt_count; ++i)
+            printf("ATTEMPT slot=%d lookup=%d first=%lu last=%lu chain=%d\n",
+                   attempts[i].slot, attempts[i].lookup, (unsigned long)attempts[i].first,
+                   (unsigned long)attempts[i].last, attempts[i].chain);
+        stdio_flush();
+        sleep_ms(1000);
+        startup_diag_mark(0);
+        sleep_ms(1000);
+    }
+}
+#endif
 
 // the boot ROM's work area for searching and checking an image (3264 bytes, it says)
 static uint8_t s_work[4096] __aligned(4);
 
 // boot the image in a slot: only returns if there's no bootable image there
 static void chain(int slot) {
+#if LAUNCHER_BOOT_REPORT
+    unsigned a = attempt_count++;
+    attempts[a].slot = slot;
+    attempts[a].chain = 0x7fffffff; // Not called: lookup failed.
+#endif
     startup_diag_mark(0x103);
     uint32_t info[3];
     int n = rom_get_partition_table_info(info, 3, PT_INFO_PARTITION_LOCATION_AND_FLAGS | PT_INFO_SINGLE_PARTITION |
                                                   ((uint32_t) slot << 24));
     startup_diag_mark(0x104);
+#if LAUNCHER_BOOT_REPORT
+    attempts[a].lookup = n;
+#endif
     if (n != 3) return;
     uint32_t first = (info[1] & PICOBIN_PARTITION_LOCATION_FIRST_SECTOR_BITS) >> PICOBIN_PARTITION_LOCATION_FIRST_SECTOR_LSB;
     uint32_t last = (info[1] & PICOBIN_PARTITION_LOCATION_LAST_SECTOR_BITS) >> PICOBIN_PARTITION_LOCATION_LAST_SECTOR_LSB;
     startup_diag_mark(0x105);
+#if LAUNCHER_BOOT_REPORT
+    attempts[a].first = first;
+    attempts[a].last = last;
+    attempts[a].chain =
+#endif
     rom_chain_image(s_work, sizeof s_work, XIP_BASE + first * FLASH_SECTOR_SIZE, (last + 1 - first) * FLASH_SECTOR_SIZE);
     startup_diag_mark(0x106);
 }
 
 int main(void) {
     startup_diag_mark(0x101);
+#if LAUNCHER_BOOT_REPORT
+    boot_info_valid = rom_get_boot_info(&boot_info);
+#endif
 #if STARTUP_DIAG
     extern int partition_diag_load(uint8_t *, uint32_t);
+#if LAUNCHER_BOOT_REPORT
+    partition_result =
+#endif
     partition_diag_load(s_work, sizeof s_work);
 #else
+#if LAUNCHER_BOOT_REPORT
+    partition_result =
+#endif
     rom_load_partition_table(s_work, sizeof s_work, false);
 #endif
     startup_diag_mark(0x102);
@@ -60,5 +111,9 @@ int main(void) {
         if (slots[i] != slot) chain(slots[i]);
     }
     startup_diag_mark(0x107);
+#if LAUNCHER_BOOT_REPORT
+    report_fallback();
+#else
     reset_usb_boot(0, 0);
+#endif
 }

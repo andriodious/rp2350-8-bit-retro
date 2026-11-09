@@ -10,6 +10,13 @@ function(common_setup TARGET)
         set(RETRO_BUILD_ID "source archive")
     endif()
     target_compile_definitions(${TARGET} PRIVATE RETRO_BUILD_ID="${RETRO_BUILD_ID}")
+    # A new configure gets a distinct identifier, including dirty-tree experiments.
+    string(RANDOM LENGTH 16 ALPHABET 0123456789abcdef RETRO_IMAGE_ID)
+    set(RETRO_LAUNCHER_SHA256 "" CACHE STRING "SHA256 of launcher UF2 paired by the combined build")
+    configure_file(${COMMON_DIR}/firmware_identity.h.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/firmware_identity.h @ONLY)
+    target_include_directories(${TARGET} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
     target_sources(${TARGET} PRIVATE
             ${COMMON_DIR}/api/api.c
             ${COMMON_DIR}/boot_banner.c

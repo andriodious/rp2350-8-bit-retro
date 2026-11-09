@@ -1,0 +1,5 @@
+// Generated at configure time. Launcher digest identifies the paired build artifact,
+// not a live readback of the launcher currently installed on the board.
+#pragma once
+#define RETRO_IMAGE_ID "@RETRO_IMAGE_ID@"
+#define RETRO_LAUNCHER_SHA256 "@RETRO_LAUNCHER_SHA256@"

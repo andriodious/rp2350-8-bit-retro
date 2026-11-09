@@ -353,3 +353,23 @@ This experimental checkpoint preserves the prior D81 optimisations, 5 ms polling
 Wi-Fi boot gate and Nimbus retry backoff. STARTUP_DIAG defaults OFF; the tested
 build enables it and STARTUP_DIAG_PREMAIN. The RAM partition-call diagnostic path
 is conditional on STARTUP_DIAG, not a general production reset fix.
+
+## 8 November: short Elite run reproduces failure
+
+User confirmed a cold boot before this session. Trace shows Master switching to
+C64, with 1581 inactive throughout the captured C64 session. Last status at
+19:08:26.972 UTC had 157,317 ms C64 uptime and 99% speed. Physical Reset was
+reported to leave a black screen and seven green LEDs, followed by twelve
+consecutive status timeouts through 19:09:33. A second Reset did not recover;
+power cycling was required. Long D81 execution is therefore not necessary.
+The trace matches build 8 machine metrics but cannot distinguish the launcher.
+
+Future status responses and web traces include firmware.source (git description),
+firmware.image (16 hex characters generated per CMake configure), and
+firmware.launcher_sha256 (SHA256 of the launcher UF2 used by the combined build).
+The combined script builds the launcher first, then configures the machines with
+its digest. The image ID identifies a configuration, not every possible rebuild;
+archive the final UF2 checksum alongside it. The launcher digest is build metadata,
+not a live readback: flashing a standalone machine or mixing artifacts can invalidate
+that association. Standalone builds without a supplied digest report an empty string.
+Original comparison and reference binaries remain unchanged.

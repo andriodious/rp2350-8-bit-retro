@@ -35,3 +35,18 @@ if(STARTUP_DIAG)
     target_link_libraries(presto_launcher PRIVATE hardware_pio)
     pico_generate_pio_header(presto_launcher ${BOARD_DIR}/ws2812.pio)
 endif()
+
+# Experimental: distinguish launcher fallback from ROM USB boot entry.
+option(LAUNCHER_BOOT_REPORT "Report failed machine boot attempts over USB instead of BOOTSEL" OFF)
+if(LAUNCHER_BOOT_REPORT)
+    if(NOT STARTUP_DIAG)
+        message(FATAL_ERROR "LAUNCHER_BOOT_REPORT requires STARTUP_DIAG")
+    endif()
+    target_compile_definitions(presto_launcher PRIVATE LAUNCHER_BOOT_REPORT=1
+        PICO_STDIO_USB_ENABLE_RESET_VIA_BAUD_RATE=0
+        PICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0)
+    target_link_libraries(presto_launcher PRIVATE pico_stdio_usb)
+    # Do not start USB before attempting to chain a machine.
+    pico_enable_stdio_usb(presto_launcher 0)
+    pico_enable_stdio_uart(presto_launcher 0)
+endif()
