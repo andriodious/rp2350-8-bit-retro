@@ -14,10 +14,11 @@ The tag identifies source; the UF2 hash identifies the exact tested binary.
 
 User reports no warm-reset issues with this combined build on two Prestos.
 User additionally reports standalone C64 failed warm reboot on almost every reset.
-No exact reset counts, durations or standalone image ID were supplied with that
-latest comparison. Do not equate this with a controlled failure-rate measurement,
-or assume the clean standalone 248af4fedbeca14f was the failing standalone image.
-Earlier diagnostic standalone failures are documented in the conversation.
+Follow-up clarification: the latest standalone diagnostic build seemed worse.
+This was not a confirmed failure of clean standalone 248af4fedbeca14f. Exact reset
+counts, durations and the diagnostic image ID were not supplied. Do not treat
+this as a controlled failure-rate measurement. Clean standalone remains the next
+useful comparison when the user has time; no further hardware testing is pending now.
 Stable release untouched. No firmware behaviour changed for this checkpoint.
 
 ## Build differences and implications

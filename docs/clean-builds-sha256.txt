@@ -1,0 +1,2 @@
+9a189a13d0dc791cdef59f5f510695a0a99e8829bb37de067623a847ff538ac8  combined-clean-c3c3c2b/presto-combined-clean.uf2
+d3be53ff51226e85cf71e6ec325772f171e3a93491964edb29c36935516ab55b  c64-clean-reset-test/c64-clean-reset-test.uf2
