@@ -113,3 +113,6 @@ unsafe{retro_drive_pending=0;}DRIVE.with(|s|{if let Some(d)=s.borrow_mut().as_mu
  #[cfg(feature="drive-profile")] { return retro_drive1581::profile::get(index); }
  #[cfg(not(feature="drive-profile"))] { let _=index; 0 }
 }
+
+#[no_mangle] pub extern "C" fn retro_drive_serial_loops()->u64 {DRIVE.with(|s|s.borrow().as_ref().map_or(0,|d|d.a.core.serial_loops))}
+#[no_mangle] pub extern "C" fn retro_drive_serial_tail_instructions()->u64 {DRIVE.with(|s|s.borrow().as_ref().map_or(0,|d|d.a.core.serial_tail_instructions))}

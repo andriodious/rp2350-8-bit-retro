@@ -15,7 +15,8 @@ elf, original, relocated, objdump = sys.argv[1:]
 listing = subprocess.check_output([objdump, '-h', original], text=True)
 sections = m.select(listing)
 # Missing, duplicate and over-budget sections must fail closed.
-for invalid in ['', listing + listing, listing.replace('000005ce', '00005000')]:
+oversized = '\n'.join(f' 1 {name} 00005000 00000000' for name, size in sections.values())
+for invalid in ['', listing + listing, oversized]:
     if invalid == listing:
         continue
     try:

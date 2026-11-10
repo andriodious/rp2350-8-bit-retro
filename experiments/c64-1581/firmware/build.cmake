@@ -2,6 +2,9 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     ${TOP_DIR}/experiments/c64-1581/firmware/prepare.py
     ${TOP_DIR}/experiments/c64-1581/firmware/lib.rs
     ${TOP_DIR}/experiments/c64-1581/portable/profile.rs
+    ${TOP_DIR}/experiments/c64-1581/portable/serial_wait.rs
+    ${TOP_DIR}/experiments/c64-1581/portable/job_scan.rs
+    ${TOP_DIR}/experiments/c64-1581/portable/delay_loop.rs
     ${TOP_DIR}/experiments/c64-1581/portable/idle_wait.rs
     ${TOP_DIR}/experiments/c64-1581/portable/idle_validation.rs
     ${TOP_DIR}/experiments/c64-1581/portable/prepare.py
@@ -17,6 +20,18 @@ if(NOT C64_1581_FLUSH_LINES MATCHES "^(1|4|8|16)$")
     message(FATAL_ERROR "C64_1581_FLUSH_LINES must be 1, 4, 8 or 16")
 endif()
 set(DRIVE1581_PREPARE_FLAGS --flush-lines ${C64_1581_FLUSH_LINES})
+option(C64_1581_SERIAL_WAIT "Batch guarded active loader CLOCK-edge waits" OFF)
+if(C64_1581_SERIAL_WAIT)
+    list(APPEND DRIVE1581_PREPARE_FLAGS --serial-wait)
+endif()
+option(C64_1581_JOB_SCAN "Batch guarded ROM job queue scans" OFF)
+if(C64_1581_JOB_SCAN)
+    list(APPEND DRIVE1581_PREPARE_FLAGS --job-scan)
+endif()
+option(C64_1581_DELAY_LOOP "Batch guarded ROM DEX/BNE delay iterations" OFF)
+if(C64_1581_DELAY_LOOP)
+    list(APPEND DRIVE1581_PREPARE_FLAGS --delay-loop)
+endif()
 option(C64_SID_FAST_STATE "Allocate SID renderer working state in internal SRAM" OFF)
 option(C64_SID_HOT_CODE "Execute SID per-sample synthesis from SRAM" OFF)
 if(C64_SID_HOT_CODE)

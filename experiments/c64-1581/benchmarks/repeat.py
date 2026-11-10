@@ -20,7 +20,7 @@ for run in range(a.rounds):
   for mode,media in [('game',a.d81),('crt',a.crt)]:
    r=subprocess.run([str(build/'test'),str(a.rom.resolve()),str(media.resolve()),str(build),mode],capture_output=True,text=True,check=True)
    nums={int(f):(int(t),int(d)) for f,t,d in re.findall(r'BENCH frame=(\d+) us=(\d+) drive_us=(\d+)',r.stdout)}
-   row=dict(variant=build.name,run=run,mode=mode,total_us=nums[10000][0],steady_us=nums[10000][0]-nums[3000][0],steady_drive_us=nums[10000][1]-nums[3000][1])
+   row=dict(variant=build.name,run=run,mode=mode,total_us=nums[10000][0],first_3000_us=nums[3000][0],steady_us=nums[10000][0]-nums[3000][0],steady_drive_us=nums[10000][1]-nums[3000][1])
    results.append(row);print(row,flush=True)
 a.output.write_text(json.dumps(results,indent=2)+'\n')
 for build in a.builds:

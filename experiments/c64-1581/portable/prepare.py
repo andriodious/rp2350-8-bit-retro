@@ -95,11 +95,20 @@ for name in modules:
         needle = '        if OPT && matches!(core.reg_pc, 0x06e4 | 0x06e7) && skip_data_wait(core, int, stop_clk, &mut bus) { continue; }'
         assert needle in text
         text = text.replace(needle, '        #[cfg(feature="drive-profile")] crate::profile::mark(2);\n' + needle.replace('{ continue; }', '{ #[cfg(feature="drive-profile")] crate::profile::mark(0); continue; }'))
+        text = text.replace('        drive_6510core_execute(core, &mut bus, int);',
+            '        #[cfg(feature="delay-loop")]\n        if OPT && core.reg_pc == 0xad37 && skip_rom_delay(core, int, stop_clk, &mut bus) { continue; }\n        drive_6510core_execute(core, &mut bus, int);')
+        text = text.replace('        drive_6510core_execute(core, &mut bus, int);',
+            '        #[cfg(feature="job-scan")]\n        if OPT && core.reg_pc == 0xb117 && skip_job_scan(core, int, stop_clk, &mut bus) { continue; }\n        drive_6510core_execute(core, &mut bus, int);')
+        text = text.replace('        drive_6510core_execute(core, &mut bus, int);',
+            '        #[cfg(feature="serial-wait")]\n        if OPT && matches!(core.reg_pc,0x064b|0x064e|0x065d|0x0660|0x0676|0x0679|0x0683|0x0686) && skip_serial_wait(core, int, stop_clk, &mut bus) { continue; }\n        drive_6510core_execute(core, &mut bus, int);')
+        text += '\n#[cfg(feature="serial-wait")]\n' + (Path(__file__).with_name('serial_wait.rs')).read_text()
+        text += '\n#[cfg(feature="job-scan")]\n' + (Path(__file__).with_name('job_scan.rs')).read_text()
+        text += '\n#[cfg(feature="delay-loop")]\n' + (Path(__file__).with_name('delay_loop.rs')).read_text()
         text += (Path(__file__).with_name('idle_wait.rs')).read_text()
         text += '\n#[cfg(feature="idle-validation")]\n' + (Path(__file__).with_name('idle_validation.rs')).read_text()
     if name == 'drive_6510core':
-        text = text.replace('pub struct DriveCore6510 {', 'pub struct DriveCore6510 {\n    pub instructions: u64,\n    pub idle_loops: u64,\n    pub idle_tail_instructions: u64,')
-        text = text.replace('        DriveCore6510 {', '        DriveCore6510 {\n            instructions: 0,\n            idle_loops: 0,\n            idle_tail_instructions: 0,')
+        text = text.replace('pub struct DriveCore6510 {', 'pub struct DriveCore6510 {\n    pub instructions: u64,\n    pub serial_loops: u64,\n    pub serial_tail_instructions: u64,\n    pub idle_loops: u64,\n    pub idle_tail_instructions: u64,')
+        text = text.replace('        DriveCore6510 {', '        DriveCore6510 {\n            instructions: 0,\n            serial_loops: 0,\n            serial_tail_instructions: 0,\n            idle_loops: 0,\n            idle_tail_instructions: 0,')
         text = text.replace('    let reg_pc0 = ex.core.reg_pc;', '    ex.core.instructions = ex.core.instructions.wrapping_add(1);\n    let reg_pc0 = ex.core.reg_pc;')
     if name == 'ciacore':
         text = text.replace('#[derive(Clone)]', '#[derive(Clone, Debug, PartialEq, Eq)]')
@@ -176,6 +185,9 @@ edition="2021"
 snapshots=[]
 idle-validation=[]
 idle-reference=[]
+delay-loop=[]
+job-scan=[]
+serial-wait=[]
 idle-sram=[]
 drive-profile=[]
 [profile.release]

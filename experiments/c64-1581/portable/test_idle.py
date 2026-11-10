@@ -14,4 +14,4 @@ subprocess.run([sys.executable,str(Path(__file__).with_name('prepare.py')),
 examples=a.output/'examples';examples.mkdir()
 (examples/'idle.rs').write_text('#[no_mangle] extern "C" fn retro_drive_time_us()->u32 {static T:std::sync::atomic::AtomicU32=std::sync::atomic::AtomicU32::new(u32::MAX-10);T.fetch_add(1,std::sync::atomic::Ordering::Relaxed)}\nfn main(){retro_drive1581::drive1581::idle_validation::validate();println!("Idle differential tests passed");}\n')
 subprocess.run(['cargo','run','--release','--manifest-path',str(a.output/'Cargo.toml'),
-                '--features','idle-validation,idle-sram'+(',drive-profile' if a.drive_profile else ''),'--example','idle'],check=True)
+                '--features','idle-validation,idle-sram,delay-loop,job-scan,serial-wait'+(',drive-profile' if a.drive_profile else ''),'--example','idle'],check=True)

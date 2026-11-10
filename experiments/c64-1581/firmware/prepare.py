@@ -10,6 +10,9 @@ p.add_argument('--drive-profile',action='store_true')
 p.add_argument('--flush-lines',type=int,choices=[1,4,8,16],default=1)
 p.add_argument('--sid-fast-state',action='store_true')
 p.add_argument('--sid-hot-code',action='store_true')
+p.add_argument('--delay-loop',action='store_true')
+p.add_argument('--job-scan',action='store_true')
+p.add_argument('--serial-wait',action='store_true')
 a=p.parse_args();out=a.output.resolve()
 if not a.trx64.exists():
  subprocess.run(['git','clone','https://github.com/Jondalar/TRX64',str(a.trx64)],check=True)
@@ -89,3 +92,9 @@ if a.drive_profile:
  p.write_text(p.read_text()+'\n[features]\ndrive-profile=["retro-drive1581/drive-profile"]\n')
  # Enable instrumentation for this generated diagnostic crate only.
  p.write_text(p.read_text().replace('[features]', '[features]\ndefault=["drive-profile"]'))
+
+features = [name for enabled, name in [(a.delay_loop,"delay-loop"),
+    (a.job_scan,"job-scan"),(a.serial_wait,"serial-wait")] if enabled]
+if features:
+ p=out/'portable/Cargo.toml'
+ p.write_text(p.read_text().replace('[features]', '[features]\ndefault='+json.dumps(features)))

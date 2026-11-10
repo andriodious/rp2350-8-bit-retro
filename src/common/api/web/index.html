@@ -155,10 +155,15 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 #kbcase.c64 .c64control[data-code="133"] { background:#c32f1b; color:#fff; }
 #kbcase.c64 .k.latched, #kbcase.c64 .k.down { background:#707070; }
 #c64notice { white-space:pre-wrap; padding:12px; border:1px solid #ba4a21; }
+#startingScreen { max-width: 960px; margin: 32px auto; padding: 24px; text-align: center; }
+#startingScreen[hidden], #machineView[hidden] { display: none; }
 </style>
 </head>
 <body>
-<main>
+<section id="startingScreen" role="status" aria-live="polite" hidden>
+  <p id="startingMessage"></p>
+</section>
+<main id="machineView">
 <header>
   <h1><a href="https://github.com/andriodious/rp2350-8-bit-retro" target="_blank" rel="noopener" title="The project on GitHub"><span id="mname">RP2350</span> <span>8-bit Retro</span></a></h1>
   <div class="msel" id="msel" hidden title="Both machines are in the flash: restart as the other one">
@@ -538,12 +543,16 @@ function recordWebRequest(path,method,started,code,outcome) {
 resetWebPerf();
 // --- machine controls and status
 let status = {};
+let machineEpoch=0, switchTimer, switchStarted=0;
+const responseEpoch=new WeakMap();
 async function api(path, body, method = 'POST') {
+  const epoch=machineEpoch;
   const started=WEBDIAG?performance.now():0;let outcome='error';
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),4000);
   let r;try {r=await fetch(path,{...(method === 'GET' ? {} : {method, body: body ?? ''}),signal:controller.signal});
   const j = await r.json().catch(e => {if(e.name==='AbortError')throw e;return {};});
   if (!r.ok) throw new Error(j.error || r.statusText);
+  if(j && typeof j==='object')responseEpoch.set(j,epoch);
   outcome='ok';return j;
   } catch(e) {outcome=e.name==='AbortError'?'timeout':'error';throw e;}
   finally {clearTimeout(timer);recordWebRequest(path,method,started,r?.status ?? null,outcome);}
@@ -624,6 +633,11 @@ async function btCommand(command) {
   catch(e) { $('btError').textContent=String(e); }
 }
 function show(s) {
+  // Reject old requests before any panel (including diagnostics) changes.
+  if(responseEpoch.has(s) && responseEpoch.get(s)!==machineEpoch)return;
+  if(s.c64_failure && s.machine==='master')switchingTo=null;
+  if(switchingTo && s.machine!==switchingTo)return;
+
   const ah=s.c64_audio_hw;
   $('audiohwcontrols').hidden=!(WEBDIAG && s.machine==='c64' && ah);
   if(ah){$('audiohwstate').textContent=ah.stopped?'Stopped':ah.stop_requested?'Stopping':'Running';$('audiohwstop').disabled=ah.stop_requested;}
@@ -648,11 +662,9 @@ function show(s) {
     $('btStorage').textContent=b.save_error?'Saving failed. Apply controls again to retry; changes may not survive restart.':b.save_pending?'Saving controller data…':b.remembered?'Controller remembered. Controls are saved separately for each machine.':'No saved controller. Pair once to remember it.';
   }
   showProfile(s);
-  if(s.c64_failure && s.machine==='master')switchingTo=null;
-  if(switchingTo && s.machine!==switchingTo)return;
   const oldMachine=status.machine;
   status = s;
-  if(oldMachine && oldMachine!==s.machine)listDiscs();
+  if(oldMachine!==s.machine){++machineEpoch;listDiscs();}
   const diag=s.c64;
   const failure=s.c64_failure;
   $('c64notice').hidden=!WEBDIAG || !(failure || (diag && diag.recovery));
@@ -673,7 +685,10 @@ function show(s) {
     document.title = name + ' — RP2350 8-bit Retro';
   }
   // both machines in the flash: the switch, the one running lit
-  if (switchingTo && s.machine === switchingTo) switchingTo = null;
+  if (switchingTo && s.machine === switchingTo) {
+    trace('MACHINE_READY '+JSON.stringify({machine:s.machine,elapsed_ms:Math.round(performance.now()-switchStarted),uptime_ms:s.network?.uptime_ms,link_ms:s.network?.link_ms}));
+    switchingTo = null;clearTimeout(switchTimer);
+  }
   $('msel').hidden = !s.system;
   for (const b of $('msel').querySelectorAll('button')) {
     b.classList.toggle('on', b.dataset.m === s.machine);
@@ -714,6 +729,9 @@ function show(s) {
   if (f.state === 'downloading') progress(f.got, f.length, `Downloading on the RP2350… ${Math.round(f.got / 1024)} KB`);
   else if (watchingFetch && f.state === 'error') { watchingFetch = false; msg(f.error, 'err'); progress(); }
   else if (watchingFetch && f.state === 'idle') { watchingFetch = false; msg(''); progress(); }
+  // Reveal only after all controls have been updated from an accepted status.
+  $('machineView').hidden=false;
+  $('startingScreen').hidden=true;
 }
 function esc(s) { return s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c]); }
 let pollFails = 0, pollTimer;
@@ -735,15 +753,38 @@ for (const b of $('msel').querySelectorAll('button')) b.onclick = async () => {
   if (m === status.machine || switchingTo) return;
   if (!confirm(`Restart as the ${MACHINES[m]}? The machine running now stops (games saved to the built-in disc are kept).`)) return;
   trace('Requested machine '+m);
-  try { await api('/api/machine', m); } catch (e) { msg(e.message, 'err'); return; }
   switchingTo = m;
+  switchStarted=performance.now();
+  $('startingMessage').textContent='Starting '+MACHINES[m]+'…';
+  $('startingScreen').hidden=false;
+  $('machineView').hidden=true;
+  const epoch=++machineEpoch;
   pending=[];held.clear();capturing=false;
-  buildKeyboard(m);builtFor=m;
-  $('mname').textContent=MACHINES[m];
+  clearTimeout(volTimer);clearTimeout(brightTimer);
+  // Show the transition before waiting for the command or the board's Wi-Fi.
+  // Keep the previous machine's complete view until the new status arrives.
   $('capture').classList.remove('on');$('capture').textContent='Use my keyboard';
-  setTimeout(() => { switchingTo = null; }, 60000);   // (not back as it in a minute: give up waiting)
   b.parentElement.querySelectorAll('button').forEach(x => x.disabled = true);
-  $('stats').innerHTML = `<span class="conn"><span class="dot"></span>Restarting as the ${MACHINES[m]}…</span>`;
+  $('stats').innerHTML = `<span class="conn"><span class="dot"></span>Starting ${MACHINES[m]}… Waiting for the board to reconnect.</span>`;
+  clearTimeout(switchTimer);
+  switchTimer=setTimeout(() => {
+    if(switchingTo!==m || machineEpoch!==epoch)return;
+    trace('MACHINE_WAIT_TIMEOUT '+m);
+    $('startingMessage').textContent='Still waiting for '+MACHINES[m]+' to reconnect…';
+    switchingTo=null;
+    $('msel').querySelectorAll('button').forEach(x=>x.disabled=!!(status.system && !status.system.machines.includes(x.dataset.m)));
+    msg('The machine switch has not been confirmed. Checking the board again…','err');
+    pollSoon();
+  },60000);
+  try {
+    await api('/api/machine', m);
+    trace('MACHINE_COMMAND_ACK '+JSON.stringify({machine:m,elapsed_ms:Math.round(performance.now()-switchStarted)}));
+  } catch (e) {
+    // A reboot can close the connection before its acknowledgement arrives.
+    // Keep checking status rather than declaring the switch unsuccessful.
+    trace('MACHINE_COMMAND_UNCONFIRMED '+JSON.stringify({machine:m,error:e.message}));
+  }
+  pollSoon();
 };
 $('turbo').onclick = async () => show(await api('/api/turbo', status.turbo ? '0' : '1'));
 $('ambient').onclick = async () => show(await api('/api/ambient', 'on=' + (status.ambient.on ? 0 : 1)));
@@ -996,18 +1037,24 @@ async function moxonElite() {
   } catch (e) { progress(); msg(`Couldn't load Elite (${e.message})`, 'err'); }
 }
 
+let discRequest=0;
 async function listDiscs() {
+  const epoch=machineEpoch, request=++discRequest;
+  const current=()=>epoch===machineEpoch && request===discRequest;
   const sel = $('sdsel');
   const head = text => { sel.innerHTML = ''; sel.add(new Option(text, '')); };
+  head('Reading SD card…');sel.disabled=true;
   try {
     const j = await api('/api/discs', null, 'GET');
+    if(!current())return;
     sel.hidden = !j.card;
     if (!j.card) return;
     head(j.discs.length ? 'SD card…' : 'No disc images on the SD card');
     j.discs.sort((a, b) => a.name.localeCompare(b.name));
     for (const d of j.discs) sel.add(new Option(`${d.name}  (${Math.round(d.size / 1024)} KB)`, d.name));
     sel.value = j.discs.some(d => d.name === status.disc) ? status.disc : '';
-  } catch (e) { head('Couldn\'t read the SD card'); }
+  } catch (e) { if(current())head('Couldn\'t read the SD card'); }
+  finally {if(current())sel.disabled=false;}
 }
 $('sdsel').onchange = async () => {
   const name = $('sdsel').value;
@@ -1017,7 +1064,6 @@ $('sdsel').onchange = async () => {
 
 
 poll();
-listDiscs();
 
 // --- the RP2350 application (status "app"): what it is, whether it runs and why not; folded
 // unless the viewer has unfolded it

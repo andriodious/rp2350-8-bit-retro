@@ -28,6 +28,8 @@ uint64_t retro_drive_profile(uint32_t index);
 uint64_t retro_drive_run_us(void);
 uint64_t retro_drive_run_calls(void);
 uint64_t retro_drive_instructions(void);
+uint64_t retro_drive_serial_loops(void);
+uint64_t retro_drive_serial_tail_instructions(void);
 uint64_t retro_drive_idle_loops(void);
 uint64_t retro_drive_idle_tail_instructions(void);
 uint64_t retro_drive_empty_calls(void);

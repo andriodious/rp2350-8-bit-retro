@@ -13,8 +13,19 @@ p.add_argument('--flush-lines',type=int,choices=[1,4,8,16],default=1)
 p.add_argument('--bus-trace',action='store_true')
 p.add_argument('--sid-fast-state',action='store_true')
 p.add_argument('--sid-hot-code',action='store_true')
+p.add_argument('--delay-loop',action='store_true')
+p.add_argument('--job-scan',action='store_true')
+p.add_argument('--serial-wait',action='store_true')
+p.add_argument('--drive-pc-profile',action='store_true',help='Host-only drive instruction histogram; changes timing')
 a=p.parse_args();out=a.output.resolve()
-if not a.reuse_prepared: subprocess.run([sys.executable,str(HERE/'prepare.py'),'--output',str(out),'--trx64',a.trx64,'--flush-lines',str(a.flush_lines),*(['--idle-sram'] if a.idle_sram else []),*(['--drive-profile'] if a.drive_profile else []),*(['--sid-fast-state'] if a.sid_fast_state else []),*(['--sid-hot-code'] if a.sid_hot_code else [])],check=True)
+if not a.reuse_prepared: subprocess.run([sys.executable,str(HERE/'prepare.py'),'--output',str(out),'--trx64',a.trx64,'--flush-lines',str(a.flush_lines),*(['--idle-sram'] if a.idle_sram else []),*(['--drive-profile'] if a.drive_profile else []),*(['--sid-fast-state'] if a.sid_fast_state else []),*(['--sid-hot-code'] if a.sid_hot_code else []),*(['--delay-loop'] if a.delay_loop else []),*(['--job-scan'] if a.job_scan else []),*(['--serial-wait'] if a.serial_wait else [])],check=True)
+if a.drive_pc_profile:
+ # Single emulation thread only; never included in hardware firmware.
+ pc_source=out/'portable/src/drive_6510core.rs'
+ t=pc_source.read_text()
+ t+='\nstatic mut HOST_PC_COUNTS: [u64;65536] = [0;65536];\n#[no_mangle] pub extern "C" fn host_drive_pc_count(pc:u16)->u64 {unsafe{HOST_PC_COUNTS[pc as usize]}}\n'
+ t=t.replace('    let reg_pc0 = ex.core.reg_pc;', '    unsafe { HOST_PC_COUNTS[ex.core.reg_pc as usize] += 1; }\n    let reg_pc0 = ex.core.reg_pc;')
+ pc_source.write_text(t)
 subprocess.run(['cargo','build','--release','--manifest-path',str(out/'rust/Cargo.toml')],check=True)
 s=(HERE.parent/'bridge/main.cpp').read_text().replace('#include <cassert>','#include <cassert>\n#include <chrono>')
 s=s.replace('void *psram_malloc(size_t n){return malloc(n);}void psram_free(void *p){free(p);}void *psram_realloc(void *p,size_t n){return realloc(p,n);}', '''static size_t live,peak;
@@ -34,6 +45,8 @@ s=s.replace('assert(retro_drive_init(rom.data(),rom.size(),disk.data(),disk.size
  c64_disk_set(disk.data(),disk.size());c64_mount_disk(disk.data(),disk.size(),"presto.d64");assert(retro_drive_active());c64_reset();frames(250);
  printf("1581 PSRAM live=%zu peak=%zu baseline=%zu\\n",live,peak,baseline);''')
 s=s.replace('printf("frame=%d drive_pc=%04x\\n",i,retro_drive_pc());', 'printf("frame=%d drive_pc=%04x idle_loops=%llu\\n",i,retro_drive_pc(),(unsigned long long)retro_drive_idle_loops());if(i==10000){assert(retro_drive_idle_loops()>0);assert(retro_drive_idle_tail_instructions()>0);printf("idle_tail_instructions=%llu\\n",(unsigned long long)retro_drive_idle_tail_instructions());}')
+if a.serial_wait:
+ s=s.replace('assert(retro_drive_idle_loops()>0);', 'assert(retro_drive_idle_loops()>0);assert(retro_drive_serial_loops()+retro_drive_serial_tail_instructions()>0);printf("SERIAL loops=%llu tails=%llu\\n",(unsigned long long)retro_drive_serial_loops(),(unsigned long long)retro_drive_serial_tail_instructions());')
 s=s.replace('void c64_init();', 'const char *c64_crt_prepare(const uint8_t *,uint32_t);void c64_crt_detach();\nvoid c64_init();')
 s=s.replace(' const size_t baseline=live;', '''
  if(!strcmp(argv[4],"crt")){
@@ -79,6 +92,9 @@ extern "C" void c64_sid_lifecycle_probe() {
 ''')
 s=s.replace('void c64_init();', 'void c64_sid_lifecycle_probe();\nvoid c64_init();')
 s=s.replace('sid_live,sid_peak);});assert(argc==5);', 'sid_live,sid_peak);c64_sid_lifecycle_probe();assert(sid_live==0);puts("SID renderer lifecycle passed");});assert(argc==5);')
+if a.drive_pc_profile:
+ s='extern "C" unsigned long long host_drive_pc_count(unsigned short);\n'+s
+ s=s.replace('assert(argc==5);', 'atexit([](){for(unsigned pc=0;pc<65536;pc++){auto n=host_drive_pc_count(pc);if(n)printf("DRIVE_PC %04x %llu\\n",pc,n);}});assert(argc==5);')
 (out/'main.cpp').write_text(s)
 rom=ROOT/'roms/1581/dos1581-318045-02.bin'
 subprocess.run([sys.executable,str(ROOT/'src/machines/master/embed.py'),str(out/'rom.c'),'retro_1581_rom='+str(rom)],check=True)
