@@ -11,3 +11,8 @@ const char *presto_bluetooth_boot_status(void);
 
 void presto_bluetooth_prepare_restart(void);
 bool presto_bluetooth_restart_done(void);
+
+void presto_preferences_restore(void);
+void presto_preferences_changed(void);
+void presto_preferences_save(void);
+bool presto_preferences_flush(void);

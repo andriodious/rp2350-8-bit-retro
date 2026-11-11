@@ -14,6 +14,8 @@
 #include "presto_bluetooth.h"
 #include "controller.h"
 #include "controller_store.h"
+#include "board.h"
+#include "sound.h"
 #include "nimbus_reconnect.h"
 #include "machine_if.h"
 #include "net_if.h"
@@ -37,6 +39,43 @@ static void note_failure(unsigned code,unsigned phase) {
 }
 static unsigned machine_index(void) {
     const char *m=machine_name();if(!strcmp(m,"spectrum"))return 3;return !strcmp(m,"master")?0:!strcmp(m,"beeb")?1:2;
+}
+static bool preferences_restored, preferences_pending;
+static uint32_t preferences_due;
+static uint8_t preferences[5];
+void presto_preferences_restore(void){
+ if(preferences_restored||!store_started)return;
+ preferences_restored=true;
+ if(!controller_store_get_preferences(machine_index(),preferences))return;
+#if WITH_SOUND
+ audio_set(preferences[0],preferences[1]);
+#endif
+#if WITH_AMBIENT
+ board_leds_set(preferences[2],preferences[3],preferences[4]);
+#endif
+}
+void presto_preferences_changed(void){
+ if(!store_started)return;
+ bool on=false,locks=false;unsigned vol=50,bright=40;
+#if WITH_SOUND
+ audio_get(&on,&vol);
+#endif
+ preferences[0]=on;preferences[1]=vol;
+#if WITH_AMBIENT
+ board_leds_get(&on,&bright,&locks);
+#else
+ on=false;
+#endif
+ preferences[2]=on;preferences[3]=bright;preferences[4]=locks;
+ preferences_pending=true;preferences_due=now_ms()+750;
+}
+void presto_preferences_save(void){
+ if(!store_started||!preferences_pending)return;
+ controller_store_set_preferences(machine_index(),preferences);preferences_pending=false;
+}
+bool presto_preferences_flush(void){
+ if(!store_started)return true;
+ presto_preferences_save();store_error=!controller_store_flush();return !store_error;
 }
 static bool remembered(bd_addr_t address) {
     link_key_t key;uint8_t type;return controller_store_bond(address,key,&type);
@@ -268,6 +307,7 @@ int presto_bluetooth_command(const char *s) {
 }
 static void bluetooth_frame(bool save) {
     if(!store_started)return;
+    if(save&&preferences_pending&&(int32_t)(now_ms()-preferences_due)>=0)presto_preferences_save();
     /* Never erase flash from a BTstack callback. Do not repeatedly retry failed writes. */
     if(save&&controller_store_pending()&&!store_error)store_error=!controller_store_flush();
     uint32_t now=now_ms();
@@ -296,6 +336,7 @@ const char *presto_bluetooth_boot_status(void) {
 
 void presto_bluetooth_prepare_restart(void) {
     if(!store_started)return;
+    presto_preferences_save();
     reconnect=false;gap_connectable_control(0);
     connected=false;descriptor_ready=false;clear_input();controller_frame();
     if(controller_store_pending())store_error=!controller_store_flush();

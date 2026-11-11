@@ -147,22 +147,39 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 #appmsg.err { color: var(--error); } #appmsg.ok { color: var(--ok); }
 #program { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
 #program h3 { font-size: 15px; margin: 0 0 10px; font-weight: 600; }
-#kbcase.c64 { background:#a09881; }
+#kbcase.c64 { background:linear-gradient(#c9bda5,#b6a88e);position:relative;padding-top:64px;border:1px solid #9a8a70;box-shadow:inset 0 2px 2px #eee2cd; }
+#kbcase.c64::before { content:"";position:absolute;top:15px;left:14px;right:14px;height:30px;background:repeating-linear-gradient(to bottom,#8f806955 0 1px,#e7dac066 1px 2px,transparent 2px 5px);border-radius:3px;pointer-events:none; }
+#kbcase.c64::after { content:"POWER";position:absolute;right:30px;top:18px;padding:5px 25px 5px 10px;border:1px solid #9b8b73;border-radius:12px;background:radial-gradient(circle at calc(100% - 11px) 50%,#ff6660 0 2px,#bd241f 3px 4px,transparent 5px),#574738;color:#fff;font:bold 9px Arial,sans-serif;letter-spacing:.5px;box-shadow:0 1px 1px #f3e6cc;pointer-events:none; }
 #kbcase.c64 #kb { background:#bfb39d; }
 #kbcase.c64 .k { background:#574738; color:#f5f5f5; border-bottom:3px solid #242424; }
 #kbcase.c64 .c64fn { background:#b9996a; color:#292929; font-size:12px; }
 #kbcase.c64 .c64control { background:#000; color:#fff; }
 #kbcase.c64 .c64control[data-code="133"] { background:#c32f1b; color:#fff; }
 #kbcase.c64 .k.latched, #kbcase.c64 .k.down { background:#707070; }
+#kbcase.c64 #kb{grid-auto-rows:54px;}
+#kbcase.c64 .k.frow{margin-bottom:0;}
+#kbcase.c64 .k:not(.c64fn):not(.c64control){padding:3px 2px 16px;background:linear-gradient(#61513f,#4a3a2b);border:1px solid #887762;border-bottom:4px solid #30251b;box-shadow:inset 0 1px 1px #a28e6b66;font-size:11px;}
+#kbcase.c64 .k.c64-character .c64-top{font:700 21px/1 "Open Gorton","Arial Narrow",sans-serif;transform:scaleX(.8);}
+#kbcase.c64 .c64-top{pointer-events:none;}
+#kbcase.c64 .c64-shift-legend{position:absolute;right:4px;top:3px;font:10px/1 Arial,sans-serif;color:#dfd5ba;pointer-events:none;}
+#kbcase.c64 .c64-front{position:absolute;left:0;right:0;bottom:2px;height:11px;display:flex;justify-content:center;gap:5px;color:#d9cfb5;pointer-events:none;}
+#kbcase.c64 .c64-front svg{width:10px;height:10px;fill:currentColor;shape-rendering:crispEdges;}
+#kbcase.c64 .c64-colour{font:7px/11px Arial,sans-serif;letter-spacing:.2px;}
+#kbcase.c64 .k.down:not(.c64fn):not(.c64control),#kbcase.c64 .k.latched:not(.c64fn):not(.c64control){background:#707070;}
 #c64notice { white-space:pre-wrap; padding:12px; border:1px solid #ba4a21; }
 #startingScreen { max-width: 960px; margin: 32px auto; padding: 24px; text-align: center; }
 #startingScreen[hidden], #machineView[hidden] { display: none; }
 
+#kbcase.spectrum .zx-controls{grid-column:1/-1;display:flex;gap:5px;align-items:center}
+#kbcase.spectrum .zx-control{background:#000;color:#fff;border:0;border-bottom:3px solid #242424;border-radius:4px;height:40px;flex:1;touch-action:none;font:14px Arial,sans-serif}
+#kbcase.spectrum .zx-control:first-child{margin-right:35px}
+#kbcase.spectrum .zx-control[data-code="133"]{background:#c32f1b}
+#kbcase.spectrum .zx-control.down{background:#707070}
 /* 48K Spectrum: rubber-grey keys, black case and the original colour motif. */
-#kbcase.spectrum{background:#121315;border:1px solid #303238;border-radius:13px;padding:26px 20px 48px;position:relative;min-width:640px!important;overflow:hidden;box-shadow:inset 0 2px 2px #45464b}
-#kbcase.spectrum::after{content:"";position:absolute;right:23px;bottom:0;width:125px;height:30px;transform:skew(-26deg);background:linear-gradient(90deg,#eb3034 0 25%,#ffd539 25% 50%,#42bd5a 50% 75%,#28a9e0 75%)}
-#kbcase.spectrum::before{content:"ZX Spectrum 48K";display:block;color:#e6e6e6;font:italic 600 17px Arial,sans-serif;margin-bottom:22px;letter-spacing:1px}
-#kbcase.spectrum #kb{display:grid;grid-template-columns:repeat(10,minmax(0,1fr))!important;grid-auto-rows:69px;gap:22px 11px;padding:0;background:none}
+#kbcase.spectrum{background:#121315;border:1px solid #303238;border-radius:13px;padding:26px 20px 48px;position:relative;isolation:isolate;min-width:640px!important;overflow:hidden;box-shadow:inset 0 2px 2px #45464b}
+#kbcase.spectrum::after{content:"";position:absolute;right:23px;bottom:0;width:125px;height:100%;transform:skew(-26deg);transform-origin:50% 100%;z-index:0;pointer-events:none;background:linear-gradient(90deg,#eb3034 0 25%,#ffd539 25% 50%,#42bd5a 50% 75%,#28a9e0 75%)}
+#kbcase.spectrum::before{position:relative;z-index:1;content:"ZX Spectrum 48K";display:block;color:#e6e6e6;font:italic 600 17px Arial,sans-serif;margin-bottom:22px;letter-spacing:1px}
+#kbcase.spectrum #kb{position:relative;z-index:1;display:grid;grid-template-columns:repeat(10,minmax(0,1fr))!important;grid-auto-rows:69px;gap:22px 11px;padding:0;background:none}
 #kbcase.spectrum .k{position:relative;min-width:0;height:69px;background:linear-gradient(#999da1,#777b80);border:1px solid #b0b3b6;border-bottom:5px solid #55595e;border-radius:8px;color:#fff;padding:5px 3px;align-items:flex-start;margin:0;text-align:left;box-shadow:0 3px 3px #0009;font:20px Arial,sans-serif;display:flex;flex-direction:column;justify-content:space-between}
 #kbcase.spectrum .k .zx-command{font:bold 9px Arial,sans-serif;color:white;align-self:flex-end;white-space:nowrap}
 #kbcase.spectrum .k .zx-symbol{position:absolute;top:7px;right:3px;color:#ffdbdc;font:bold 10px Arial,sans-serif}
@@ -286,7 +303,7 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 <label>Dead zone (%) <input id="btDead" type="number" min="0" max="50" value="15"></label>
 <label><input id="btInvX" type="checkbox">Invert stick X</label>
 <label><input id="btInvY" type="checkbox">Invert stick Y</label>
-<p>Direction key assignments apply in Keyboard mode. Fire applies in Joystick mode; other button key assignments work in either mode. BBC games may need their joystick option enabled.</p>
+<p id="btModeHelp">Direction key assignments apply in Keyboard mode. Fire applies in Joystick mode; other button key assignments work in either mode. Select the game’s joystick option when using Joystick mode.</p>
 <div id="btMappings" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px"></div>
 <button onclick="btDefaults()">Default mappings</button><button onclick="btApply()">Apply controls</button>
 </details>
@@ -363,7 +380,27 @@ const kb = $('kb');
 // status bits: 1 CAPS LOCK, 2 SHIFT LOCK, 4 cassette motor (8: POWER ON, the page's own)
 const ledEls = {};
 // the machine's keyboard, once /api/status says which it is
-const ROWS_C64=[[["\u2190", 57], ["1", 56], ["2", 59], ["3", 8], ["4", 11], ["5", 16], ["6", 19], ["7", 24], ["8", 27], ["9", 32], ["0", 35], ["+", 40], ["\u2212", 43], ["\u00a3", 48], ["HOME", 51], ["DEL", 0]], [["CTRL", 58], ["Q", 62], ["W", 9], ["E", 14], ["R", 17], ["T", 22], ["Y", 25], ["U", 30], ["I", 33], ["O", 38], ["P", 41], ["@", 46], ["*", 49], ["\u2191", 54], ["RESTORE", 134, 2]], [["RUN\nSTOP", 63], ["SHIFT\nLOCK", 15], ["A", 10], ["S", 13], ["D", 18], ["F", 21], ["G", 26], ["H", 29], ["J", 34], ["K", 37], ["L", 42], [":", 45], [";", 50], ["=", 53], ["RETURN", 1, 2]], [["C=", 61], ["SHIFT", 15, 1.5], ["Z", 12], ["X", 23], ["C", 20], ["V", 31], ["B", 28], ["N", 39], ["M", 36], [",", 47], [".", 44], ["/", 55], ["SHIFT", 52, 1.5], ["\u2190 \u2192", 2], ["\u2191 \u2193", 7]], [["", null, 4], ["SPACE", 60, 8]], [["RESET", "b", 2], ["", null, 1], ["JOY \u2191", 129, 2], ["\u2193", 130, 2], ["\u2190", 131, 2], ["\u2192", 132, 2], ["FIRE", 133, 2]]];
+const ROWS_C64=[[["\u2190",57],["1",56],["2",59],["3",8],["4",11],["5",16],["6",19],["7",24],["8",27],["9",32],["0",35],["+",40],["\u2212",43],["\u00a3",48],["HOME",51],["DEL",0]],[["CTRL",58,1.5],["Q",62],["W",9],["E",14],["R",17],["T",22],["Y",25],["U",30],["I",33],["O",38],["P",41],["@",46],["*",49],["\u2191",54],["RESTORE",134,2]],[["RUN\nSTOP",63],["SHIFT\nLOCK",15,1.75],["A",10],["S",13],["D",18],["F",21],["G",26],["H",29],["J",34],["K",37],["L",42],[":",45],[";",50],["=",53],["RETURN",1,2.25]],[["C=",61,1.5],["SHIFT",15,1.75],["Z",12],["X",23],["C",20],["V",31],["B",28],["N",39],["M",36],[",",47],[".",44],["/",55],["SHIFT",52,1.75],["\u2190 \u2192",2],["\u2191 \u2193",7]],[["",null,4],["SPACE",60,8]],[["RESET","b",2],["",null,1],["JOY \u2191",129,2],["\u2193",130,2],["\u2190",131,2],["\u2192",132,2],["FIRE",133,2]]];
+// Front graphics: C64 KERNAL CBM/Shift tables, rendered from its character ROM.
+const C64_FRONTS={"9":["181818f8f8181818","003c7e66667e3c00"],"10":["0000001f1f181818","081c3e7f7f1c3e00"],"12":["1818181f1f000000","081c3e7f3e1c0800"],"13":["000000f8f8181818","367f7f7f3e1c0800"],"14":["181818ffff000000","00ffff0000000000"],"17":["000000ffff181818","0000000000ffff00"],"18":["000000000f0f0f0f","0000ffff00000000"],"20":["0f0f0f0f00000000","000000ffff000000"],"21":["00000000f0f0f0f0","00000000ffff0000"],"22":["ff00000000000000","6060606060606060"],"23":["181818f8f8000000","1818666618183c00"],"25":["ffff000000000000","0606060606060606"],"26":["c0c0c0c0c0c0c0c0","3030303030303030"],"28":["f0f0f0f00f0f0f0f","1818181818181818"],"29":["c0c0c0c0c0c0c0c0","0c0c0c0c0c0c0c0c"],"30":["ffffff0000000000","000000070f1c1818"],"31":["f0f0f0f000000000","c3e77e3c3c7ee7c3"],"33":["00000000ffffffff","000000e0f0381818"],"34":["e0e0e0e0e0e0e0e0","18181c0f07000000"],"36":["0303030303030303","c0e070381c0e0703"],"37":["f0f0f0f0f0f0f0f0","181838f0e0000000"],"38":["0000000000ffffff","ffffc0c0c0c0c0c0"],"39":["0303030303030303","03070e1c3870e0c0"],"40":["cccc3333cccc3333","181818ffff181818"],"41":["000000000000ffff","ffff030303030303"],"42":["0707070707070707","c0c0c0c0c0c0ffff"],"43":["c0c03030c0c03030","1818181818181818"],"46":["00000000000000ff","030303030303ffff"],"48":["00000000cccc3333","fffefcf8f0e0c080"],"49":["ff7f3f1f0f070301","000000ffff000000"],"54":["0000033e76363600","0000033e76363600"],"62":["1818181f1f181818","003c7e7e7e7e3c00"]};
+const C64_SHIFT_TOP={'1':'!','2':'"','3':'#','4':'$','5':'%','6':'&','7':"'",'8':'(','9':')',',':'<','.':'>','/':'?',':':'[',';':']','HOME':'CLR','DEL':'INST'};
+const C64_COLOURS={'1':'BLK','2':'WHT','3':'RED','4':'CYN','5':'PUR','6':'GRN','7':'BLU','8':'YEL','9':'RVS ON','0':'RVS OFF'};
+function c64KeyLegend(k,label,code){
+ k.textContent='';k.setAttribute('aria-label',label.replace(/\n/g,' '));
+ const top=document.createElement('span');top.className='c64-top';top.textContent=label;k.appendChild(top);
+ if(label.length===1)k.classList.add('c64-character');
+ if(C64_SHIFT_TOP[label]){const shift=document.createElement('span');shift.className='c64-shift-legend';shift.textContent=C64_SHIFT_TOP[label];shift.setAttribute('aria-hidden','true');k.appendChild(shift);}
+ const pair=C64_FRONTS[code];
+ if(pair){
+  const face=document.createElement('span');face.className='c64-front';face.setAttribute('aria-hidden','true');
+  for(const bits of pair){
+   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 8 8');svg.setAttribute('focusable','false');
+   let path='';for(let y=0;y<8;y++){const row=parseInt(bits.slice(y*2,y*2+2)||'0',16);for(let x=0;x<8;x++)if(row&(128>>x))path+=`M${x} ${y}h1v1h-1z`;}
+   const pixels=document.createElementNS('http://www.w3.org/2000/svg','path');pixels.setAttribute('d',path);svg.appendChild(pixels);face.appendChild(svg);
+  }
+  k.appendChild(face);
+ }else if(C64_COLOURS[label]){const face=document.createElement('span');face.className='c64-front c64-colour';face.textContent=C64_COLOURS[label];face.setAttribute('aria-hidden','true');k.appendChild(face);}
+}
 const PC_C64={"KeyA": 10, "KeyB": 28, "KeyC": 20, "KeyD": 18, "KeyE": 14, "KeyF": 21, "KeyG": 26, "KeyH": 29, "KeyI": 33, "KeyJ": 34, "KeyK": 37, "KeyL": 42, "KeyM": 36, "KeyN": 39, "KeyO": 38, "KeyP": 41, "KeyQ": 62, "KeyR": 17, "KeyS": 13, "KeyT": 22, "KeyU": 30, "KeyV": 31, "KeyW": 9, "KeyX": 23, "KeyY": 25, "KeyZ": 12, "Digit1": 56, "Digit2": 59, "Digit3": 8, "Digit4": 11, "Digit5": 16, "Digit6": 19, "Digit7": 24, "Digit8": 27, "Digit9": 32, "Digit0": 35, "Escape": 63, "Enter": 1, "Backspace": 0, "Delete": 0, "Space": 60, "ShiftLeft": 15, "ShiftRight": 15, "ControlLeft": 58, "ControlRight": 58, "AltLeft": 61, "AltRight": 61, "ArrowLeft": 66, "ArrowRight": 2, "ArrowUp": 71, "ArrowDown": 7, "Home": 51, "Minus": 43, "Equal": 53, "Semicolon": 50, "Quote": 45, "Comma": 47, "Period": 44, "Slash": 55, "F12": 134, "Numpad8": 129, "Numpad2": 130, "Numpad4": 131, "Numpad6": 132, "Numpad0": 133, "F1": 4, "F2": 68, "F3": 5, "F4": 69, "F5": 6, "F6": 70, "F7": 3, "F8": 67};
 const PLAIN_C64={"A": 10, "B": 28, "C": 20, "D": 18, "E": 14, "F": 21, "G": 26, "H": 29, "I": 33, "J": 34, "K": 37, "L": 42, "M": 36, "N": 39, "O": 38, "P": 41, "Q": 62, "R": 17, "S": 13, "T": 22, "U": 30, "V": 31, "W": 9, "X": 23, "Y": 25, "Z": 12, "1": 56, "2": 59, "3": 8, "4": 11, "5": 16, "6": 19, "7": 24, "8": 27, "9": 32, "0": 35, " ": 60, "\n": 1, "+": 40, "-": 43, "\u00a3": 48, "@": 46, "*": 49, "\u2191": 54, ":": 45, ";": 50, "=": 53, ",": 47, ".": 44, "/": 55};
 const SHIFTED_C64={"!": 56, "\"": 59, "#": 8, "$": 11, "%": 16, "&": 19, "'": 24, "(": 27, ")": 32, "<": 47, ">": 44, "?": 55};
@@ -377,6 +414,10 @@ const ZX_ROWS=[
 const ZX_PLAIN={},PC_ZX={Enter:30,Space:35,ShiftLeft:0,ShiftRight:0,ControlLeft:36,ControlRight:36,AltLeft:36,AltRight:36,Escape:35};
 for(const row of ZX_ROWS)for(const [label,code]of row){if(label.length===1){ZX_PLAIN[label]=code;PC_ZX[/[0-9]/.test(label)?'Digit'+label:'Key'+label]=code;}}
 ZX_PLAIN[' ']=35;ZX_PLAIN['\n']=30;
+const spectrumControlReleases=new Set();
+function releaseSpectrumControls(){for(const release of [...spectrumControlReleases])release();}
+addEventListener('blur',releaseSpectrumControls);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseSpectrumControls();});
 function buildSpectrumKeyboard(){
  SHIFT=0;CTRL=36;latched.clear();kb.innerHTML='';
  for(const b in ledEls)delete ledEls[b];
@@ -395,9 +436,21 @@ function buildSpectrumKeyboard(){
   k.addEventListener('pointerup',release);k.addEventListener('pointercancel',release);k.addEventListener('lostpointercapture',release);
   kb.appendChild(k);
  }
+ const controls=document.createElement('div');controls.className='zx-controls';
+ for(const [label,code,name] of [['RESET','b','Reset Spectrum'],['↑',129,'Kempston up'],['↓',130,'Kempston down'],['←',131,'Kempston left'],['→',132,'Kempston right'],['FIRE',133,'Kempston fire']]){
+  const k=document.createElement('button');k.type='button';k.className='zx-control';k.dataset.code=String(code);k.textContent=label;k.setAttribute('aria-label',name);
+  let pointer=null;
+  const release=()=>{if(pointer===null)return;pointer=null;k.classList.remove('down');spectrumControlReleases.delete(release);if(code!=='b')keys([up(code)]);};
+  k.addEventListener('pointerdown',e=>{e.preventDefault();if(pointer!==null)return;pointer=e.pointerId;k.setPointerCapture(e.pointerId);k.classList.add('down');spectrumControlReleases.add(release);if(code==='b'){releaseSpectrumControls();keys(['b']);}else keys([down(code)]);});
+  k.addEventListener('pointerup',release);k.addEventListener('pointercancel',release);k.addEventListener('lostpointercapture',release);
+  k.addEventListener('click',e=>{if(e.detail===0)tap(code);});
+  controls.appendChild(k);
+ }
+ kb.appendChild(controls);
 }
 
 function buildKeyboard(machine) {
+releaseSpectrumControls();
 if(machine==='spectrum'){buildSpectrumKeyboard();return;}
 $('kbcase').classList.remove('spectrum');
 SHIFT=machine==='c64'?15:0;CTRL=machine==='c64'?58:1;latched.clear();
@@ -429,6 +482,7 @@ ROWS.forEach((row, y) => {
     k.className = 'k' + (cls ? ' ' + cls : '') + (y === 0 ? ' frow' : '');
     if(machine==='c64' && (code==='b' || (code>=129 && code<=133)))k.classList.add('c64control');
     k.textContent = label;
+    if(machine==='c64' && typeof code==='number' && code<128)c64KeyLegend(k,label,code);
     k.tabIndex = -1;
     k.style.gridRow = y + 1;
     k.style.gridColumn = `${x + 1} / span ${span}`;
@@ -643,6 +697,7 @@ const btLabels=['Up','Down','Left','Right','A','B','X','Y','Left shoulder','Righ
 function btBuildForm(machine,cfg) {
   if(btFormMachine===machine)return;
   btFormMachine=machine;
+  $('btModeHelp').textContent=machine==='spectrum'?'Direction key assignments apply in Keyboard mode. Joystick mode uses Kempston; select Kempston in the game. Fire applies in Joystick mode; other button key assignments work in either mode.':'Direction key assignments apply in Keyboard mode. Fire applies in Joystick mode; other button key assignments work in either mode. Select the game’s joystick option when using Joystick mode.';
   const rows=machine==='spectrum'?ZX_ROWS:machine==='c64'?ROWS_C64:machine==='master'?ROWS_MASTER:ROWS_BEEB;
   const keys=new Map([[-1,'None'],[-2,'Joystick fire']]);
   if(machine==='c64'){

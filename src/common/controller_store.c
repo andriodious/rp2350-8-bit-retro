@@ -15,6 +15,9 @@ struct record {
     uint32_t spectrum_magic;
     int32_t spectrum_config[19];
     uint32_t spectrum_checksum;
+    uint32_t preferences_magic, preferences_mask;
+    uint8_t preferences[4][5]; // sound, volume, ambient, brightness, lock indicators
+    uint32_t preferences_checksum;
 };
 _Static_assert(offsetof(struct record,checksum)==268,"Keep legacy controller record layout");
 _Static_assert(offsetof(struct record,spectrum_magic)==272,"Append Spectrum after the legacy checksum");
@@ -36,6 +39,28 @@ static uint32_t spectrum_checksum(const struct record *p) {
     return ~crc;
 }
 static bool spectrum_valid(const struct record *p){return p->spectrum_magic==0x53504331u&&p->spectrum_checksum==spectrum_checksum(p);}
+static uint32_t preferences_checksum(const struct record *p){
+ const uint8_t *b=(const uint8_t *)&p->preferences_magic;uint32_t crc=0xffffffffu;
+ for(size_t i=0;i<28;i++){crc^=b[i];for(int k=0;k<8;k++)crc=(crc>>1)^((crc&1)?0xedb88320u:0);}
+ return ~crc;
+}
+static bool preferences_values_valid(const uint8_t p[5]){return p[0]<=1&&p[1]<=100&&p[2]<=1&&p[3]<=100&&p[4]<=1;}
+static bool preferences_valid(const struct record *p){
+ if(p->preferences_magic!=0x50524631u||p->preferences_mask>15||p->preferences_checksum!=preferences_checksum(p))return false;
+ for(unsigned i=0;i<4;i++)if((p->preferences_mask&(1u<<i))&&!preferences_values_valid(p->preferences[i]))return false;
+ return true;
+}
+bool controller_store_get_preferences(unsigned m,uint8_t out[5]){
+ if(m>=4||!preferences_valid(&state)||!(state.preferences_mask&(1u<<m)))return false;
+ memcpy(out,state.preferences[m],5);return true;
+}
+void controller_store_set_preferences(unsigned m,const uint8_t p[5]){
+ if(m>=4||!preferences_values_valid(p))return;
+ if(!preferences_valid(&state)){state.preferences_magic=0x50524631u;state.preferences_mask=0;memset(state.preferences,0,sizeof state.preferences);}
+ if((state.preferences_mask&(1u<<m))&&!memcmp(state.preferences[m],p,5))return;
+ memcpy(state.preferences[m],p,5);state.preferences_mask|=1u<<m;
+ state.preferences_checksum=preferences_checksum(&state);dirty=true;
+}
 static bool valid(const struct record *p) {
     return p->magic==MAGIC&&p->version==1&&p->bonded<=1&&p->configured<=7&&p->checksum==checksum(p);
 }

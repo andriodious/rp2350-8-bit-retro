@@ -37,7 +37,7 @@ static bool z80_pages(const uint8_t *p,uint32_t n,bool write){
 }
 bool spectrum_load_z80(const uint8_t *p,uint32_t n){
  if(!p||n<30||(p[29]&3)>2||!z80_pages(p,n,false))return false;
- memset(&tape,0,sizeof tape);autoload_us=0;zx_reset(&zx);z80_pages(p,n,true);
+ memset(&tape,0,sizeof tape);autoload_us=0;zx_reset(&zx);web_joystick=controller_joystick=0;z80_pages(p,n,true);
  z80_t *c=&zx.cpu;
  c->a=p[0];c->f=p[1];c->bc=word(p+2);c->hl=word(p+4);c->sp=word(p+8);
  c->i=p[10];uint8_t flags=p[12]==255?1:p[12];c->r=(p[11]&127)|((flags&1)<<7);

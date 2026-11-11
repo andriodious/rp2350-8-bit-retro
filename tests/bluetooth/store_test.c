@@ -26,10 +26,22 @@ int main(void){
  assert(controller_store_get_config(3,out)&&out[0]==42);assert(controller_store_get_config(1,out)&&out[0]==2);
  int saved_writes=writes;controller_store_set_config(3,cfg);assert(controller_store_flush()&&writes==saved_writes);
  controller_store_set_config(4,cfg);assert(!controller_store_pending());
+ // Independent presentation settings, debounce caller deduplication and restart reload.
+ uint8_t prefs[5]={1,15,0,35,1},readprefs[5];
+ for(unsigned m=0;m<4;m++)assert(!controller_store_get_preferences(m,readprefs));
+ for(unsigned m=0;m<4;m++){prefs[1]=10+m*15;controller_store_set_preferences(m,prefs);}
+ assert(controller_store_flush());controller_store_init();
+ for(unsigned m=0;m<4;m++){assert(controller_store_get_preferences(m,readprefs));assert(readprefs[1]==10+m*15&&readprefs[0]==1&&readprefs[2]==0&&readprefs[3]==35&&readprefs[4]==1);}
+ saved_writes=writes;controller_store_set_preferences(3,readprefs);assert(controller_store_flush()&&writes==saved_writes);
+ prefs[1]=101;controller_store_set_preferences(0,prefs);controller_store_set_preferences(4,readprefs);assert(!controller_store_pending());
+ prefs[1]=99;controller_store_set_preferences(0,prefs);fail=1;assert(!controller_store_flush());fail=0;controller_store_init();
+ assert(controller_store_get_preferences(0,readprefs)&&readprefs[1]==10);
+ assert(controller_store_get_config(3,out)&&out[0]==42);
  // Old firmware erases the extension when saving its v1 prefix. New firmware
  // must still accept the bond and BBC/C64 settings, without inventing a Spectrum mapping.
  memset(flash+272,255,4096-272);memset(flash+4096+272,255,4096-272);controller_store_init();
  assert(!controller_store_get_config(3,out));assert(controller_store_get_config(1,out)&&out[0]==2);
+ assert(!controller_store_get_preferences(0,readprefs));
  // Both copies corrupt => defaults; no unvalidated bond is exposed.
  memset(flash,0,sizeof flash);controller_store_init();assert(!controller_store_bond(outa,outk,&type));assert(!controller_store_get_config(0,out));
  puts("Persistence: reload, per-machine settings, deduplication, interrupted writes, forget and corrupt banks passed");

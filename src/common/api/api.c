@@ -87,6 +87,9 @@ static bool flag(const char *args, bool now) {
 // Queued, and let out between frames with each key held down for a few frames, so the MOS's
 // keyboard scan sees it however quickly the page sends down and up.
 
+#ifndef MACHINE_SPECTRUM
+#define MACHINE_SPECTRUM 0
+#endif
 #ifndef MACHINE_C64
 #define MACHINE_C64 0
 #endif
@@ -97,7 +100,7 @@ static uint8_t s_keyq_head, s_keyq_tail;
 
 static void queue_key(bool down, unsigned code) {
     uint8_t next = (uint8_t) ((s_keyq_head + 1) % KEYQ);
-    if (next == s_keyq_tail || (code > (MACHINE_C64 ? 134u : 0x7fu) && code != KEY_BREAK)) return;
+    if (next == s_keyq_tail || (code > (MACHINE_C64 ? 134u : MACHINE_SPECTRUM ? 133u : 0x7fu) && code != KEY_BREAK)) return;
     s_keyq[s_keyq_head] = (uint16_t) (code | (down ? 0x100 : 0));
     s_keyq_head = next;
 }
@@ -106,20 +109,31 @@ void api_frame(void) {
     // a key stays down for 3 frames, and up for 2 before anything else goes down (or the MOS
     // misses the gap between two presses of the same key)
     static uint32_t frames, last_down, last_up;
+#if MACHINE_SPECTRUM
+    static uint32_t joystick_down_frame[5];
+#endif
     frames++;
     while (s_keyq_head != s_keyq_tail) {
         uint16_t e = s_keyq[s_keyq_tail];
         bool down = e & 0x100;
-        if (frames - last_down < 3 || (down && frames - last_up < 2)) break;
-        s_keyq_tail = (uint8_t) ((s_keyq_tail + 1) % KEYQ);
         unsigned code = e & 0xff;
+        bool joystick = MACHINE_SPECTRUM && code >= 129 && code <= 133;
+        if (!joystick && (frames - last_down < 3 || (down && frames - last_up < 2))) break;
+#if MACHINE_SPECTRUM
+        // Preserve even a quick tap for one emulated frame; directions can overlap.
+        if (joystick && !down && joystick_down_frame[code-129] == frames) break;
+        if (joystick && down) joystick_down_frame[code-129] = frames;
+#endif
+        s_keyq_tail = (uint8_t) ((s_keyq_tail + 1) % KEYQ);
         if (code == KEY_BREAK) {
             if (down) machine_break();
         } else {
             machine_key((int) code, down);
         }
-        if (down) last_down = frames;
-        else last_up = frames;
+        if (!joystick) {
+            if (down) last_down = frames;
+            else last_up = frames;
+        }
     }
 }
 
@@ -311,8 +325,13 @@ static void cmd_overlay(api_req_t *r) {
 
 // SHIFT+BREAK: SHIFT held for the first second after the reset, as at power-on
 static void cmd_boot(api_req_t *r) {
+#if MACHINE_SPECTRUM
+    // Restart Elite is a media load; keyboard Reset separately enters BASIC.
+    drive0_eject();
+#else
     machine_boot_shift();
     machine_break();
+#endif
     api_reply(r, 200, "{}");
     if (!r->json) printf("BOOT\n");
 }
@@ -350,6 +369,12 @@ static void cmd_machine(api_req_t *r) {
         api_error(r, 400, "no such machine (master, beeb, c64 or spectrum)");
         return;
     }
+#if NIMBUS_TEST
+    if (!presto_preferences_flush()) {
+        api_error(r, 500, "couldn't save machine settings");
+        return;
+    }
+#endif
     if (!system_choose(want)) {
         api_error(r, 500, "couldn't save the choice");
         return;
@@ -493,8 +518,14 @@ static void cmd_wifi(api_req_t *r) {
 // USB: "leds [off|screen|test|bright <percent>|locks on|locks off]"; HTTP: any of "on=0|1",
 // "bright=<percent>", "locks=0|1", joined by "&"
 static void cmd_ambient(api_req_t *r) {
+#if NIMBUS_TEST
+    presto_preferences_restore();
+#endif
     if (!r->json) {
         board_leds_command(r->args);
+#if NIMBUS_TEST
+        presto_preferences_changed();
+#endif
         return;
     }
     int on = -1, bright = -1, locks = -1;
@@ -510,6 +541,9 @@ static void cmd_ambient(api_req_t *r) {
         p = amp + 1;
     }
     board_leds_set(on, bright, locks);
+#if NIMBUS_TEST
+    presto_preferences_changed();
+#endif
     cmd_status(r);
 }
 #endif
@@ -519,6 +553,9 @@ static void cmd_ambient(api_req_t *r) {
 #if WITH_SOUND
 // USB: "sound [on|off|vol <percent>]"; HTTP: any of "on=0|1", "vol=<percent>", joined by "&"
 static void cmd_sound(api_req_t *r) {
+#if NIMBUS_TEST
+    presto_preferences_restore();
+#endif
     int on = -1, vol = -1;
     char body[64];
     snprintf(body, sizeof body, "%s", r->args);
@@ -529,6 +566,9 @@ static void cmd_sound(api_req_t *r) {
         else if (!strncmp(p, "off", 3)) on = 0;
         else if (!strncmp(p, "vol ", 4)) vol = atoi(p + 4);
         audio_set(on, vol);
+#if NIMBUS_TEST
+    presto_preferences_changed();
+#endif
         bool o;
         unsigned v;
         audio_get(&o, &v);
@@ -544,6 +584,9 @@ static void cmd_sound(api_req_t *r) {
         p = amp + 1;
     }
     audio_set(on, vol);
+#if NIMBUS_TEST
+    presto_preferences_changed();
+#endif
 #if MACHINE_C64
     if(strstr(r->args,"test=1"))audio_test("");
 #endif

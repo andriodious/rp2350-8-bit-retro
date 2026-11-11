@@ -6,6 +6,7 @@
 #include "tape.h"
 #include <strings.h>
 static spectrum_tape_t tape;
+static unsigned web_joystick, controller_joystick;
 static uint8_t *tape_store;
 static uint32_t tape_capacity, autoload_us;
 static unsigned autoload_step;
@@ -126,6 +127,15 @@ void spectrum_init(uint8_t *external){
   .roms={.zx48k={.ptr=(void*)spectrum_rom,.size=16384}}};
  zx_init(&zx,&d);total_frames=0;
 }
+// Reset the emulated Spectrum to its ROM, without reloading the built-in snapshot.
+void spectrum_reset(void){
+ autoload_us=0;autoload_step=0;media_error=NULL;
+ if(tape.mounted)spectrum_tape_rewind(&tape);
+ tape.playing=false;
+ memset(hot_ram,0,sizeof hot_ram);
+ zx_reset(&zx);web_joystick=controller_joystick=0;
+ memset(zx.physical_keys,0,sizeof zx.physical_keys);
+}
 static uint16_t word(const uint8_t *p){return p[0]|((uint16_t)p[1]<<8);}
 bool spectrum_load_sna(const uint8_t *p,uint32_t n){
  // Only the 48K format. Validate everything before changing the running machine.
@@ -134,7 +144,7 @@ bool spectrum_load_sna(const uint8_t *p,uint32_t n){
  if(sp<0x4000 || sp>0xfffe)return false;
  uint16_t pc=word(p+27+sp-0x4000);
  memset(&tape,0,sizeof tape);autoload_us=0;
- zx_reset(&zx);
+ zx_reset(&zx);web_joystick=controller_joystick=0;
  for(int b=0;b<3;b++)memcpy(zx.ram[b],p+27+b*16384,16384);
  z80_t *c=&zx.cpu;
  c->i=p[0];c->hl2=word(p+1);c->de2=word(p+3);c->bc2=word(p+5);c->af2=word(p+7);
@@ -177,12 +187,13 @@ void spectrum_exec(unsigned us){
  }
  total_frames+=(uint8_t)(zx.blink_counter-b);
 }
-void spectrum_key(unsigned code,bool down){if(code<40){uint8_t mask=1u<<(code%5);if(down)zx.physical_keys[code/5]|=mask;else zx.physical_keys[code/5]&=~mask;}}
+static void update_joystick(void){unsigned d=web_joystick|controller_joystick;zx_joystick(&zx,((d&1)?8:0)|((d&2)?4:0)|((d&4)?2:0)|((d&8)?1:0)|((d&16)?16:0));}
+void spectrum_key(unsigned code,bool down){if(code>=129&&code<=133){unsigned bit=1u<<(code-129);if(down)web_joystick|=bit;else web_joystick&=~bit;update_joystick();return;}if(code<40){uint8_t mask=1u<<(code%5);if(down)zx.physical_keys[code/5]|=mask;else zx.physical_keys[code/5]&=~mask;}}
 const uint8_t *spectrum_pixels(void){return zx.fb;}
 uint32_t spectrum_frames(void){return total_frames;}
 uint16_t spectrum_pc(void){return zx.cpu.pc;}
 
-void spectrum_joystick(unsigned d,bool fire){zx_joystick(&zx,((d&1)?8:0)|((d&2)?4:0)|((d&4)?2:0)|((d&8)?1:0)|(fire?16:0));}
+void spectrum_joystick(unsigned d,bool fire){controller_joystick=(d&15)|(fire?16:0);update_joystick();}
 
 // Render only the captured immutable record; never read live emulated RAM.
 void spectrum_render_record(const spectrum_line_t *l,unsigned y,uint8_t out[320]){
@@ -216,7 +227,7 @@ bool spectrum_tape_command(const char *cmd){
  else if(!strcmp(cmd,"rewind")){spectrum_tape_rewind(&tape);autoload_us=0;memset(zx.physical_keys,0,8);}
  else if(!strcmp(cmd,"play")){autoload_us=0;memset(zx.physical_keys,0,8);spectrum_tape_play(&tape);}
  else if(!strcmp(cmd,"load")){
-  spectrum_tape_rewind(&tape);zx_reset(&zx);memset(zx.physical_keys,0,8);
+  spectrum_tape_rewind(&tape);zx_reset(&zx);web_joystick=controller_joystick=0;memset(zx.physical_keys,0,8);
   autoload_step=0;autoload_us=1500000;
  }else return false;
  return true;

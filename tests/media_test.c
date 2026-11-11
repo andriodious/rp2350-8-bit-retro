@@ -107,4 +107,25 @@ static void more_tzx(void){
  puts("PASS: turbo/pure/pulse TZX timings, call/return/jump, 48K stop, 20,000 malformed inputs");
 }
 
-int main(void){spectrum_init(extmem);spectrum_media_storage(store,sizeof store);snapshots();controls();more_tzx();tapes();elite_snapshot();return 0;}
+static void web_joystick_test(void){
+ const unsigned masks[]={8,4,2,1,16};
+ for(unsigned i=0;i<5;i++){spectrum_key(129+i,true);assert(zx.joy_joymask==masks[i]);spectrum_key(129+i,false);assert(zx.joy_joymask==0);}
+ spectrum_key(129,true);spectrum_key(132,true);spectrum_key(133,true);assert(zx.joy_joymask==25);
+ spectrum_joystick(4,false);assert(zx.joy_joymask==27);
+ spectrum_joystick(0,false);assert(zx.joy_joymask==25);
+ spectrum_key(129,false);spectrum_key(132,false);spectrum_key(133,false);assert(zx.joy_joymask==0);
+ spectrum_joystick(1,true);spectrum_key(129,true);spectrum_key(129,false);assert(zx.joy_joymask==24);
+ spectrum_joystick(0,false);assert(zx.joy_joymask==0);
+ puts("PASS: Kempston web directions/fire, simultaneous inputs and independent Nimbus releases");
+}
+static void reset_to_basic_test(void){
+ spectrum_init(extmem);run(3000000);uint32_t expected=hash();uint16_t pc=spectrum_pc();
+ extern const uint8_t spectrum_elite[];extern const unsigned spectrum_elite_size;
+ assert(spectrum_load_sna(spectrum_elite,spectrum_elite_size));run(100000);
+ spectrum_key(129,true);spectrum_key(0,true);spectrum_joystick(8,true);
+ spectrum_reset();assert(zx.cpu.pc==0);assert(!zx.joy_joymask);
+ for(unsigned i=0;i<8;i++)assert(!zx.physical_keys[i]);
+ run(3000000);assert(hash()==expected);assert(spectrum_pc()==pc);
+ puts("PASS: Reset after Elite returns to identical fresh ROM/BASIC state and releases controls");
+}
+int main(void){spectrum_init(extmem);spectrum_media_storage(store,sizeof store);web_joystick_test();snapshots();controls();more_tzx();tapes();elite_snapshot();reset_to_basic_test();return 0;}

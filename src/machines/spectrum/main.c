@@ -85,7 +85,7 @@ void machine_key_sdl(uint32_t code,bool down){
  else if(code==225||code==229)machine_key(0,down);else if(code==224||code==228)machine_key(36,down);
 }
 void machine_controller(unsigned port,uint16_t x,uint16_t y,unsigned directions,bool fire){(void)port;(void)x;(void)y;spectrum_joystick(directions,fire);}
-void machine_break(void){spectrum_load_sna(spectrum_elite,spectrum_elite_size);}
+void machine_break(void){spectrum_reset();}
 void machine_boot_shift(void){}
 bool machine_turbo_get(void){return turbo;}void machine_turbo_set(bool b){turbo=b;}
 bool machine_overlay_has(void){return false;}bool machine_overlay_get(void){return false;}void machine_overlay_set(bool b){(void)b;}

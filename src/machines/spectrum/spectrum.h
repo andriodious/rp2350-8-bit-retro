@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+void spectrum_reset(void);
 void spectrum_init(uint8_t *external);
 bool spectrum_load_sna(const uint8_t *data, uint32_t size);
 void spectrum_exec(unsigned us);

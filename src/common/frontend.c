@@ -252,6 +252,9 @@ void frontend_poll(void) {
 }
 
 void frontend_frame(void) {
+#if NIMBUS_TEST
+    presto_preferences_restore();
+#endif
     static unsigned frames;
     if (frames < 100 && ++frames == 100) {
         boot_guard_ok();     // running: disarm the boot guard (boot_guard.c)

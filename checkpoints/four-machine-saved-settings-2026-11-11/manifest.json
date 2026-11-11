@@ -1,0 +1,18 @@
+{
+  "verified": "2026-11-11",
+  "hardware_validation": "User reports all tests work perfectly",
+  "uf2": "presto-four-machine-saved-settings.uf2",
+  "sha256": "baeccc2e55153b6f8f2a56e5b50bd184f27aa88750a7670e2a4e441086bd83e3",
+  "images": {
+    "master": "cb91149b869564ba",
+    "beeb": "923566c072f1fe35",
+    "c64": "60486c1ae2d756a1",
+    "spectrum": "e19c36fcbaf36231"
+  },
+  "includes": [
+    "Spectrum controls and BASIC reset / Elite restart",
+    "C64 and Spectrum keyboard styling",
+    "Per-machine sound and ambient settings"
+  ],
+  "stable_release": "unchanged"
+}
