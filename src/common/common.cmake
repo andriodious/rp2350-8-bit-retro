@@ -36,7 +36,7 @@ function(common_setup TARGET)
     # -DSOUND=ON: the BBC's SN76489, made on core 1 (sound.c), from the bytes the machine
     # hands it (each machine wires its core's sound writes to audio_sn_write)
     if (SOUND)
-        if (MACHINE STREQUAL "c64")
+        if (MACHINE STREQUAL "c64" OR MACHINE STREQUAL "spectrum")
             target_sources(${TARGET} PRIVATE ${MACHINE_DIR}/audio.c)
         else()
             target_sources(${TARGET} PRIVATE ${COMMON_DIR}/sound.c)

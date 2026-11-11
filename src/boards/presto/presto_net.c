@@ -315,7 +315,11 @@ static void fetch_fail(const char *why) {
 
 static bool is_disc_name(const char *name) {
     const char *dot = strrchr(name, '.');
+#if MACHINE_SPECTRUM
+    return dot && (!strcasecmp(dot,".sna") || !strcasecmp(dot,".z80") || !strcasecmp(dot,".tap") || !strcasecmp(dot,".tzx"));
+#else
     return dot && (!strcasecmp(dot, ".ssd") || !strcasecmp(dot, ".dsd"));
+#endif
 }
 
 static int from_hex(int c) {
@@ -336,7 +340,12 @@ static void name_from(const char *s, size_t len, char *out, size_t out_size) {
         if (isalnum(c) || strchr(" ._-()", c)) out[o++] = (char) c;
     }
     out[o] = 0;
+#if !MACHINE_SPECTRUM
     if (!is_disc_name(out)) strcpy(out + o, ".ssd");
+#else
+    // Preserve the extension; the loader reports unsupported types explicitly.
+    (void)is_disc_name(out);
+#endif
 }
 
 static bool parse_url(const char *url) {
@@ -1110,7 +1119,12 @@ void net_frame(void) {
         } else {
             memmove(ram, ram + STAGE_OFFSET, disc_in.size);
             if (!drive0_insert(disc_in.name, disc_in.size)) {
+                #if MACHINE_SPECTRUM
+                extern const char *spectrum_media_error(void);
+                snprintf(fetch.error,sizeof(fetch.error),"%s",spectrum_media_error());
+#else
                 snprintf(fetch.error, sizeof(fetch.error), "that's not the size of a disc image");
+#endif
                 fetch.state = F_ERROR;
             } else {
                 printf("DISC loaded %s from %s (%u bytes)\n", disc_in.name, disc_in.from, (uint) disc_in.size);

@@ -25,7 +25,7 @@ extern "C" {
 // _clean); this decides what goes in it. All on core 0, between frames.
 
 // the size the disc images arriving (from the card, the web) may be: an 80 track double sided .dsd
-#if MACHINE_C64
+#if MACHINE_C64 || MACHINE_SPECTRUM
 #define DRIVE_IMAGE_MAX (1024 * 1024)
 #else
 #define DRIVE_IMAGE_MAX (80 * 10 * 256 * 2)
@@ -44,7 +44,7 @@ const char *drive0_name(void);
 const char *drive0_builtin_title(void);
 // back to the built-in disc (its save disc, if any), booted
 void drive0_eject(void);
-#if MACHINE_C64
+#if MACHINE_C64 || MACHINE_SPECTRUM
 void drive0_unload(void);
 #endif
 // the built-in disc as it came (what games saved to it forgotten), booted

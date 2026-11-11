@@ -73,7 +73,7 @@ void drive0_init(const uint8_t *golden, uint32_t golden_size, uint8_t *staging) 
                 mem_flash_region(MEM_FLASH_SAVE_HEAD, &s_head_off, &head_size) &&
                 mem_flash_region(MEM_FLASH_SAVE_DATA, &s_data_off, &s_save_size) &&
                 golden_size <= s_save_size;
-#if MACHINE_C64
+#if MACHINE_C64 || MACHINE_SPECTRUM
     s_save_ok = false; // C64 disk writes stay in RAM, never use the BBC save region.
 #endif
     if (s_save_ok) s_golden_hash = fnv(golden, golden_size);
@@ -91,7 +91,9 @@ const char *drive0_name(void) {
 
 const char *drive0_builtin_title(void) {
     // DFS: the title's first 8 characters at the start of sector 0, the last 4 at sector 1's
-#if MACHINE_C64
+#if MACHINE_SPECTRUM
+    return s_golden ? "Elite Spectrum 48K" : "";
+#elif MACHINE_C64
     return s_golden ? "Elite C64 PAL" : "";
 #else
     static char t[13];
@@ -125,7 +127,13 @@ const char *drive0_source(void) {
 bool drive0_insert(const char *name, uint32_t size) {
     uint8_t *ram = s_staging;
     if (!ram || size == 0 || size > DRIVE_IMAGE_MAX) return false;
-#if MACHINE_C64
+#if MACHINE_SPECTRUM
+    extern bool spectrum_load_image(const char *,const uint8_t *,uint32_t);
+    if (!spectrum_load_image(name,ram,size)) return false;
+    s_persist = false;
+    snprintf(s_name, sizeof s_name, "%s", name);
+    return true;
+#elif MACHINE_C64
     const char *dot = strrchr(name, '.');
     if (!dot) return false;
     bool valid64 = !strcasecmp(dot,".d64") && (size==174848 || size==175531 || size==196608 || size==197376);

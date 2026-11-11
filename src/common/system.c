@@ -51,7 +51,7 @@ bool system_set_app_off(uint32_t id) {
 }
 
 const char *system_machines(void) {
-    return system_launched() ? "master beeb c64" : "";
+    return system_launched() ? "master beeb c64 spectrum" : "";
 }
 
 void system_status_json(char *out, uint32_t size) {
@@ -59,7 +59,7 @@ void system_status_json(char *out, uint32_t size) {
         if (size) out[0] = 0;
         return;
     }
-    snprintf(out, size, ",\"system\":{\"machines\":[\"master\",\"beeb\",\"c64\"],\"choice\":\"%s\"}", system_choice());
+    snprintf(out, size, ",\"system\":{\"machines\":[\"master\",\"beeb\",\"c64\",\"spectrum\"],\"choice\":\"%s\"}", system_choice());
 }
 
 // Capture before Master initializes hardware or any profiler reuses scratch registers.

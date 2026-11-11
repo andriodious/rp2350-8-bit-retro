@@ -157,6 +157,19 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 #c64notice { white-space:pre-wrap; padding:12px; border:1px solid #ba4a21; }
 #startingScreen { max-width: 960px; margin: 32px auto; padding: 24px; text-align: center; }
 #startingScreen[hidden], #machineView[hidden] { display: none; }
+
+/* 48K Spectrum: rubber-grey keys, black case and the original colour motif. */
+#kbcase.spectrum{background:#121315;border:1px solid #303238;border-radius:13px;padding:26px 20px 48px;position:relative;min-width:640px!important;overflow:hidden;box-shadow:inset 0 2px 2px #45464b}
+#kbcase.spectrum::after{content:"";position:absolute;right:23px;bottom:0;width:125px;height:30px;transform:skew(-26deg);background:linear-gradient(90deg,#eb3034 0 25%,#ffd539 25% 50%,#42bd5a 50% 75%,#28a9e0 75%)}
+#kbcase.spectrum::before{content:"ZX Spectrum 48K";display:block;color:#e6e6e6;font:italic 600 17px Arial,sans-serif;margin-bottom:22px;letter-spacing:1px}
+#kbcase.spectrum #kb{display:grid;grid-template-columns:repeat(10,minmax(0,1fr))!important;grid-auto-rows:69px;gap:22px 11px;padding:0;background:none}
+#kbcase.spectrum .k{position:relative;min-width:0;height:69px;background:linear-gradient(#999da1,#777b80);border:1px solid #b0b3b6;border-bottom:5px solid #55595e;border-radius:8px;color:#fff;padding:5px 3px;align-items:flex-start;margin:0;text-align:left;box-shadow:0 3px 3px #0009;font:20px Arial,sans-serif;display:flex;flex-direction:column;justify-content:space-between}
+#kbcase.spectrum .k .zx-command{font:bold 9px Arial,sans-serif;color:white;align-self:flex-end;white-space:nowrap}
+#kbcase.spectrum .k .zx-symbol{position:absolute;top:7px;right:3px;color:#ffdbdc;font:bold 10px Arial,sans-serif}
+#kbcase.spectrum .k .zx-extra{position:absolute;top:-13px;left:0;right:0;text-align:center;color:#8be1aa;font:8px Arial,sans-serif;white-space:nowrap}
+#kbcase.spectrum .k.zx-shift{font:bold 10px Arial,sans-serif;justify-content:center;white-space:pre-line}
+#kbcase.spectrum .k.down,#kbcase.spectrum .k.latched{background:#4e6577;border-color:#69d2fc;box-shadow:0 0 0 2px #69d2fc}
+
 </style>
 </head>
 <body>
@@ -166,8 +179,8 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 <main id="machineView">
 <header>
   <h1><a href="https://github.com/andriodious/rp2350-8-bit-retro" target="_blank" rel="noopener" title="The project on GitHub"><span id="mname">RP2350</span> <span>8-bit Retro</span></a></h1>
-  <div class="msel" id="msel" hidden title="Both machines are in the flash: restart as the other one">
-    <span>Machine</span><button data-m="master">BBC Master</button><button data-m="beeb">BBC Model B</button><button data-m="c64">Commodore 64</button>
+  <div class="msel" id="msel" hidden title="Restart into another installed machine">
+    <span>Machine</span><button data-m="master">BBC Master</button><button data-m="beeb">BBC Model B</button><button data-m="c64">Commodore 64</button><button data-m="spectrum">ZX Spectrum</button>
   </div>
 </header>
 
@@ -232,6 +245,11 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
   <div id="sthfind" hidden>
     <input type="search" id="sthq" placeholder="Search the archive: a title or a publisher" autocomplete="off">
     <select id="sthres" size="8" title="Click one to boot it"></select>
+  </div>
+  <div id="spectrumTapePanel" hidden>
+    <p id="spectrumTapeInfo" role="status"></p>
+    <div class="row"><button data-zxtape="play">Play</button><button data-zxtape="stop">Stop</button><button data-zxtape="rewind">Rewind</button><button data-zxtape="load">Restart and load tape</button></div>
+    <p>Tapes load at their original speed. Use Play to continue a multi-part load, or Rewind to return to the start.</p>
   </div>
   <div id="tapePanel" hidden>
     <p>T64 / P00 programs · read-only. Loading resets the C64. Tape fast loaders and subsequent cassette loads are not emulated.</p>
@@ -349,7 +367,39 @@ const ROWS_C64=[[["\u2190", 57], ["1", 56], ["2", 59], ["3", 8], ["4", 11], ["5"
 const PC_C64={"KeyA": 10, "KeyB": 28, "KeyC": 20, "KeyD": 18, "KeyE": 14, "KeyF": 21, "KeyG": 26, "KeyH": 29, "KeyI": 33, "KeyJ": 34, "KeyK": 37, "KeyL": 42, "KeyM": 36, "KeyN": 39, "KeyO": 38, "KeyP": 41, "KeyQ": 62, "KeyR": 17, "KeyS": 13, "KeyT": 22, "KeyU": 30, "KeyV": 31, "KeyW": 9, "KeyX": 23, "KeyY": 25, "KeyZ": 12, "Digit1": 56, "Digit2": 59, "Digit3": 8, "Digit4": 11, "Digit5": 16, "Digit6": 19, "Digit7": 24, "Digit8": 27, "Digit9": 32, "Digit0": 35, "Escape": 63, "Enter": 1, "Backspace": 0, "Delete": 0, "Space": 60, "ShiftLeft": 15, "ShiftRight": 15, "ControlLeft": 58, "ControlRight": 58, "AltLeft": 61, "AltRight": 61, "ArrowLeft": 66, "ArrowRight": 2, "ArrowUp": 71, "ArrowDown": 7, "Home": 51, "Minus": 43, "Equal": 53, "Semicolon": 50, "Quote": 45, "Comma": 47, "Period": 44, "Slash": 55, "F12": 134, "Numpad8": 129, "Numpad2": 130, "Numpad4": 131, "Numpad6": 132, "Numpad0": 133, "F1": 4, "F2": 68, "F3": 5, "F4": 69, "F5": 6, "F6": 70, "F7": 3, "F8": 67};
 const PLAIN_C64={"A": 10, "B": 28, "C": 20, "D": 18, "E": 14, "F": 21, "G": 26, "H": 29, "I": 33, "J": 34, "K": 37, "L": 42, "M": 36, "N": 39, "O": 38, "P": 41, "Q": 62, "R": 17, "S": 13, "T": 22, "U": 30, "V": 31, "W": 9, "X": 23, "Y": 25, "Z": 12, "1": 56, "2": 59, "3": 8, "4": 11, "5": 16, "6": 19, "7": 24, "8": 27, "9": 32, "0": 35, " ": 60, "\n": 1, "+": 40, "-": 43, "\u00a3": 48, "@": 46, "*": 49, "\u2191": 54, ":": 45, ";": 50, "=": 53, ",": 47, ".": 44, "/": 55};
 const SHIFTED_C64={"!": 56, "\"": 59, "#": 8, "$": 11, "%": 16, "&": 19, "'": 24, "(": 27, ")": 32, "<": 47, ">": 44, "?": 55};
+
+const ZX_ROWS=[
+ [['1',15,'','!','EDIT'],['2',16,'','@','CAPS LOCK'],['3',17,'','#','TRUE VIDEO'],['4',18,'','$','INV VIDEO'],['5',19,'','%','←'],['6',24,'','&','↓'],['7',23,'',"'",'↑'],['8',22,'','(','→'],['9',21,'',')','GRAPHICS'],['0',20,'','_','DELETE']],
+ [['Q',10,'PLOT','≤','SIN  ASN'],['W',11,'DRAW','≠','COS  ACS'],['E',12,'REM','≥','TAN  ATN'],['R',13,'RUN','<','INT  VERIFY'],['T',14,'RAND','>','RND  MERGE'],['Y',29,'RETURN','AND','STR$  ['],['U',28,'IF','OR','CHR$  ]'],['I',27,'INPUT','AT','CODE  IN'],['O',26,'POKE',';','PEEK  OUT'],['P',25,'PRINT','"','TAB  ©']],
+ [['A',5,'NEW','STOP','READ  ~'],['S',6,'SAVE','NOT','RESTORE  |'],['D',7,'DIM','STEP','DATA  \\'],['F',8,'FOR','TO','SGN  {'],['G',9,'GOTO','THEN','ABS  }'],['H',34,'GOSUB','↑','SQR  CIRCLE'],['J',33,'LOAD','−','VAL  VAL$'],['K',32,'LIST','+','LEN  SCREEN$'],['L',31,'LET','=','USR  ATTR'],['ENTER',30,'','','']],
+ [['CAPS SHIFT',0,'','',''],['Z',1,'COPY',':','LN  BEEP'],['X',2,'CLEAR','£','EXP  INK'],['C',3,'CONT','?','LPRINT  PAPER'],['V',4,'CLS','/','LLIST  FLASH'],['B',39,'BORDER','*','BIN  BRIGHT'],['N',38,'NEXT',',','INKEY$  OVER'],['M',37,'PAUSE','.','PI  INVERSE'],['SYMBOL SHIFT',36,'','',''],['SPACE',35,'BREAK','','']]
+];
+const ZX_PLAIN={},PC_ZX={Enter:30,Space:35,ShiftLeft:0,ShiftRight:0,ControlLeft:36,ControlRight:36,AltLeft:36,AltRight:36,Escape:35};
+for(const row of ZX_ROWS)for(const [label,code]of row){if(label.length===1){ZX_PLAIN[label]=code;PC_ZX[/[0-9]/.test(label)?'Digit'+label:'Key'+label]=code;}}
+ZX_PLAIN[' ']=35;ZX_PLAIN['\n']=30;
+function buildSpectrumKeyboard(){
+ SHIFT=0;CTRL=36;latched.clear();kb.innerHTML='';
+ for(const b in ledEls)delete ledEls[b];
+ $('kbcase').classList.remove('c64');$('kbcase').classList.add('spectrum');
+ for(const row of ZX_ROWS)for(const [label,code,command,symbol,extra]of row){
+  const k=document.createElement('button');k.className='k';k.dataset.code=String(code);k.type='button';k.tabIndex=-1;
+  k.setAttribute('aria-label',label+(command?' '+command:''));
+  for(const [text,cls]of [[label,'zx-label'],[command,'zx-command'],[symbol,'zx-symbol'],[extra,'zx-extra']]){const span=document.createElement('span');span.className=cls;span.textContent=text;k.appendChild(span);}
+  if(label.length>1)k.classList.add('zx-shift');
+  let pointerHeld=false;
+  k.addEventListener('pointerdown',e=>{e.preventDefault();k.setPointerCapture(e.pointerId);
+   if(code===0||code===36){const on=!latched.has(code);on?latched.add(code):latched.delete(code);k.classList.toggle('latched',on);keys([on?down(code):up(code)]);return;}
+   pointerHeld=true;k.classList.add('down');keys([down(code)]);
+  });
+  const release=()=>{if(pointerHeld){pointerHeld=false;k.classList.remove('down');keys([up(code)]);}};
+  k.addEventListener('pointerup',release);k.addEventListener('pointercancel',release);k.addEventListener('lostpointercapture',release);
+  kb.appendChild(k);
+ }
+}
+
 function buildKeyboard(machine) {
+if(machine==='spectrum'){buildSpectrumKeyboard();return;}
+$('kbcase').classList.remove('spectrum');
 SHIFT=machine==='c64'?15:0;CTRL=machine==='c64'?58:1;latched.clear();
 const beeb = machine !== 'master';
 $('kbcase').classList.toggle('c64',machine==='c64');
@@ -442,11 +492,15 @@ function releaseAll() {
   keys([...held].map(up));
   held.forEach(c => flash(c, false));
   held.clear();
+  if (builtFor==='spectrum') {
+    keys([...latched].map(up));latched.clear();
+    kb.querySelectorAll('.latched').forEach(k=>k.classList.remove('latched'));
+  }
 }
 let lastEsc = 0;
 addEventListener('keydown', e => {
   if (!capturing || e.target.tagName === 'INPUT') return;
-  const code = (builtFor==='c64'?PC_C64:PC)[e.code];
+  const code = (builtFor==='spectrum'?PC_ZX:builtFor==='c64'?PC_C64:PC)[e.code];
   if (code == null) return;
   e.preventDefault();
   if (e.code === 'Escape') {
@@ -460,14 +514,14 @@ addEventListener('keydown', e => {
   keys([down(code)]);
 });
 addEventListener('keyup', e => {
-  const code = (builtFor==='c64'?PC_C64:PC)[e.code];
+  const code = (builtFor==='spectrum'?PC_ZX:builtFor==='c64'?PC_C64:PC)[e.code];
   if (code == null || !held.has(code)) return;
   e.preventDefault();
   held.delete(code);
   flash(code, false);
   keys([up(code)]);
 });
-addEventListener('blur', () => { if (held.size) releaseAll(); });
+addEventListener('blur', () => { if (held.size || (builtFor==='spectrum' && latched.size)) releaseAll(); });
 
 // typing text: the BBC's own layout, CAPS LOCK assumed on (as it starts)
 const LETTERS = {A: 0x41, B: 0x64, C: 0x52, D: 0x32, E: 0x22, F: 0x43, G: 0x53, H: 0x54, I: 0x25, J: 0x45, K: 0x46,
@@ -480,7 +534,7 @@ const SHIFTED = {'!': 0x30, '"': 0x31, '#': 0x11, '$': 0x12, '%': 0x13, '&': 0x3
   '=': 0x17, '~': 0x18, '|': 0x78, '{': 0x38, '£': 0x28, '+': 0x57, '*': 0x48, '}': 0x58, '<': 0x66, '>': 0x67, '?': 0x68};
 function typeText(s) {
   const ev = [];
-  const plain=builtFor==='c64'?PLAIN_C64:PLAIN, shifted=builtFor==='c64'?SHIFTED_C64:SHIFTED;
+  const plain=builtFor==='spectrum'?ZX_PLAIN:builtFor==='c64'?PLAIN_C64:PLAIN, shifted=builtFor==='spectrum'?{}:builtFor==='c64'?SHIFTED_C64:SHIFTED;
   for (const ch of s) {
     const u = ch.toUpperCase();
     if (u in plain) ev.push(down(plain[u]), up(plain[u]));
@@ -582,14 +636,14 @@ $('profilesave').onclick=()=>{
 };
 
 const BOARDS = {presto: 'Pimoroni Presto'};
-const MACHINES = {master: 'BBC Master', beeb: 'BBC Model B', c64: 'Commodore 64'};
+const MACHINES = {spectrum:'ZX Spectrum 48K',master: 'BBC Master', beeb: 'BBC Model B', c64: 'Commodore 64'};
 let builtFor, switchingTo;
 let btFormMachine=null;
 const btLabels=['Up','Down','Left','Right','A','B','X','Y','Left shoulder','Right shoulder','Left trigger','Right trigger','Menu'];
 function btBuildForm(machine,cfg) {
   if(btFormMachine===machine)return;
   btFormMachine=machine;
-  const rows=machine==='c64'?ROWS_C64:machine==='master'?ROWS_MASTER:ROWS_BEEB;
+  const rows=machine==='spectrum'?ZX_ROWS:machine==='c64'?ROWS_C64:machine==='master'?ROWS_MASTER:ROWS_BEEB;
   const keys=new Map([[-1,'None'],[-2,'Joystick fire']]);
   if(machine==='c64'){
     for(const [code,label] of [[71,'Cursor up'],[7,'Cursor down'],[66,'Cursor left'],[2,'Cursor right']])keys.set(code,label);
@@ -613,8 +667,8 @@ function btSetForm(c) {
   for(let i=0;i<13;i++)$('btMap'+i).value=c[6+i];
 }
 function btDefaults() {
-  const c64=btFormMachine==='c64';
-  btSetForm([1,c64?2:1,0,15,0,0,...(c64?[71,7,66,2]:[0x39,0x29,0x19,0x79]),-2,-1,-1,-1,-1,-1,-1,-1,-1]);
+  const c64=btFormMachine==='c64',zx=btFormMachine==='spectrum';
+  btSetForm([1,c64?2:1,0,15,0,0,...(c64?[71,7,66,2]:zx?[10,5,26,25]:[0x39,0x29,0x19,0x79]),-2,-1,-1,-1,-1,-1,-1,-1,-1]);
 }
 async function btApply() {
   const c=['btMode','btPort','btSource','btDead'].map(id=>Number($(id).value));
@@ -675,11 +729,14 @@ function show(s) {
     builtFor = s.machine;
     buildKeyboard(s.machine);
     const name = MACHINES[s.machine] || s.machine;
-    const c64=s.machine==='c64';
-    $('file').accept=c64?'.d64,.d81,.t64,.p00,.crt,.zip':'.ssd,.dsd,.zip';
-    $('sthsel').hidden=c64; $('sthfind').hidden=true; $('app').hidden=c64;
-    $('drop').title=c64?'Choose a .d64, .d81, .t64, .p00, .crt or .zip file':'Choose a .ssd, .dsd or .zip file';
-    $('typeit').placeholder=c64?'LOAD"*",8,1':'CHAIN"ELITE"';
+    const c64=s.machine==='c64', zx=s.machine==='spectrum';
+    $('file').accept=zx?'.sna,.z80,.tap,.tzx,.zip':c64?'.d64,.d81,.t64,.p00,.crt,.zip':'.ssd,.dsd,.zip';
+    $('sthsel').hidden=c64||zx; $('sthfind').hidden=true; $('app').hidden=c64||zx;
+    $('drop').title=zx?'Choose a 48K .sna/.z80 snapshot, .tap/.tzx tape or .zip file':c64?'Choose a .d64, .d81, .t64, .p00, .crt or .zip file':'Choose a .ssd, .dsd or .zip file';
+    $('boot').textContent=zx?'Restart Elite':'Boot';
+    $('boot').title=zx?'Restart the built-in Elite snapshot':'Boot the disc';
+    $('sdsel').title=zx?'Load a 48K snapshot or tape from the SD card':'Boot a disc image from the SD card';
+    $('typeit').placeholder=zx?'Send individual Spectrum keys':c64?'LOAD"*",8,1':'CHAIN"ELITE"';
     $('soundon').title = `Play ${name} sound through the speaker`;
     $('mname').textContent = name;
     document.title = name + ' — RP2350 8-bit Retro';
@@ -701,6 +758,9 @@ function show(s) {
   $('dname').textContent = s.disc ? s.disc.replace(/\.(ssd|dsd|d64|d81|t64)$/i, '') : builtin;
   $('dnote').textContent = s.machine==='c64'?(s.cartridge?.active?' · read-only cartridge':s.tape?.count?' · read-only T64 / P00':' · disk writes last this session'):'';
   showTape(s);
+  const zxt=s.spectrum_tape;
+  $('spectrumTapePanel').hidden=s.machine!=='spectrum'||!zxt||zxt.state==='none';
+  if(zxt)$('spectrumTapeInfo').textContent=`Tape: ${zxt.state} · block ${zxt.block} of ${zxt.blocks}`+(zxt.error?` · ${zxt.error}`:'');
   const lit = s.leds | 8;   // POWER ON: lit while the board answers
   for (const bit in ledEls) ledEls[bit].classList.toggle('on', !!(lit & bit));
   // the sound: only in builds that have it
@@ -723,7 +783,7 @@ function show(s) {
     `<span class="group"><span>core 0 <b>${s.core0}%</b></span><span>core 1 <b>${s.core1}%</b></span>` +
     `<span><b>${s.mhz}</b> MHz</span><span><b>${s.temp}</b> °C</span></span>` +
     `<a class="api" href="https://github.com/8bitkick/rp2350-bbc-micro/blob/main/docs/api.md" target="_blank" rel="noopener" title="The HTTP API: what this page does, for your own scripts">⚙</a>`;
-  showApp(s.machine==='c64'?null:s.app);
+  showApp(['c64','spectrum'].includes(s.machine)?null:s.app);
   if (document.activeElement !== $('sdsel')) $('sdsel').value = [...$('sdsel').options].some(o => o.value === s.disc) ? s.disc : '';
   const f = s.fetch || {state: 'idle'};
   if (f.state === 'downloading') progress(f.got, f.length, `Downloading on the RP2350… ${Math.round(f.got / 1024)} KB`);
@@ -836,6 +896,9 @@ async function showTape(s) {
   } catch (e) { $('tapeInfo').textContent = e.message; }
   finally { tapeFetching = false; }
 }
+document.querySelectorAll('[data-zxtape]').forEach(b=>b.onclick=async()=>{
+  b.disabled=true;try{await api('/api/spectrum/tape',b.dataset.zxtape);}catch(e){$('spectrumTapeInfo').textContent=e.message;}finally{b.disabled=false;}
+});
 $('tapeProgram').onchange = tapeControls;
 async function loadTape(run) {
   if (!tapeDirectory) return;
@@ -874,7 +937,7 @@ async function unzip(buf) {
     const off = v.getUint32(p + 42, true);
     const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nlen));
     p += 46 + nlen + xlen + clen;
-    if (!(builtFor==='c64'?/\.(d64|d81|t64|p00|crt)$/i:/\.(ssd|dsd)$/i).test(name)) continue;
+    if (!(builtFor==='spectrum'?/\.(sna|z80|tap|tzx)$/i:builtFor==='c64'?/\.(d64|d81|t64|p00|crt)$/i:/\.(ssd|dsd)$/i).test(name)) continue;
     const start = off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true);
     const data = u8.subarray(start, start + csize);
     if (method === 0) return {name: name.split('/').pop(), data};
@@ -882,14 +945,14 @@ async function unzip(buf) {
     const out = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
     return {name: name.split('/').pop(), data: new Uint8Array(out)};
   }
-  throw new Error('No compatible disk or T64 image in that zip');
+  throw new Error('No supported image in that zip');
 }
 
 async function bootImage(name, buf, toCard = false) {
   let data = new Uint8Array(buf);
   if (/\.zip$/i.test(name) || (data[0] === 0x50 && data[1] === 0x4b)) ({name, data} = await unzip(buf));
-  if (!(builtFor==='c64'?/\.(d64|d81|t64|p00|crt)$/i:/\.(ssd|dsd)$/i).test(name)) throw new Error('Choose a supported disk, T64, P00 or CRT image for this machine');
-  if (data.length > (builtFor==='c64'?1048576:409600)) throw new Error('too big for a disc image');
+  if (!(builtFor==='spectrum'?/\.(sna|z80|tap|tzx)$/i:builtFor==='c64'?/\.(d64|d81|t64|p00|crt)$/i:/\.(ssd|dsd)$/i).test(name)) throw new Error('Choose a supported image (48K .sna/.z80 or .tap/.tzx for Spectrum)');
+  if (data.length > ((builtFor==='c64'||builtFor==='spectrum')?1048576:409600)) throw new Error('too big for a disc image');
   return new Promise((resolve, reject) => {
     const x = new XMLHttpRequest();
     x.open('POST', `/api/disc?name=${encodeURIComponent(name)}&save=${toCard ? 1 : 0}&boot=${toCard ? 0 : 1}`);
@@ -1149,7 +1212,7 @@ $('app').addEventListener('drop', e => {
 let progTimer;
 async function pollProgram() {
   clearTimeout(progTimer);
-  if (builtFor==='c64' || $('app').classList.contains('folded')) { progTimer = setTimeout(pollProgram, 2000); return; }
+  if (['c64','spectrum'].includes(builtFor) || $('app').classList.contains('folded')) { progTimer = setTimeout(pollProgram, 2000); return; }
   try { const r = await fetch('/api/app'); if (r.ok) { const a = await r.json(); $('applog').textContent = (a.log || []).slice().reverse().join('\n'); } } catch (e) {}
   let pj = null;
   try { const r = await fetch('/api/program'); if (r.ok) pj = await r.json(); else if (r.status === 404) { $('program').hidden = true; progTimer = setTimeout(pollProgram, 5000); return; } } catch (e) {}

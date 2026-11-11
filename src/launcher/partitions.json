@@ -76,6 +76,22 @@
       },
       "ignored_during_arm_boot": true,
       "ignored_during_riscv_boot": true
+    },
+    {
+      "name": "spectrum",
+      "id": 4,
+      "start": "12320K",
+      "size": "2016K",
+      "families": [
+        "0x5a583438"
+      ],
+      "permissions": {
+        "secure": "rw",
+        "nonsecure": "rw",
+        "bootloader": "rw"
+      },
+      "ignored_during_arm_boot": true,
+      "ignored_during_riscv_boot": true
     }
   ]
 }

@@ -76,6 +76,9 @@ def write(path, placed):
 
 def main():
     a = sys.argv[1:]
+    spectrum = None
+    if "--spectrum" in a:
+        i=a.index("--spectrum"); spectrum=a[i+1]; del a[i:i+2]
     c64 = None
     if "--c64" in a:
         i=a.index("--c64"); c64=a[i+1]; del a[i:i+2]
@@ -98,6 +101,8 @@ def main():
     parts = json.load(open(a[0]))['partitions']
     if any(p['name']=='c64' for p in parts) and not c64:
         sys.exit('This partition table includes C64: supply --c64 <presto_c64.uf2>')
+    if any(p['name']=='spectrum' for p in parts) and not spectrum:
+        sys.exit('This partition table includes Spectrum: supply --spectrum <presto_spectrum.uf2>')
     placed = []
     launcher = blocks(a[1])
     first = min(size_k(p['start']) for p in parts)
@@ -106,6 +111,7 @@ def main():
     placed += launcher
     machines = list(zip(parts[:2], a[2:4]))
     if c64: machines.append((next(p for p in parts if p["name"]=="c64"),c64))
+    if spectrum: machines.append((next(p for p in parts if p["name"]=="spectrum"),spectrum))
     for p, path in machines:
         start, size = size_k(p['start']), size_k(p['size'])
         image = blocks(path)

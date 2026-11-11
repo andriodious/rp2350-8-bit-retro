@@ -1,0 +1,38 @@
+execute_process(COMMAND python3 ${TOP_DIR}/scripts/fetch-spectrum.py RESULT_VARIABLE SPECTRUM_FETCH_RESULT)
+if(NOT SPECTRUM_FETCH_RESULT EQUAL 0)
+ message(FATAL_ERROR "Spectrum Elite dependency could not be prepared")
+endif()
+add_executable(presto_spectrum ${MACHINE_DIR}/main.c ${MACHINE_DIR}/spectrum.c ${MACHINE_DIR}/tape.c)
+common_setup(presto_spectrum)
+board_setup(presto_spectrum)
+target_include_directories(presto_spectrum PRIVATE ${MACHINE_DIR} ${CORES_DIR}/chips)
+target_compile_definitions(presto_spectrum PRIVATE MACHINE_SPECTRUM=1 PRESTO_DISC_STAGE_OFFSET=262144)
+target_compile_options(presto_spectrum PRIVATE -O2 -fwrapv -Wall)
+set_target_properties(presto_spectrum PROPERTIES C_STANDARD 11)
+target_link_libraries(presto_spectrum PRIVATE pico_stdlib pico_multicore pico_flash hardware_watchdog)
+pico_enable_stdio_usb(presto_spectrum 1)
+pico_enable_stdio_uart(presto_spectrum 0)
+set(ELITE ${TOP_DIR}/test-assets/elite48/ELITE.SNA)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/spectrum_assets.c
+ COMMAND python3 ${TOP_DIR}/src/machines/master/embed.py ${CMAKE_CURRENT_BINARY_DIR}/spectrum_assets.c spectrum_rom=${MACHINE_DIR}/opense.rom spectrum_elite=${ELITE}
+ DEPENDS ${MACHINE_DIR}/opense.rom ${ELITE})
+target_sources(presto_spectrum PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/spectrum_assets.c)
+pico_add_extra_outputs(presto_spectrum)
+# Retain the clean startup path; reserve ample stack for shared network/SD code.
+file(READ ${PICO_SDK_PATH}/src/rp2_common/pico_crt0/rp2350/memmap_default.ld SPECTRUM_LINKER)
+string(REPLACE "ORIGIN =  0x20000000, LENGTH = 512k" "ORIGIN =  0x20000000, LENGTH = 496k" SPECTRUM_LINKER "${SPECTRUM_LINKER}")
+string(REPLACE "ORIGIN = 0x20081000, LENGTH = 4k" "ORIGIN = 0x2007c000, LENGTH = 16k" SPECTRUM_LINKER "${SPECTRUM_LINKER}")
+string(REPLACE "EXCLUDE_FILE(*libgcc.a: *libc.a:*lib_a-mem*.o *libm.a:) .text*" "EXCLUDE_FILE(*libgcc.a: *libc.a:*lib_a-mem*.o *libm.a: *spectrum.c.o) .text*" SPECTRUM_LINKER "${SPECTRUM_LINKER}")
+# Keep the Z80 flag and indirect-register lookup tables beside its SRAM code.
+string(REPLACE "*libm.a:) .rodata*" "*libm.a: *spectrum.c.o) .rodata*" SPECTRUM_LINKER "${SPECTRUM_LINKER}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/memmap_spectrum.ld "${SPECTRUM_LINKER}")
+pico_set_linker_script(presto_spectrum ${CMAKE_CURRENT_BINARY_DIR}/memmap_spectrum.ld)
+target_compile_definitions(presto_spectrum PRIVATE $<$<COMPILE_LANGUAGE:ASM>:PICO_STACK_SIZE=0x4000>)
+
+option(SPECTRUM_AUDIO_PROFILE "Sample beeper history and audio callback work on core 0" OFF)
+if(SPECTRUM_AUDIO_PROFILE)
+ target_compile_definitions(presto_spectrum PRIVATE SPECTRUM_AUDIO_PROFILE=1)
+endif()
+
+target_sources(presto_spectrum PRIVATE ${MACHINE_DIR}/hang_diag.c)
+target_link_libraries(presto_spectrum PRIVATE hardware_exception)

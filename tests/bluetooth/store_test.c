@@ -21,6 +21,15 @@ int main(void){
  cfg[0]=0;controller_store_set_config(0,cfg);fail=1;assert(!controller_store_flush());
  controller_store_init();assert(controller_store_get_config(0,out)&&out[0]==1); // previous bank survives interrupted write
  fail=0;controller_store_forget();assert(controller_store_flush());controller_store_init();assert(!controller_store_bond(outa,outk,&type));assert(controller_store_get_config(1,out)&&out[0]==2);
+ // Fourth mapping lives in an append-only extension, independent of the legacy three.
+ cfg[0]=42;controller_store_set_config(3,cfg);assert(controller_store_flush());controller_store_init();
+ assert(controller_store_get_config(3,out)&&out[0]==42);assert(controller_store_get_config(1,out)&&out[0]==2);
+ int saved_writes=writes;controller_store_set_config(3,cfg);assert(controller_store_flush()&&writes==saved_writes);
+ controller_store_set_config(4,cfg);assert(!controller_store_pending());
+ // Old firmware erases the extension when saving its v1 prefix. New firmware
+ // must still accept the bond and BBC/C64 settings, without inventing a Spectrum mapping.
+ memset(flash+272,255,4096-272);memset(flash+4096+272,255,4096-272);controller_store_init();
+ assert(!controller_store_get_config(3,out));assert(controller_store_get_config(1,out)&&out[0]==2);
  // Both copies corrupt => defaults; no unvalidated bond is exposed.
  memset(flash,0,sizeof flash);controller_store_init();assert(!controller_store_bond(outa,outk,&type));assert(!controller_store_get_config(0,out));
  puts("Persistence: reload, per-machine settings, deduplication, interrupted writes, forget and corrupt banks passed");

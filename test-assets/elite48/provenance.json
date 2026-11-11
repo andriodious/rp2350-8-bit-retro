@@ -1,0 +1,13 @@
+{
+  "game": "Elite 48K (Spectrum)",
+  "source_page": "http://www.elitehomepage.org/z80/index.htm",
+  "download": "http://www.elitehomepage.org/archive/a/a5100000.zip",
+  "format": "48K SNA",
+  "bytes": 49179,
+  "sha256": "fd30c946000135368a9937504bcd55a8d18980f79b406bac862034ea922e8d43",
+  "initial_sp": "0xffed",
+  "initial_pc": "0xd463",
+  "emulator_repository": "https://github.com/andriodious/chips",
+  "emulator_revision": "4e29e48867477a39c93173750a3902bc470f34d0",
+  "validation": "Hardware-verified Elite gameplay and sound; SHA-256 verified at build time."
+}

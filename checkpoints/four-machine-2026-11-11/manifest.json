@@ -1,0 +1,23 @@
+{
+  "base_commit": "4a278c3",
+  "spectrum_media_reference": "545ae22a140ef17d",
+  "images": {
+    "master": "bb52caa9e533dd21",
+    "beeb": "b7a2b020545f1414",
+    "c64": "a2b54f2253038eb6",
+    "spectrum": "fe895e58b0e59d33"
+  },
+  "launcher_sha256": "a8c2d94e38b3b3119904576ef203d4b771b83b73bdc4ecc0706339aeb43c98a1",
+  "trx64_commit": "a86341c8b2add9841dab1a8340fb76d71121e1e3",
+  "validation": [
+    "Four-machine UF2 component and partition integrity",
+    "Nimbus persistent-store ASAN/UBSAN and legacy compatibility",
+    "Spectrum media ASAN/UBSAN including malformed inputs",
+    "600-frame Spectrum reference picture/audio equivalence",
+    "Web machine-switch and stale-response tests",
+    "C64 D81 SRAM placement and byte integrity",
+    "C64 audio and Wi-Fi gate tests"
+  ],
+  "hardware_validation": "User confirmed all checks verified on 2026-11-11",
+  "checkpoint_status": "Current hardware-verified experimental four-machine reference"
+}

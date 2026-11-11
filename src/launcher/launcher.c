@@ -20,7 +20,7 @@
 #if LAUNCHER_BOOT_REPORT
 #include <stdio.h>
 #include "pico/stdio_usb.h"
-static struct { int slot, lookup, chain; uint32_t first, last; } attempts[3];
+static struct { int slot, lookup, chain; uint32_t first, last; } attempts[4];
 static unsigned attempt_count;
 static int partition_result;
 static boot_info_t boot_info;
@@ -106,8 +106,8 @@ int main(void) {
         slot = SYSTEM_SLOT_MASTER;
     }
     chain(slot);
-    for (int i = 0; i < 3; i++) {
-        const int slots[] = {SYSTEM_SLOT_MASTER, SYSTEM_SLOT_BEEB, SYSTEM_SLOT_C64};
+    for (int i = 0; i < 4; i++) {
+        const int slots[] = {SYSTEM_SLOT_MASTER, SYSTEM_SLOT_BEEB, SYSTEM_SLOT_C64, SYSTEM_SLOT_SPECTRUM};
         if (slots[i] != slot) chain(slots[i]);
     }
     startup_diag_mark(0x107);

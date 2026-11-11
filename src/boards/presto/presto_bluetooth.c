@@ -26,13 +26,17 @@ static uint32_t retry_at;
 static unsigned retry_streak;
 static unsigned attempts,incoming_count,failures,last_failure,last_failure_phase;
 static uint32_t last_failure_ms;
+static unsigned startup_events,startup_states,startup_commands,last_startup_event,last_opcode;
+static uint32_t startup_ms,last_event_ms;
+static int power_result;
+static bool start_called;
 static uint32_t now_ms(void){return to_ms_since_boot(get_absolute_time());}
 static void note_failure(unsigned code,unsigned phase) {
     if(!code)return;
     failures++;last_failure=code;last_failure_phase=phase;last_failure_ms=now_ms();
 }
 static unsigned machine_index(void) {
-    const char *m=machine_name();return !strcmp(m,"master")?0:!strcmp(m,"beeb")?1:2;
+    const char *m=machine_name();if(!strcmp(m,"spectrum"))return 3;return !strcmp(m,"master")?0:!strcmp(m,"beeb")?1:2;
 }
 static bool remembered(bd_addr_t address) {
     link_key_t key;uint8_t type;return controller_store_bond(address,key,&type);
@@ -136,9 +140,12 @@ static void report(const uint8_t *data, uint16_t len) {
 static void event(uint8_t type,uint16_t channel,uint8_t *p,uint16_t size) {
     (void)channel;(void)size;
     if(type!=HCI_EVENT_PACKET)return;
+    startup_events++;last_startup_event=hci_event_packet_get_type(p);last_event_ms=now_ms();
+    if(last_startup_event==HCI_EVENT_COMMAND_COMPLETE){startup_commands++;last_opcode=hci_event_command_complete_get_command_opcode(p);}
     bd_addr_t addr;
     switch(hci_event_packet_get_type(p)) {
     case BTSTACK_EVENT_STATE:
+        startup_states++;
         ready=btstack_event_state_get_state(p)==HCI_STATE_WORKING;
         if(ready){retry_streak=0;retry_at=now_ms()+RECONNECT_LISTEN_MS;}
         else {connected=false;clear_input();}
@@ -200,6 +207,7 @@ static void event(uint8_t type,uint16_t channel,uint8_t *p,uint16_t size) {
     }
 }
 void presto_bluetooth_start(void) {
+    start_called=true;startup_ms=now_ms();
     l2cap_init(); hid_host_init(descriptor,sizeof descriptor); hid_host_register_packet_handler(event);
     registration.callback=event; hci_add_event_handler(&registration);
     gap_set_local_name("Presto Nimbus test");
@@ -211,7 +219,7 @@ void presto_bluetooth_start(void) {
     bd_addr_t saved;
     gap_discoverable_control(0); gap_connectable_control(remembered(saved));
     gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_SNIFF_MODE|LM_LINK_POLICY_ENABLE_ROLE_SWITCH);
-    hci_power_control(HCI_POWER_ON);
+    power_result=hci_power_control(HCI_POWER_ON);
 }
 int presto_bluetooth_command(const char *s) {
     if(!strncmp(s,"config ",7)) {
@@ -307,4 +315,9 @@ void presto_bluetooth_json(char *out,size_t size) {
     snprintf(out,size,",\"bluetooth\":{\"build\":8,\"page_timeout_ms\":2560,\"wifi_wait\":%s,\"retry_streak\":%u,\"last_failure\":%u,\"last_failure_phase\":%u,\"last_failure_ms\":%lu,\"reconnect_enabled\":%s,\"retry_ms\":%u,\"attempts\":%u,\"incoming\":%u,\"failures\":%u,\"remembered\":%s,\"save_error\":%s,\"save_pending\":%s,\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
         (reconnect&&!connected&&!net_boot_has_address())?"true":"false",retry_streak,last_failure,last_failure_phase,(unsigned long)last_failure_ms,reconnect?"true":"false",wait_ms,attempts,incoming_count,failures,bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
         (long)axes[0],(long)axes[1],(long)axes[2],(long)axes[3],(long)buttons[0],(long)buttons[1],(long)buttons[2],(long)buttons[3],(long)buttons[4],(long)buttons[5],(long)buttons[6],(long)buttons[7],(long)hat,(long)menu,(long)dpad[0],(long)dpad[1],(long)dpad[2],(long)dpad[3]);
+#if MACHINE_SPECTRUM
+    size_t n=strlen(out);
+    if(n<size)snprintf(out+n,size-n,",\"bluetooth_startup\":{\"called\":%s,\"store_started\":%s,\"ready\":%s,\"power_result\":%d,\"hci_state\":%u,\"start_ms\":%lu,\"last_event_ms\":%lu,\"events\":%u,\"state_events\":%u,\"commands\":%u,\"last_event\":%u,\"last_opcode\":%u}",start_called?"true":"false",store_started?"true":"false",ready?"true":"false",power_result,store_started?(unsigned)hci_get_state():0,(unsigned long)startup_ms,(unsigned long)last_event_ms,startup_events,startup_states,startup_commands,last_startup_event,last_opcode);
+#endif
+
 }

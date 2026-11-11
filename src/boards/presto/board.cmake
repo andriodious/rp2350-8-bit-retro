@@ -45,7 +45,7 @@ function(board_setup TARGET)
             ${BOARD_DIR}/fatfs/ffunicode.c
             ${BOARD_DIR}/presto_net.c       # WiFi, the HTTP server for /api/<name> and the page
             )
-    if (MACHINE STREQUAL "c64")
+    if (MACHINE STREQUAL "c64" OR MACHINE STREQUAL "spectrum")
         pico_generate_pio_header(${TARGET} ${BOARD_DIR}/st7701_rgb565.pio)
     else()
         pico_generate_pio_header(${TARGET} ${BOARD_DIR}/st7701_parallel.pio)

@@ -11,7 +11,13 @@ struct record {
     uint32_t configured;
     int32_t config[3][19];
     uint32_t checksum;
+    // Append-only extension: legacy firmware still validates the v1 prefix.
+    uint32_t spectrum_magic;
+    int32_t spectrum_config[19];
+    uint32_t spectrum_checksum;
 };
+_Static_assert(offsetof(struct record,checksum)==268,"Keep legacy controller record layout");
+_Static_assert(offsetof(struct record,spectrum_magic)==272,"Append Spectrum after the legacy checksum");
 static struct record state;
 static int current=-1;
 static bool dirty;
@@ -22,6 +28,14 @@ static uint32_t checksum(const struct record *p) {
     }
     return ~crc;
 }
+static uint32_t spectrum_checksum(const struct record *p) {
+    const uint8_t *b=(const uint8_t *)&p->spectrum_magic;uint32_t crc=0xffffffffu;
+    for(size_t i=0;i<sizeof p->spectrum_magic+sizeof p->spectrum_config;i++){
+        crc^=b[i];for(int k=0;k<8;k++)crc=(crc>>1)^((crc&1)?0xedb88320u:0);
+    }
+    return ~crc;
+}
+static bool spectrum_valid(const struct record *p){return p->spectrum_magic==0x53504331u&&p->spectrum_checksum==spectrum_checksum(p);}
 static bool valid(const struct record *p) {
     return p->magic==MAGIC&&p->version==1&&p->bonded<=1&&p->configured<=7&&p->checksum==checksum(p);
 }
@@ -32,6 +46,7 @@ void controller_store_init(void) {
         const struct record *p=(const struct record *)mem_flash_ptr(offset);
         if(valid(p)&&(current<0||(int32_t)(p->sequence-state.sequence)>0)){memcpy(&state,p,sizeof state);current=i;}
     }
+    if(!spectrum_valid(&state)){state.spectrum_magic=0;memset(state.spectrum_config,0,sizeof state.spectrum_config);state.spectrum_checksum=0;}
 }
 bool controller_store_bond(uint8_t a[6],uint8_t k[16],uint8_t *type) {
     if(!state.bonded)return false;
@@ -46,10 +61,16 @@ void controller_store_forget(void) {
     state.bonded=0;state.type=0;memset(state.address,0,6);memset(state.key,0,16);dirty=true;
 }
 bool controller_store_get_config(unsigned m,int32_t cfg[19]) {
+    if(m==3){if(!spectrum_valid(&state))return false;memcpy(cfg,state.spectrum_config,sizeof state.spectrum_config);return true;}
     if(m>=3||!(state.configured&(1u<<m)))return false;
     memcpy(cfg,state.config[m],sizeof state.config[m]);return true;
 }
 void controller_store_set_config(unsigned m,const int32_t cfg[19]) {
+    if(m==3){
+        if(spectrum_valid(&state)&&!memcmp(cfg,state.spectrum_config,sizeof state.spectrum_config))return;
+        memcpy(state.spectrum_config,cfg,sizeof state.spectrum_config);state.spectrum_magic=0x53504331u;
+        state.spectrum_checksum=spectrum_checksum(&state);dirty=true;return;
+    }
     if(m>=3)return;
     if((state.configured&(1u<<m))&&!memcmp(cfg,state.config[m],sizeof state.config[m]))return;
     memcpy(state.config[m],cfg,sizeof state.config[m]);state.configured|=1u<<m;dirty=true;

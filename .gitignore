@@ -14,3 +14,8 @@ __pycache__/
 
 # your WiFi details (tools/secrets.example.py)
 secrets.py
+
+# Spectrum Elite is downloaded and checksum-verified during configuration.
+test-assets/elite48/ELITE.SNA
+test-assets/elite48/original.zip
+checkpoints/**/*.uf2

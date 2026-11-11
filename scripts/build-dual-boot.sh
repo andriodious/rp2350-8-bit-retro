@@ -28,12 +28,12 @@ J=${NINJA_JOBS:+-j$NINJA_JOBS}
 [ -f "$OUT/launcher/build.ninja" ] || cmake -S "$ROOT/src/launcher" -B "$OUT/launcher" -G Ninja -DCMAKE_BUILD_TYPE=Release $SDK_CMAKE_ARGS
 ninja -C "$OUT/launcher" $J
 LAUNCHER_SHA=$(python3 -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$OUT/launcher/presto_launcher.uf2")
-for m in master beeb c64; do
+for m in master beeb c64 spectrum; do
     # shellcheck disable=SC2086
     [ -f "$OUT/$m/build.ninja" ] || cmake -S "$ROOT" -B "$OUT/$m" -G Ninja -DCMAKE_BUILD_TYPE=Release -DMACHINE=$m $ARGS $SDK_CMAKE_ARGS
     cmake -S "$ROOT" -B "$OUT/$m" -DRETRO_LAUNCHER_SHA256="$LAUNCHER_SHA"
     ninja -C "$OUT/$m" $J
 done
 python3 "$ROOT/tools/dual_boot_uf2.py" "$ROOT/src/launcher/partitions.json" "$OUT/launcher/presto_launcher.uf2" \
-    "$OUT/master/presto_master.uf2" "$OUT/beeb/presto_beebjit.uf2" --c64 "$OUT/c64/presto_c64.uf2" ${APP:+--app "$APP"} \
+    "$OUT/master/presto_master.uf2" "$OUT/beeb/presto_beebjit.uf2" --c64 "$OUT/c64/presto_c64.uf2" --spectrum "$OUT/spectrum/presto_spectrum.uf2" ${APP:+--app "$APP"} \
     ${SAVE:+--save "$ROOT/discs/elite-master-flicker-free-sng47.ssd" "$SAVE"} "$OUT/presto_dual_boot.uf2"

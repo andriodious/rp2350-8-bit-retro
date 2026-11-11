@@ -222,6 +222,10 @@ static void status_json(char *j, size_t size) {
 #if NIMBUS_TEST
     if(n>0 && (size_t)n<size){presto_bluetooth_json(j+n,size-n);n+=(int)strlen(j+n);}
 #endif
+#if MACHINE_SPECTRUM
+    extern void spectrum_status_json(char *,uint32_t);
+    if(n>0 && (size_t)n<size){spectrum_status_json(j+n,size-n);n+=(int)strlen(j+n);}
+#endif
 #if MACHINE_C64
     if(n>0 && (size_t)n<size){c64_diagnostics_json(j+n,size-n);n+=(int)strlen(j+n);}
     if(n>0 && (size_t)n<size){c64_tape_status(j+n,size-n);n+=(int)strlen(j+n);}
@@ -334,7 +338,7 @@ static void cmd_machine(api_req_t *r) {
     }
     if (!want[0]) {
         if (r->json) {
-            char sys[96];
+            char sys[160];
             system_status_json(sys, sizeof sys);
             api_reply(r, 200, "{\"machine\":\"%s\"%s}", machine_name(), sys);
         } else {
@@ -343,7 +347,7 @@ static void cmd_machine(api_req_t *r) {
         return;
     }
     if (system_slot(want) < 0) {
-        api_error(r, 400, "no such machine (master or beeb)");
+        api_error(r, 400, "no such machine (master, beeb, c64 or spectrum)");
         return;
     }
     if (!system_choose(want)) {
@@ -657,10 +661,20 @@ static void cmd_tape_load(api_req_t *r) {
 }
 #endif
 
+#if MACHINE_SPECTRUM
+static void cmd_spectrum_tape(api_req_t *r){
+ extern bool spectrum_tape_command(const char *);
+ if(!spectrum_tape_command(r->args)){api_error(r,400,"Mount a tape first; commands: load, play, stop, rewind");return;}
+ api_reply(r,200,"{}");
+}
+#endif
 // ---- The commands
 
 static const api_cmd_t s_cmds[] = {
     {"status", NULL, false, cmd_status},
+#if MACHINE_SPECTRUM
+    {"spectrum/tape", NULL, true, cmd_spectrum_tape},
+#endif
 #if MACHINE_C64
     {"cartridge/eject", NULL, true, cmd_cartridge_eject},
     {"tape", NULL, false, cmd_tape},

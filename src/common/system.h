@@ -26,6 +26,7 @@ void system_failure_json(char *out, uint32_t size);
 #define SYSTEM_SLOT_MASTER 0
 #define SYSTEM_SLOT_BEEB   1
 #define SYSTEM_SLOT_C64    3
+#define SYSTEM_SLOT_SPECTRUM 4
 #define SYSTEM_SLOT_APP    2        // the app (app_api.h)
 // (the board's flash regions, WiFi, settings and save discs, are above them all, unpartitioned)
 
@@ -45,7 +46,7 @@ typedef struct {
 
 // the slot a machine's name says (-1: no such machine)
 static inline int system_slot(const char *machine) {
-    return !strcmp(machine, "master") ? SYSTEM_SLOT_MASTER : !strcmp(machine, "beeb") ? SYSTEM_SLOT_BEEB : !strcmp(machine, "c64") ? SYSTEM_SLOT_C64 : -1;
+    return !strcmp(machine, "master") ? SYSTEM_SLOT_MASTER : !strcmp(machine, "beeb") ? SYSTEM_SLOT_BEEB : !strcmp(machine, "c64") ? SYSTEM_SLOT_C64 : !strcmp(machine, "spectrum") ? SYSTEM_SLOT_SPECTRUM : -1;
 }
 
 // the machine a settings sector chooses: SYSTEM_DEFAULT_MACHINE if it's blank, garbage, or a

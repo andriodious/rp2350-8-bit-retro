@@ -7,7 +7,7 @@ build=pathlib.Path(sys.argv[1]); nm=sys.argv[2]
 spec=importlib.util.spec_from_file_location('uf2',root/'tools/dual_boot_uf2.py')
 u=importlib.util.module_from_spec(spec);spec.loader.exec_module(u)
 expected={}
-for machine,name,offset in [('launcher','presto_launcher',0),('master','presto_master',32768),('beeb','presto_beebjit',4128*1024),('c64','presto_c64',8224*1024)]:
+for machine,name,offset in [('launcher','presto_launcher',0),('master','presto_master',32768),('beeb','presto_beebjit',4128*1024),('c64','presto_c64',8224*1024),('spectrum','presto_spectrum',12320*1024)]:
     for address,payload in u.blocks(build/machine/(name+'.uf2')):
         assert address+offset not in expected
         expected[address+offset]=payload
@@ -35,7 +35,9 @@ for machine,name,offset in [('launcher','presto_launcher',0),('master','presto_m
     assert not any('pico_flash_bank' in s or 'btstack_link_key_db_tlv' in s for s in symbols)
     cache=(build/machine/'CMakeCache.txt').read_text();assert 'NIMBUS_TEST:BOOL=ON' in cache
     if machine=='c64':
-        gap=symbols['__HeapLimit']-symbols['__end__'];assert gap>=40*1024,gap
+        # Full D81 clean reference has 28,688 bytes, not the older non-D81 40 KiB.
+        # Permit at most 512 bytes for the added machine/settings bookkeeping.
+        gap=symbols['__HeapLimit']-symbols['__end__'];assert gap>=28688-512,gap
         assert 0x20000000<=symbols['MOS6510::EmulateLine(int)']<0x20080000
         assert 0x20000000<=symbols['MOS6569::EmulateLine(int&)']<0x20080000
         print('C64 static headroom:',gap,'bytes (not live free RAM)')

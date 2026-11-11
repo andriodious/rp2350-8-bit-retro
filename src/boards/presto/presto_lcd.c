@@ -21,7 +21,7 @@
 #define PRESTO_LCD_TIMING_DMA 1
 #endif
 
-#if MACHINE_C64
+#if MACHINE_C64 || MACHINE_SPECTRUM
 #include "st7701_rgb565.pio.h"
 #else
 #include "st7701_parallel.pio.h"
@@ -148,7 +148,7 @@ static void __not_in_flash_func(sm_exec)(uint instr) {
 }
 
 static void __not_in_flash_func(load_colours)(void) {
-#if MACHINE_C64
+#if MACHINE_C64 || MACHINE_SPECTRUM
     pio_sm_put(lcd_pio, parallel_sm, BOARD_DISPLAY_WIDTH - 1);
     sm_exec(pio_encode_pull(false, true));
     sm_exec(pio_encode_mov(pio_y, pio_osr));
@@ -477,7 +477,7 @@ static uint16_t rgb_for(uint code) {
 }
 
 const uint16_t *board_display_row_rgb565(int row, uint16_t *buf) {
-#if MACHINE_C64
+#if MACHINE_C64 || MACHINE_SPECTRUM
     const uint16_t *raw = row_table[row];
     for (int x = 0; x < BOARD_DISPLAY_WIDTH; x++)
         buf[x] = __builtin_bswap16((uint16_t)pins_for(raw[x]));

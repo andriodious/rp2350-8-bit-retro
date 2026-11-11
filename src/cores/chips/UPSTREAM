@@ -1,0 +1,6 @@
+Repository: https://github.com/andriodious/chips
+Revision: 4e29e48867477a39c93173750a3902bc470f34d0
+Branch: presto-spectrum-48k
+Upstream: https://github.com/floooh/chips
+Upstream revision: 7ef8776f637a6424ac615da64de6b968b06de791
+Vendored chips/ and systems/ match the fork revision exactly.

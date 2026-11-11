@@ -188,7 +188,9 @@ static bool mount(void) {
 
 static bool is_disc_name(const char *name) {
     const char *dot = strrchr(name, '.');
-#if MACHINE_C64
+#if MACHINE_SPECTRUM
+    return dot && (!strcasecmp(dot,".sna") || !strcasecmp(dot,".z80") || !strcasecmp(dot,".tap") || !strcasecmp(dot,".tzx"));
+#elif MACHINE_C64
     return dot && (!strcasecmp(dot, ".d64") || !strcasecmp(dot, ".d81") || !strcasecmp(dot, ".t64") || !strcasecmp(dot, ".p00") || !strcasecmp(dot, ".crt"));
 #else
     return dot && (!strcasecmp(dot, ".ssd") || !strcasecmp(dot, ".dsd"));
