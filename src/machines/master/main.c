@@ -62,7 +62,10 @@ static uint8_t *s_psram_next = (uint8_t *)0x11000000;
 static void *psram_alloc(size_t size)
 {
     void *p = s_psram_next;
-    s_psram_next += (size + 31) & ~31u;
+    size = (size + 31) & ~31u;
+    if (size > (size_t)(board_psram() + board_psram_size() - BOARD_STATUS_BYTES - s_psram_next))
+        panic("Master PSRAM exhausted");
+    s_psram_next += size;
     return p;
 }
 

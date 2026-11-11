@@ -8,6 +8,9 @@
 #include "hardware/structs/qmi.h"
 
 #include "mem.h"
+#if BOOT_STATUS_TRIAL
+#include "boot_banner.h"
+#endif
 #include "board_config.h"
 #include "system.h"
 #include "machine_if.h"
@@ -61,6 +64,9 @@ uint32_t mem_flash_writes(void) {
 
 bool mem_flash_write_sector(uint32_t offset, const void *data, uint32_t len) {
     if (offset % FLASH_SECTOR_SIZE || len > FLASH_SECTOR_SIZE) return false;
+#if BOOT_STATUS_TRIAL
+    boot_status_flash_begin();
+#endif
     s_writes++;
     s_w.offset = offset;
     s_w.data = data;
@@ -74,7 +80,14 @@ bool mem_flash_write_sector(uint32_t offset, const void *data, uint32_t len) {
         uint32_t irq = save_and_disable_interrupts();
         write_sector(NULL);
         restore_interrupts(irq);
+#if BOOT_STATUS_TRIAL
+        boot_status_flash_end();
+#endif
         return true;
     }
-    return flash_safe_execute(write_sector, NULL, 1000) == PICO_OK;
+    bool ok = flash_safe_execute(write_sector, NULL, 1000) == PICO_OK;
+#if BOOT_STATUS_TRIAL
+    boot_status_flash_end();
+#endif
+    return ok;
 }

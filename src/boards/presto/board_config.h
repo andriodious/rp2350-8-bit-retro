@@ -7,6 +7,13 @@
 #include "hardware/flash.h"
 
 #define BOARD_NAME "presto"
+// Reserved at the top of PSRAM; excluded from every machine allocator below.
+#if BOOT_STATUS_TRIAL
+#define BOARD_STATUS_BYTES (512u * 1024u)
+#else
+#define BOARD_STATUS_BYTES 0u
+#endif
+#define BOARD_BOOT_BUTTON_PIN 46
 
 // ---- What it has
 #define BOARD_HAS_NET 1             // WiFi (presto_net.c: the HTTP server, the web page)

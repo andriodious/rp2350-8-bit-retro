@@ -528,7 +528,7 @@ presto_beebjit_disc_ram(void) {
   if ((board_psram() == NULL) || (size < (8u << 20))) {
     return NULL;
   }
-  return (board_psram() + size - PRESTO_DISC_RAM_SIZE);
+  return (board_psram() + size - BOARD_STATUS_BYTES - PRESTO_DISC_RAM_SIZE);
 }
 
 void*
@@ -551,7 +551,7 @@ beebjit_host_big_region(uint8_t** p_base) {
     return size;
   }
   *p_base = (uint8_t*) PRESTO_JIT_REGION_END;
-  return (size - (PRESTO_JIT_REGION_END - PRESTO_JIT_REGION_START) -
+  return (size - BOARD_STATUS_BYTES - (PRESTO_JIT_REGION_END - PRESTO_JIT_REGION_START) -
           PRESTO_DISC_RAM_SIZE);
 }
 

@@ -21,6 +21,8 @@ static bool stop_requested, dma_stopped;
 #endif
 static volatile bool enabled;
 static volatile unsigned volume=50;
+static volatile bool status_mute;
+void audio_status_mute(bool mute){status_mute=mute;}
 static volatile uint32_t produced, blocks, underruns, tone_remaining;
 static volatile int sid_min=32767,sid_max=-32768;
 static volatile unsigned pwm_min=1023,pwm_max;
@@ -35,7 +37,7 @@ static void fill(uint32_t *p){
   if(t!=head){__dmb();sample=ring[t&(N-1)];__dmb();tail=t+1;}else underruns++;
   bool test=tone_remaining!=0;
   if(test){sample=(tone_phase++%44)<22?24000:-24000;tone_remaining--;}
-  int level=(enabled||test)?512+(sample*(int)(test?50:volume)*1/100)/64:512;
+  int level=((enabled||test)&&!status_mute)?512+(sample*(int)(test?50:volume)*1/100)/64:512;
   if(level<0)level=0;if(level>1023)level=1023;
   if((unsigned)level<pwm_min)pwm_min=level;if((unsigned)level>pwm_max)pwm_max=level;
   // One aligned word updates both PWM compare channels, without a halfword alias.

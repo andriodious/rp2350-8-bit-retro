@@ -128,6 +128,7 @@ static uint8_t s_output[4], s_volume[4];
 static uint16_t s_noise_rng;
 static uint8_t s_noise_type, s_noise_frequency, s_latched;
 static uint16_t s_volume_out[16];           // a channel's level, 0 .. 8191
+static volatile bool status_mute;
 static uint32_t s_gain = 256;               // 256 is 4 channels at full volume = full scale
 // !audio rate / lp / dac: SN ticks a sample (2: 125 kHz, 4: 62.5, 8: 31.25), a two pole low-pass
 // (Q16 coefficient, 0 off), and the PWM's wrap (1023: 10 bits at 244 kHz, 255: 8 bits at 977 kHz)
@@ -284,7 +285,7 @@ static void __not_in_flash_func(fill)(uint16_t *buf) {
     __dmb();
     uint32_t tail = s_ring_tail;
     // sum: up to sn_ticks x 4 channels x 8191; gain 256 makes that full scale (DAC_TOP)
-    uint32_t gain = (s_gain * 8) / sn_ticks;
+    uint32_t gain = status_mute ? 0 : (s_gain * 8) / sn_ticks;
     uint32_t top = s_dac_top;
     uint32_t shift = (top == DAC_TOP) ? 16 : 18;
     int32_t lp_a = (int32_t) s_lp_a;
@@ -413,6 +414,8 @@ void audio_init(void) {
     irq_set_enabled(DMA_IRQ_1, true);
     start();
 }
+
+void audio_status_mute(bool mute) { status_mute = mute; }
 
 void audio_set(int on, int percent) {
     if (on >= 0) s_off = !on;

@@ -10,7 +10,7 @@ static Block *first;
 extern "C" void c64_memory_init(void) {
     if (board_psram_size() < 4*1024*1024) panic("C64 requires PSRAM");
     first = (Block *)(board_psram() + 2*1024*1024);
-    first->size = board_psram_size() - 2*1024*1024 - sizeof(Block);
+    first->size = board_psram_size() - BOARD_STATUS_BYTES - 2*1024*1024 - sizeof(Block);
     first->next = nullptr; first->free = true;
 }
 extern "C" void *psram_malloc(size_t n) {

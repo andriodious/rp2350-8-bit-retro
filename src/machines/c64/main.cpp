@@ -137,11 +137,22 @@ static const uint16_t *rows[481];
 static_assert(std::atomic<bool>::is_always_lock_free, "Frame hand-off must be lock-free");
 static std::atomic<bool> frame_ready{false};
 static const uint8_t *render_source;
+#if BOOT_STATUS_TRIAL
+static std::atomic<bool> status_drawing{false};
+extern "C" uint32_t *machine_status_framebuffer(bool active) {
+    status_drawing.store(active,std::memory_order_release);
+    while(frame_ready.load(std::memory_order_acquire)){sleep_us(50);}
+    return (uint32_t *)pixels;
+}
+#endif
 static bool render_pending;
 static volatile uint32_t conversion_us;
 static const uint32_t palette[16]={0x000000,0xffffff,0x813338,0x75cec8,0x8e3c97,0x56ac4d,0x2e2c9b,0xedf171,0x8e5029,0x553800,0xc46c71,0x4a4a4a,0x7b7b7b,0xa9ff9f,0x706deb,0xb2b2b2};
 static uint16_t pin_palette[16];
 static void convert_frame(){
+#if BOOT_STATUS_TRIAL
+    if(status_drawing.load(std::memory_order_acquire))return;
+#endif
     const uint8_t *src=render_source;
     for(int y=0;y<272;y++)for(int group=0;group<96;group++){
         const uint8_t *in=src+y*384+group*4;uint16_t *out=pixels[y]+group*5;

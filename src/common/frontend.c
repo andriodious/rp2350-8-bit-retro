@@ -252,6 +252,7 @@ void frontend_poll(void) {
 }
 
 void frontend_frame(void) {
+    boot_status_frame();
 #if NIMBUS_TEST
     presto_preferences_restore();
 #endif

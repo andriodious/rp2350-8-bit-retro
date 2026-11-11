@@ -15,6 +15,10 @@ extern "C" {
 
 // "beeb" (BBC Model B) or "master" (BBC Master 128): /api/status's "machine"
 const char *machine_name(void);
+#if BOOT_STATUS_TRIAL && (MACHINE_C64 || MACHINE_SPECTRUM)
+// Core 0: stop display conversion, drain outstanding work, lend SRAM pixels.
+uint32_t *machine_status_framebuffer(bool active);
+#endif
 
 // a key by its place in the BBC's keyboard matrix (row << 4 | column)
 void machine_key(int code, bool down);

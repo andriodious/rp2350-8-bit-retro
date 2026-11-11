@@ -1,0 +1,17 @@
+{
+  "images": {
+    "master": "13059d4c4b44a403",
+    "beeb": "e847eaa9533fa06a",
+    "c64": "7db75cb3f6c376ae",
+    "spectrum": "3208a06d62eacc19"
+  },
+  "base_commit": "5378a09",
+  "uf2_sha256": "d590ea7bf5c4ec1e02fcb98ffca3d5a5f6bec0058f52c75a429ebc7df0ae7a5e",
+  "hardware_validation": "User verified all four machines, 2026-11-11",
+  "tests": [
+    "All four builds",
+    "14524 payload block integrity",
+    "Four host ASAN/UBSAN display/mute/restore tests"
+  ],
+  "static_c64_headroom": 28504
+}

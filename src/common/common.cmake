@@ -4,6 +4,7 @@
 # guard, the sound. A machine calls common_setup(<target>).
 
 function(common_setup TARGET)
+    target_compile_definitions(${TARGET} PRIVATE BOOT_STATUS_TRIAL=$<BOOL:${BOOT_STATUS_TRIAL}>)
     execute_process(COMMAND git describe --always --dirty WORKING_DIRECTORY ${TOP_DIR}
         OUTPUT_VARIABLE RETRO_BUILD_ID OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
     if(NOT RETRO_BUILD_ID)

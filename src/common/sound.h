@@ -28,6 +28,8 @@ void audio_command(const char *args);
 // the user's settings (the web panel's Sound, "!sound"): on (1) / off (0, as it starts), and the volume in percent
 // (100: full scale); -1 leaves either as it is
 void audio_set(int on, int percent);
+// Temporary display mute; does not change or persist user settings.
+void audio_status_mute(bool mute);
 void audio_get(bool *on, unsigned *percent);
 
 // "!beep ...": test sounds, holding the machine still meanwhile (the BBC's sound stops).

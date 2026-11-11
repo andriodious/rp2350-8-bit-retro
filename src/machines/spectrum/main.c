@@ -26,6 +26,14 @@ static unsigned submitted,completed,queue_stalls,queue_wait_us;
 static volatile bool ambient_pending;
 static volatile uint32_t render_us;
 static bool turbo,hold;
+#if BOOT_STATUS_TRIAL
+static bool status_drawing;
+uint32_t *machine_status_framebuffer(bool active){
+ status_drawing=active;
+ while(__atomic_load_n(&completed,__ATOMIC_ACQUIRE)!=submitted){sleep_us(30);}
+ return (uint32_t *)pixels;
+}
+#endif
 static unsigned load0,load1,speed=100;
 static uint32_t prof_window,prof_frames,prof_exec,prof_poll,prof_wait,prof_front,prof_draw;
 void spectrum_status_json(char *dst,uint32_t size){
@@ -45,6 +53,9 @@ void spectrum_status_json(char *dst,uint32_t size){
  n=strlen(dst);if(n<size)spectrum_diag_status(dst+n,size-n);
 }
 static void submit_line(unsigned y,const spectrum_line_t *line){
+#if BOOT_STATUS_TRIAL
+ if(status_drawing)return;
+#endif
  if(!spectrum_queue_push(&queue,y,line)){
   uint32_t start=time_us_32();
   do {queue_stalls++;__sev();frontend_poll();sleep_us(1);}while(!spectrum_queue_push(&queue,y,line));
@@ -101,7 +112,7 @@ static void __no_inline_not_in_flash_func(slow_flash)(void){hw_write_masked(&qmi
 int main(void){
  slow_flash();vreg_set_voltage(VREG_VOLTAGE_1_25);set_sys_clock_khz(250000,true);
  watchdog_disable();spectrum_diag_init();stdio_init_all();board_init();
- if(board_psram_init()<2097152+DRIVE_IMAGE_MAX)panic("Spectrum needs PSRAM");
+ if(board_psram_init()<2097152+DRIVE_IMAGE_MAX+BOARD_STATUS_BYTES)panic("Spectrum needs PSRAM");
  for(int i=0;i<16;i++){
   unsigned v=(i&8)?255:205,r=(i&2)?v:0,g=(i&4)?v:0,b=(i&1)?v:0;
   uint32_t rgb=((r>>3)<<11)|((g>>2)<<5)|(b>>3),rev;
