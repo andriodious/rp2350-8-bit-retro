@@ -20,7 +20,6 @@ See the **[v0.5.0 release and first-time setup instructions](https://github.com/
 | BBC Model B | beebjit, including the upstream RP2350 JIT work | BBC disk loading through SD/web | Analogue joystick/fire or keyboard mappings |
 | BBC Master 128 | Kieran Connell's kc-beeb integration | BBC disk loading through SD/web | Analogue joystick/fire or keyboard mappings |
 | Commodore 64 PAL | FRANK C64 / Frodo | D64/D81, T64/P00 programs and supported CRT cartridges through SD/web | Joystick port 1/2 or keyboard mappings |
-
 | ZX Spectrum 48K | Pinned [chips fork](https://github.com/andriodious/chips) | SNA/Z80 snapshots and TAP/TZX tapes through SD/web | Kempston joystick/fire or keyboard mappings |
 
 - Select the machine, load disks and use its keyboard from the web interface.
@@ -54,9 +53,17 @@ Pimoroni Presto is the first supported board. Nimbus validation is for the
 with every game or disk fastloader is not guaranteed; for the supplied C64 Elite
 image, choose **N** when asked to use its fastloader.
 
-| Presto and Nimbus controller | C64 web interface |
-|---|---|
-| ![Pimoroni Presto running Elite with an original SteelSeries Nimbus controller](presto-nimbus-elite.jpeg) | ![C64 web interface with on-screen keyboard and connected Nimbus controller](c64-web-interface.png) |
+<img src="presto-nimbus-elite.jpeg" alt="Pimoroni Presto running Elite with an original SteelSeries Nimbus controller" width="480">
+
+### On-screen keyboards
+
+**Commodore 64** — front-face graphics, function keys and joystick controls.
+
+![Current C64 on-screen keyboard](c64-web-interface.png)
+
+**ZX Spectrum 48K** — grey keys, rainbow case stripe and Kempston controls.
+
+![Current Spectrum 48K on-screen keyboard](spectrum-web-keyboard.png)
 
 ## Gameplay videos
 
