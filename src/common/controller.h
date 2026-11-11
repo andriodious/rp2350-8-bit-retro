@@ -14,6 +14,11 @@ void controller_json(char *out,size_t size);
 int16_t controller_normalize(int32_t value,int32_t minimum,int32_t maximum);
 void machine_controller(unsigned port,uint16_t x,uint16_t y,unsigned directions,bool fire);
 
+
+// UI captures mapped directions/fire without delivering them to the emulator.
+bool controller_menu_state(unsigned *directions, bool *fire);
+void controller_menu_capture(bool capture);
+
 #ifdef __cplusplus
 }
 #endif

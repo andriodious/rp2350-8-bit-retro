@@ -251,7 +251,7 @@ void frontend_poll(void) {
 #endif
 }
 
-void frontend_frame(void) {
+static void frontend_frame_once(void) {
     boot_status_frame();
 #if NIMBUS_TEST
     presto_preferences_restore();
@@ -271,4 +271,15 @@ void frontend_frame(void) {
     presto_bluetooth_frame();
     controller_frame();
 #endif
+}
+
+// Stay at the emulator's normal frame boundary while the BOOT UI is open.
+// Core 1 can finish queued rendering; networking and controller input continue.
+void frontend_frame(void) {
+    do {
+        frontend_frame_once();
+        if (!boot_status_visible()) break;
+        watchdog_update();
+        sleep_ms(20);
+    } while (true);
 }

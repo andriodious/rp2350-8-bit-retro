@@ -12,6 +12,12 @@ static bool button[9];
 static int cfg[19]={0,2,0,15,0,0,-1,-1,-1,-1,-2,-1,-1,-1,-1,-1,-1,-1,-1};
 static bool keyboard[256],controller_keys[256];
 static unsigned joystick_port;
+static unsigned menu_directions;
+static bool menu_fire,menu_capture,menu_release;
+bool controller_menu_state(unsigned *directions,bool *fire){
+ *directions=menu_directions;*fire=menu_fire;return online && cfg[0]!=0;
+}
+void controller_menu_capture(bool capture){menu_capture=capture;menu_release=true;}
 void machine_key_raw(int code,bool down);
 void machine_key(int code,bool down) {
     if(code<0||code>255)return;
@@ -73,6 +79,10 @@ void controller_frame(void) {
             if(key==-2)fire=true;else if(key>=0)desired[key]=true;
         }
     }
+    menu_directions=directions;menu_fire=enabled && (button[0] || fire);
+    bool any_button=false;for(int i=0;i<9;i++)any_button|=button[i];
+    if(!directions && !any_button)menu_release=false;
+    if(menu_capture || menu_release){memset(desired,0,sizeof desired);enabled=false;}
     for(int k=0;k<256;k++)if(desired[k]!=controller_keys[k]) {
         bool before=keyboard[k]||controller_keys[k];controller_keys[k]=desired[k];
         bool after=keyboard[k]||controller_keys[k];

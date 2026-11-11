@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #if NIMBUS_TEST
 #include "presto_bluetooth.h"
 #endif
@@ -185,54 +186,114 @@ void boot_banner_show(void) {
 #if BOOT_STATUS_TRIAL
 #include "boot_button.h"
 #include "firmware_identity.h"
+#if NIMBUS_TEST
+#include "controller.h"
+#endif
 // Runtime buffers must not borrow the upload staging area. Every machine reserves
 // the top 512 KiB of PSRAM in this trial, including Beeb's disc and big allocator.
 _Static_assert(2 * BANNER_ROWS * ROW_BYTES <= BOARD_STATUS_BYTES, "status reservation too small");
 static const uint16_t **runtime_rows;
 static const uint16_t *const *emulator_rows;
 static bool status_visible;
-#if MACHINE_C64 || MACHINE_SPECTRUM
 static uint32_t *status_sram;
-#endif
+#define STATUS_BANK_ROWS 96
 static unsigned status_active;
 static uint32_t status_frame, status_updated_ms;
+
+// Root-directory titles use the existing machine-specific SD extension filter.
+// The last 60 KiB of the reserved area is separate from both status buffers.
+#define TITLE_LIMIT 240
+#define TITLE_NAME_BYTES 256
+_Static_assert(2 * BANNER_ROWS * ROW_BYTES + TITLE_LIMIT * TITLE_NAME_BYTES <= BOARD_STATUS_BYTES,
+               "title list overlaps status buffers");
+static unsigned title_count, title_selected;
+static bool chooser, chooser_dirty, title_limit, fire_armed;
+static int held_direction;
+static uint32_t repeat_at;
+static void *title_iterator;
+static const char *load_error;
+static char (*titles(void))[TITLE_NAME_BYTES] {
+    return (char (*)[TITLE_NAME_BYTES])(board_psram()+board_psram_size()-TITLE_LIMIT*TITLE_NAME_BYTES);
+}
+static void titles_end(void) {
+    if(title_iterator)board_sd_discs_end(title_iterator);
+    title_iterator=NULL;
+}
+static bool joystick_state(unsigned *directions,bool *fire) {
+#if NIMBUS_TEST
+    return controller_menu_state(directions,fire);
+#else
+    *directions=0;*fire=false;return false;
+#endif
+}
+static int title_compare(const void *a,const void *b){return strcasecmp(a,b);}
+static void titles_begin(void) {
+    titles_end();title_count=title_selected=0;title_limit=false;load_error=NULL;
+    held_direction=0;fire_armed=false;
+    unsigned directions;bool fire;
+    chooser=joystick_state(&directions,&fire);
+    if(chooser){title_iterator=board_sd_discs_begin();if(!title_iterator)chooser=false;}
+}
+static void titles_poll(void) {
+    if(!title_iterator)return;
+    for(unsigned i=0;i<8;i++) {
+        char name[TITLE_NAME_BYTES];uint32_t size;
+        if(!board_sd_discs_next(title_iterator,name,sizeof name,&size)){
+            titles_end();break;
+        }
+        if(!size || size>DRIVE_IMAGE_MAX)continue;
+        if(title_count==TITLE_LIMIT){title_limit=true;titles_end();break;}
+        snprintf(titles()[title_count++],TITLE_NAME_BYTES,"%s",name);
+    }
+    if(!title_iterator){
+        qsort(titles(),title_count,TITLE_NAME_BYTES,title_compare);
+        if(!title_count)chooser=false;
+        chooser_dirty=true;
+    }
+}
 
 static bool status_allocate(void) {
     if (runtime_rows) return true;
     if (!board_display_get_rows() || !board_psram() || board_psram_size() < BOARD_STATUS_BYTES) return false;
     runtime_rows = malloc(2 * (BOARD_DISPLAY_HEIGHT + 1) * sizeof *runtime_rows);
     if (!runtime_rows) return false;
-    uint32_t *base = (uint32_t *)(board_psram() + board_psram_size() - BOARD_STATUS_BYTES);
-#if MACHINE_C64 || MACHINE_SPECTRUM
-    return true; // The borrowed SRAM buffer is wired after its pixels are saved.
-#else
-    memset(base, 0, 2 * BANNER_ROWS * ROW_BYTES);
-    for (unsigned b = 0; b < 2; b++) {
-        uint32_t *fb = base + b * BANNER_ROWS * BOARD_DISPLAY_ROW_WORDS;
-        const uint16_t **rows = runtime_rows + b * (BOARD_DISPLAY_HEIGHT + 1);
-        for (unsigned y = 0; y < BANNER_ROWS; y++) {
 #if !MACHINE_C64 && !MACHINE_SPECTRUM
-            fb[(y + 1) * BOARD_DISPLAY_ROW_WORDS - 1] = BOARD_DISPLAY_ROW_END;
+    // Packed-4 status uses 46 KiB for two compact banks; emulator drawing
+    // continues in its own buffer. Never scan status pixels from PSRAM.
+    status_sram=malloc(2*STATUS_BANK_ROWS*ROW_BYTES);
+    if(!status_sram){free(runtime_rows);runtime_rows=NULL;return false;}
 #endif
-            rows[y * 2] = rows[y * 2 + 1] = (const uint16_t *)(fb + y * BOARD_DISPLAY_ROW_WORDS);
-        }
-        rows[BOARD_DISPLAY_HEIGHT] = NULL;
-    }
-#endif
-    // Retained for the session: DMA may still reference a table after switching.
     return true;
 }
 
 static void status_draw(unsigned buffer) {
     uint32_t *fb = (uint32_t *)(board_psram() + board_psram_size() - BOARD_STATUS_BYTES);
-#if MACHINE_C64 || MACHINE_SPECTRUM
     (void)buffer;
-    fb = status_sram;
-#else
-    fb += buffer * BANNER_ROWS * BOARD_DISPLAY_ROW_WORDS;
+    fb += BANNER_ROWS * BOARD_DISPLAY_ROW_WORDS;
+    memset(fb,0,BANNER_ROWS*ROW_BYTES);
+#if !MACHINE_C64 && !MACHINE_SPECTRUM
+    for(unsigned y=0;y<BANNER_ROWS;y++)fb[(y+1)*BOARD_DISPLAY_ROW_WORDS-1]=BOARD_DISPLAY_ROW_END;
 #endif
-    for (unsigned y = 0; y < BANNER_ROWS; y++)
-        memset(fb + y * BOARD_DISPLAY_ROW_WORDS, 0, ROW_BYTES - 4);
+    if(chooser) {
+        text(fb,20,15,"SD TITLES");
+        char line[64];
+        if(title_iterator)text(fb,20,40,"READING SD CARD...");
+        else {
+            unsigned start=(title_selected/8)*8;
+            for(unsigned i=start;i<title_count && i<start+8;i++) {
+                unsigned y=42+(i-start)*18;
+                if(i==title_selected) {
+                    for(unsigned yy=y-2;yy<y+9;yy++)for(unsigned x=8;x<14;x++)pixel(fb,x,yy,6);
+                }
+                snprintf(line,sizeof line,"%.36s",titles()[i]);text(fb,20,y,line);
+            }
+            snprintf(line,sizeof line,"%u / %u%s",title_selected+1,title_count,title_limit?" - LIST LIMIT":"");
+            text(fb,20,190,line);
+        }
+        text(fb,20,211,"UP/DOWN: CHOOSE  FIRE: LOAD");
+        text(fb,20,227,"BOOT: STATUS SCREEN");
+        return;
+    }
     text(fb, 20, 15, "8-BIT RETRO STATUS");
     char line[64], value[48], joystick[64];
     snprintf(line, sizeof line, "MACHINE: %s", machine_name()); text(fb, 20, 36, line);
@@ -243,7 +304,81 @@ static void status_draw(unsigned buffer) {
     status(fb, value, joystick);
     text(fb, 20, 192, "WEB: 8BITRETRO.LOCAL");
     text(fb, 20, 211, "BOOT: RETURN TO EMULATOR");
-    text(fb, 20, 227, "EMULATION CONTINUES");
+    text(fb, 20, 227, load_error ? load_error : "EMULATION PAUSED");
+}
+static void status_present(void) {
+    const uint32_t *staged=(const uint32_t *)(board_psram()+board_psram_size()-BOARD_STATUS_BYTES);
+    staged+=BANNER_ROWS*BOARD_DISPLAY_ROW_WORDS;
+    uint32_t *bank=status_sram+status_active*STATUS_BANK_ROWS*BOARD_DISPLAY_ROW_WORDS;
+    const uint16_t **table=runtime_rows+status_active*(BOARD_DISPLAY_HEIGHT+1);
+    // Blank scanlines share one immutable SRAM row. Only nonblank text rows
+    // consume space, so two complete screens fit without large SRAM buffers.
+    memset(bank,0,ROW_BYTES);
+#if !MACHINE_C64 && !MACHINE_SPECTRUM
+    bank[BOARD_DISPLAY_ROW_WORDS-1]=BOARD_DISPLAY_ROW_END;
+#endif
+    unsigned used=1;
+    for(unsigned y=0;y<BANNER_ROWS;y++) {
+        const uint32_t *src=staged+y*BOARD_DISPLAY_ROW_WORDS;
+        bool nonblank=false;
+        for(unsigned x=0;x<BOARD_DISPLAY_ROW_WORDS-1;x++)nonblank|=src[x]!=0;
+        const uint32_t *row=bank;
+        if(nonblank) {
+            if(used>=STATUS_BANK_ROWS){status_active^=1u;return;} // Never publish an incomplete table.
+            row=bank+used++*BOARD_DISPLAY_ROW_WORDS;
+            memcpy((void *)row,src,ROW_BYTES);
+        }
+        table[y*2]=table[y*2+1]=(const uint16_t *)row;
+    }
+    table[BOARD_DISPLAY_HEIGHT]=NULL;
+    __dmb();
+    // Driver publishes the complete immutable bank at vertical blank only.
+    board_display_set_rows(table);
+}
+static void status_close(void) {
+    titles_end();chooser=false;
+#if NIMBUS_TEST
+    controller_menu_capture(false);
+#endif
+#if MACHINE_C64 || MACHINE_SPECTRUM
+            board_display_backlight(0);
+            memcpy(status_sram, board_psram()+board_psram_size()-BOARD_STATUS_BYTES, BANNER_ROWS*ROW_BYTES);
+#endif
+            board_display_set_rows(emulator_rows);
+#if MACHINE_C64 || MACHINE_SPECTRUM
+            retire_display_table();
+            machine_status_framebuffer(false);
+            board_display_backlight(255);
+#endif
+#if WITH_SOUND
+            audio_status_mute(false);
+#endif
+            status_visible = false;
+
+}
+static bool status_open(void) {
+    if(!status_allocate())return false;
+#if NIMBUS_TEST
+    controller_menu_capture(true);
+#endif
+            emulator_rows = board_display_get_rows();
+#if WITH_SOUND
+            audio_status_mute(true);
+#endif
+#if MACHINE_C64 || MACHINE_SPECTRUM
+            board_display_backlight(0);
+            status_sram = machine_status_framebuffer(true);
+            memcpy(board_psram()+board_psram_size()-BOARD_STATUS_BYTES, status_sram, BANNER_ROWS*ROW_BYTES);
+#endif
+            status_active ^= 1u;
+            status_draw(status_active);
+            status_present();
+#if MACHINE_C64 || MACHINE_SPECTRUM
+            retire_display_table();board_display_backlight(255);
+#endif
+            status_visible = true;
+
+    return true;
 }
 #endif
 
@@ -268,64 +403,55 @@ void boot_status_frame(void) {
     if ((uint32_t)(frame - status_frame) < 2) return;
     if (pending_toggle) {
         pending_toggle = false;
-        if (status_visible) {
-#if MACHINE_C64 || MACHINE_SPECTRUM
-            memcpy(status_sram, board_psram()+board_psram_size()-BOARD_STATUS_BYTES, BANNER_ROWS*ROW_BYTES);
-#endif
-            board_display_set_rows(emulator_rows);
-#if MACHINE_C64 || MACHINE_SPECTRUM
-            machine_status_framebuffer(false);
-#endif
-#if WITH_SOUND
-            audio_status_mute(false);
-#endif
-            status_visible = false;
-        } else if (status_allocate()) {
-            emulator_rows = board_display_get_rows();
-#if WITH_SOUND
-            audio_status_mute(true);
-#endif
-#if MACHINE_C64 || MACHINE_SPECTRUM
-            status_sram = machine_status_framebuffer(true);
-            memcpy(board_psram()+board_psram_size()-BOARD_STATUS_BYTES, status_sram, BANNER_ROWS*ROW_BYTES);
-            for(unsigned b=0;b<2;b++) {
-                const uint16_t **t=runtime_rows+b*(BOARD_DISPLAY_HEIGHT+1);
-                for(unsigned y=0;y<480;y++)t[y]=(const uint16_t *)(status_sram+(y/2)*BOARD_DISPLAY_ROW_WORDS);
-                t[480]=NULL;
-            }
-#endif
-            status_active ^= 1u;
-            status_draw(status_active);
-            __dmb();
-            board_display_set_rows(runtime_rows + status_active * (BOARD_DISPLAY_HEIGHT + 1));
-            status_visible = true;
-        }
+        if(status_visible && chooser) {
+            titles_end();chooser=false;chooser_dirty=true;
+        } else if(status_visible)status_close();
+        else {titles_begin();if(!status_open())titles_end();}
         status_frame = frame; status_updated_ms = now;
-    } else if (status_visible && (uint32_t)(now - status_updated_ms) >= 1000) {
+    }
+    if(status_visible && chooser) {
+        titles_poll();
+        unsigned directions=0;bool fire=false;
+        if(!joystick_state(&directions,&fire)) {
+            titles_end();chooser=false;chooser_dirty=true;
+        } else if(!title_iterator && title_count) {
+            if(!fire)fire_armed=true;
+            int direction=(directions&1)?-1:((directions&2)?1:0);
+            if(direction && (direction!=held_direction || (int32_t)(now-repeat_at)>=0)) {
+                if(direction<0 && title_selected)title_selected--;
+                if(direction>0 && title_selected+1<title_count)title_selected++;
+                repeat_at=now+(direction!=held_direction?400:140);chooser_dirty=true;
+            }
+            held_direction=direction;
+            if(fire && fire_armed) {
+                char name[TITLE_NAME_BYTES];snprintf(name,sizeof name,"%s",titles()[title_selected]);
+                fire_armed=false;status_close();
+                if(!board_sd_load_disc(name)) {
+                    load_error="LOAD FAILED - CHECK SD CARD";chooser=false;status_open();
+                }
+                status_frame=board_display_frames();status_updated_ms=now;
+                return;
+            }
+        }
+    }
+    if (status_visible && (chooser_dirty || (!chooser && (uint32_t)(now - status_updated_ms) >= 1000))) {
+        chooser_dirty=false;
         status_active ^= 1u;
         status_draw(status_active);
-        __dmb();
-        board_display_set_rows(runtime_rows + status_active * (BOARD_DISPLAY_HEIGHT + 1));
+        status_present();
         status_frame = frame; status_updated_ms = now;
     }
 #endif
 }
 
-void boot_status_flash_begin(void) {
-#if BOOT_STATUS_TRIAL && !MACHINE_C64 && !MACHINE_SPECTRUM
-    if (status_visible) {
-        // Existing emulator scanout lives in SRAM for all four machines.
-        // Retire PSRAM DMA reads before flash_safe_execute changes QMI mode.
-        board_display_set_rows(emulator_rows);
-        retire_display_table();
-    }
-#endif
-}
-void boot_status_flash_end(void) {
-#if BOOT_STATUS_TRIAL && !MACHINE_C64 && !MACHINE_SPECTRUM
-    if (status_visible) {
-        board_display_set_rows(runtime_rows + status_active * (BOARD_DISPLAY_HEIGHT + 1));
-        status_frame = board_display_frames();
-    }
+// All runtime status scanout is now SRAM, including BBC packed-4 rows.
+void boot_status_flash_begin(void) {}
+void boot_status_flash_end(void) {}
+
+bool boot_status_visible(void) {
+#if BOOT_STATUS_TRIAL
+    return status_visible;
+#else
+    return false;
 #endif
 }

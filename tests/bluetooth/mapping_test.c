@@ -39,5 +39,20 @@ int main(void){
  feed(true,0);assert(keys[42]);controller_reset();assert(!keys[42]);controller_frame();assert(keys[42]);
  assert(controller_config("0 1 2 15 0 0 10 11 12 13 42 42 -1 -1 -1 -1 -1 -1 -1")==200);
  controller_frame();assert(!keys[42]);
+ // Menu sees navigation/fire, but the emulator receives neutral input.
+ memset(buttons,0,sizeof buttons);memset(axes,0,sizeof axes);
+ assert(controller_config("1 1 2 15 0 0 -1 -1 -1 -1 -2 -1 -1 -1 -1 -1 -1 -1 -1")==200);
+ buttons[0]=1;feed(true,2);assert(fire[0]&&dirs[0]==2);
+ controller_menu_capture(true);feed(true,2);assert(!fire[0]&&!dirs[0]);
+ unsigned md;bool mf;assert(controller_menu_state(&md,&mf)&&md==2&&mf);
+ controller_menu_capture(false);feed(true,2);assert(!fire[0]&&!dirs[0]);
+ buttons[0]=0;feed(true,0);buttons[0]=1;feed(true,1);assert(fire[0]&&dirs[0]==1);
+ feed(false,0);assert(!controller_menu_state(&md,&mf));
+ // A selects even when assigned to a keyboard key rather than emulated Fire.
+ assert(controller_config("2 1 2 15 0 0 10 11 12 13 42 -1 -1 -1 -1 -1 -1 -1 -1")==200);
+ controller_menu_capture(true);buttons[0]=1;feed(true,0);
+ assert(controller_menu_state(&md,&mf)&&mf&&!keys[42]);
+ buttons[0]=0;feed(true,0);assert(controller_menu_state(&md,&mf)&&!mf);
+ controller_menu_capture(false);
  puts("Normalization, ports, dead zone, inversion, keyboard ownership, reset, disconnect and validation passed");
 }

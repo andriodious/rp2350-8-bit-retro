@@ -1,0 +1,23 @@
+{
+  "images": {
+    "master": "2bc54b12478ef597",
+    "beeb": "f53f40e25c9256bf",
+    "c64": "f2dd8f527fa0896e",
+    "spectrum": "a5a067cf2350b2aa"
+  },
+  "base_commit": "d04294e",
+  "sha256": "659271c6ef95f101ceae39208292ed3b325c810c3c9324d662cc05586ff2696a",
+  "hardware_validation": "User verified Master, Beeb, C64 and Spectrum: no flicker, A/Fire selection and return to gameplay, 2026-11-11",
+  "validation": [
+    "All four firmware builds",
+    "14572 payload blocks match component images",
+    "Four ASAN/UBSAN UI tests including full chooser and immutable banks",
+    "Controller A/Fire mapping and capture tests",
+    "Shared frontend pause/resume service-loop test"
+  ],
+  "c64_static_headroom": 27440,
+  "bbc_status_sram_bytes": 46848,
+  "reference_unchanged": true,
+  "checkpoint": "reference/boot-sd-chooser-20261111",
+  "previous_checkpoint": "reference/boot-status-20261111"
+}
