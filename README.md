@@ -1,7 +1,7 @@
 # RP2350 8-bit Retro
 
 A multi-machine emulator platform for **Pimoroni Presto**, bringing the BBC Model B,
-BBC Master 128 and Commodore 64 together on one RP2350 board.
+BBC Master 128, Commodore 64 and ZX Spectrum 48K together on one RP2350 board.
 
 This project continues [8bitkick/rp2350-bbc-micro](https://github.com/8bitkick/rp2350-bbc-micro)
 as a broader emulator platform. The original project remains focused on its BBC
@@ -9,17 +9,19 @@ experiment. Original Git history, source notices and licence files are retained.
 
 ## Download and try it
 
-**[Download v0.4.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.4.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
+**[Download v0.5.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.5.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
 
-See the **[v0.4.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.4.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
+See the **[v0.5.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.5.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
 
 ## Machines and features
 
-| Machine | Emulator foundation | Disk support | Controller support |
+| Machine | Emulator foundation | Media support | Controller support |
 |---|---|---|---|
 | BBC Model B | beebjit, including the upstream RP2350 JIT work | BBC disk loading through SD/web | Analogue joystick/fire or keyboard mappings |
 | BBC Master 128 | Kieran Connell's kc-beeb integration | BBC disk loading through SD/web | Analogue joystick/fire or keyboard mappings |
 | Commodore 64 PAL | FRANK C64 / Frodo | D64/D81, T64/P00 programs and supported CRT cartridges through SD/web | Joystick port 1/2 or keyboard mappings |
+
+| ZX Spectrum 48K | Pinned [chips fork](https://github.com/andriodious/chips) | SNA/Z80 snapshots and TAP/TZX tapes through SD/web | Kempston joystick/fire or keyboard mappings |
 
 - Select the machine, load disks and use its keyboard from the web interface.
 - Sound output, volume controls and ambient LEDs on supported builds.
@@ -27,6 +29,21 @@ See the **[v0.4.0 release and first-time setup instructions](https://github.com/
   dead zone/inversion controls and reconnection across machine switches.
 - Tested C64 optimisations: CPU/VIC code in SRAM, packed pixel conversion and
   overlapping emulation/display conversion. The RP2350 clock remains 250 MHz.
+
+Version **v0.5.0** adds the ZX Spectrum 48K, verified at 50 fps with Elite, with
+beeper audio, a grey-key web keyboard on a black rainbow-striped case, and
+Kempston controls. Reset returns to BASIC; Restart Elite loads the built-in snapshot.
+Elite, Manic Miner TZX and YU_SKOOL TAP have been tested on hardware. This is a
+48K machine; 128K snapshots and every possible TZX encoding are not supported.
+
+Press **BOOT** for the SD chooser when a joystick is enabled and connected and
+compatible titles are present on the SD card. Up/down browses; Nimbus **A** or
+mapped Fire loads the selection. A second BOOT press shows status; a third returns
+to the emulator. Without eligible titles/controller, BOOT toggles status directly.
+Emulation pauses and audio is temporarily muted while these screens are open;
+the web interface stays available. All four machines have been verified without
+chooser/status flickering. Sound, volume, LEDs and brightness are remembered per
+machine, alongside controller mappings.
 
 Version v0.3.0 adds read-only C64 `.t64` loading from SD or web upload, with a program selector for multi-entry archives. See [T64 support and limitations](docs/c64-t64.md).
 
@@ -69,16 +86,17 @@ cd rp2350-8-bit-retro
 ```sh
 scripts/setup.sh --no-build --roms
 . deps/env.sh
-scripts/build-retro.sh
+EXTRA_OS_CMAKE_ARGS="-DBOOT_STATUS_TRIAL=ON" scripts/build-experimental-four.sh build-release
 ```
 
 On Debian/Raspberry Pi OS, add `--apt` to the setup command if host packages need
 installing. Setup downloads the pinned compiler/SDK, BBC assets and dependencies;
 C64 configuration fetches the pinned FRANK fork and checksum-verified Elite image.
+Spectrum uses the pinned chips fork; its Elite snapshot is downloaded and checksum-verified during configuration, rather than stored in Git.
 The source archive contains no downloaded game images, ROM set or Wi-Fi secrets.
 
-Result: **`build-retro/rp2350-8-bit-retro-presto.uf2`** containing the launcher and
-all three machines. Sound, ambient LEDs and original Nimbus support are enabled;
+Result: **`build-release/rp2350-8-bit-retro-presto.uf2`** containing the launcher and
+all four machines. Sound, ambient LEDs and original Nimbus support are enabled;
 profiling and web diagnostics are disabled. See [build instructions](docs/build-retro.md)
 for options and an explanation of the legacy build entry points.
 

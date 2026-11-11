@@ -1,12 +1,30 @@
-The BBC Master 128 and the BBC Model B in one firmware for the [Pimoroni Presto](https://shop.pimoroni.com/products/presto). It boots the Master into Mark Moxon's flicker-free Elite, and [elite-agent v0.4](https://github.com/8bitkick/elite-agent/releases/tag/v0.4) starts playing it a few seconds later.
+## Four classic machines on one Presto
 
-**Install:** plug the Presto in over USB-C, hold **BOOT**, tap **RESET**, and drag `rp2350-bbc-micro-presto-v0.4.uf2` onto the **RP2350** drive that appears. It restarts by itself.
+v0.5.0 brings ZX Spectrum 48K alongside BBC Master 128, BBC Model B and Commodore 64.
 
-- **BBC Master 128** (Kieran Connell's emulator) with Mark Moxon's flicker-free Elite (SNG47), the default.
-- **BBC Model B** (beebjit, with a JIT for the RP2350) with Mark Moxon's flicker-free Elite (disc version). Switch machines on the web panel.
-- **elite-agent v0.4** in the plugin slot: smoother, faster docking (efficient mode reaches Elite in about 24 game hours, a new record) and half the RAM of v0.3; curious mode, playing on the Master as Commander JAMESON, already Deadly, and carrying on from its last save after a power-off. Remove or replace it from the web panel's Plugin section. This firmware takes plugins for app API 2 only: elite-agent v0.2 and older are refused.
-- **Stack guard:** a plugin that overflows core 0's stack can no longer freeze the board. It faults, the Presto restarts by itself, and the plugin is turned off with the reason on the web panel.
-- **Web panel** at http://beeb.local/ once the Presto is on your WiFi (`tools/presto.py wifi secrets.py`, see the README): the machine's keyboard, discs from the SD card or the Stairway to Hell archive, the plugin's panel.
-- Games keep their saves in flash through a power-off (written at most once an hour, for the flash's sake: a power cut loses at most the last hour). Flashing this release replaces the Master's saves with the Deadly JAMESON; the Model B's saves are kept.
+- Spectrum at 50 fps with built-in Elite, beeper sound, SNA/Z80 snapshots and TAP/TZX loading from SD or web upload.
+- Spectrum web keyboard with grey keys, black case and rainbow stripe; Kempston arrow/Fire controls. Reset returns to BASIC; Restart Elite reloads the snapshot.
+- BOOT SD chooser: with an enabled, connected joystick and compatible SD titles, use up/down to browse and Nimbus A or mapped Fire to load. BOOT then cycles to status and back to emulation. Without a usable controller/title list, BOOT toggles status directly.
+- Emulation pauses and audio mutes while the chooser/status screen is open. Web access remains active. Flicker-free operation and selection verified on all four machines.
+- Saved per-machine sound, volume, LED/brightness settings and controller mappings; improved Spectrum/C64 keyboard styling.
+- Existing D81 gameplay/audio improvements and Wi-Fi/original Nimbus fixes retained.
 
-Elite is © Ian Bell and David Braben. This release includes [Mark Moxon's flicker-free builds](https://elite.bbcelite.com/), unmodified, from his [Master](https://github.com/markmoxon/elite-source-code-bbc-master) and [disc](https://github.com/markmoxon/elite-source-code-bbc-micro-disc) source projects. The repository itself doesn't contain them: `setup.sh` downloads them when you build.
+## Install
+
+Download **rp2350-8-bit-retro-presto.uf2**. Hold BOOT, tap RESET, then release BOOT to expose the Presto USB drive. Copy the UF2 to it; power-cycle if necessary. Open **http://8bitretro.local/** or the device IP to choose a machine, configure controls and load media.
+
+Existing Wi-Fi settings, machine choice and saves are retained. New users can follow the [Wi-Fi setup guide](https://github.com/andriodious/rp2350-8-bit-retro/blob/retro-platform/docs/presto/wifi.md).
+
+## Validation and identification
+
+The attached UF2 is the exact hardware-verified checkpoint `reference/boot-sd-chooser-20261111` (97311b1), not a replacement rebuild. Its source label still reads `reference/boot-status-20261111-dirty`; the manifest and image IDs identify the tested binary:
+
+| Master | Beeb | C64 | Spectrum |
+|---|---|---|---|
+| 2bc54b12478ef597 | f53f40e25c9256bf | f2dd8f527fa0896e | a5a067cf2350b2aa |
+
+A separate clean checkout from GitHub built all four machines and passed firmware integrity, controller, display, deterministic Spectrum Elite/audio and snapshot/tape tests. Spectrum source matches the pinned GitHub fork, and Elite images are downloaded during build preparation, not stored in Git. The release source adds documentation and CI updates to the tested checkpoint.
+
+Spectrum is 48K only; not every TZX encoding or game is supported. Original Nimbus is tested, not Nimbus+. C64 D81 scene loading can still interrupt audio; for the bundled C64 Elite choose N at its fastloader prompt. Previous release downloads and reference tags remain available.
+
+SHA256SUMS covers the downloadable firmware, source archive and manifest. No plugin or replacement save-disc payload is included.
