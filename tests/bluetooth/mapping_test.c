@@ -6,9 +6,16 @@
 static bool keys[256],fire[2];static unsigned dirs[2];static uint16_t xs[2],ys[2];
 void machine_key_raw(int code,bool down){assert(code>=0&&code<256);keys[code]=down;}
 void machine_controller(unsigned port,uint16_t x,uint16_t y,unsigned d,bool f){assert(port==1||port==2);xs[port-1]=x;ys[port-1]=y;dirs[port-1]=d;fire[port-1]=f;}
+void machine_key_sdl(uint32_t code,bool down){machine_key(code==225||code==229?0:(int)code,down);}
 static int16_t axes[4];static int32_t buttons[8];
 static void feed(bool connected,unsigned pad){controller_input(connected,axes,pad,buttons,false);controller_frame();}
 int main(void){
+ uint8_t usages[32]={0};usages[4/8]|=1u<<(4%8);controller_bluetooth_keyboard(usages);assert(keys[4]);
+ machine_key(4,true);memset(usages,0,32);controller_bluetooth_keyboard(usages);assert(keys[4]);machine_key(4,false);assert(!keys[4]);
+ usages[225/8]|=1u<<(225%8);usages[229/8]|=1u<<(229%8);controller_bluetooth_keyboard(usages);assert(keys[0]);
+ usages[225/8]&=~(1u<<(225%8));controller_bluetooth_keyboard(usages);assert(keys[0]);
+ memset(usages,0,32);controller_bluetooth_keyboard(usages);assert(!keys[0]);
+
  assert(controller_normalize(-127,-127,127)==-32767);
  assert(controller_normalize(127,-127,127)==32767);
  assert(controller_normalize(0,-128,127)==0);

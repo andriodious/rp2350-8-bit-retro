@@ -10,7 +10,8 @@ static unsigned pad;
 static bool button[9];
 /* mode 0 off, 1 joystick, 2 keyboard; source 0 left, 1 right, 2 D-pad */
 static int cfg[19]={0,2,0,15,0,0,-1,-1,-1,-1,-2,-1,-1,-1,-1,-1,-1,-1,-1};
-static bool keyboard[256],controller_keys[256];
+static bool keyboard[256],controller_keys[256],bluetooth_keys[256];
+static bool *keyboard_capture;
 static unsigned joystick_port;
 static unsigned menu_directions;
 static bool menu_fire,menu_capture,menu_release;
@@ -21,13 +22,14 @@ void controller_menu_capture(bool capture){menu_capture=capture;menu_release=tru
 void machine_key_raw(int code,bool down);
 void machine_key(int code,bool down) {
     if(code<0||code>255)return;
-    bool was=keyboard[code]||controller_keys[code];keyboard[code]=down;
-    bool now=keyboard[code]||controller_keys[code];
+    if(keyboard_capture){keyboard_capture[code]|=down;return;}
+    bool was=keyboard[code]||controller_keys[code]||bluetooth_keys[code];keyboard[code]=down;
+    bool now=keyboard[code]||controller_keys[code]||bluetooth_keys[code];
     if(was!=now)machine_key_raw(code,now);
 }
 void controller_reset(void) {
-    for(int i=0;i<256;i++)if(keyboard[i]||controller_keys[i])machine_key_raw(i,false);
-    memset(keyboard,0,sizeof keyboard);memset(controller_keys,0,sizeof controller_keys);
+    for(int i=0;i<256;i++)if(keyboard[i]||controller_keys[i]||bluetooth_keys[i])machine_key_raw(i,false);
+    memset(keyboard,0,sizeof keyboard);memset(controller_keys,0,sizeof controller_keys);memset(bluetooth_keys,0,sizeof bluetooth_keys);
 }
 int16_t controller_normalize(int32_t v,int32_t lo,int32_t hi) {
     if(hi<=lo)return 0;
@@ -84,8 +86,8 @@ void controller_frame(void) {
     if(!directions && !any_button)menu_release=false;
     if(menu_capture || menu_release){memset(desired,0,sizeof desired);enabled=false;}
     for(int k=0;k<256;k++)if(desired[k]!=controller_keys[k]) {
-        bool before=keyboard[k]||controller_keys[k];controller_keys[k]=desired[k];
-        bool after=keyboard[k]||controller_keys[k];
+        bool before=keyboard[k]||controller_keys[k]||bluetooth_keys[k];controller_keys[k]=desired[k];
+        bool after=keyboard[k]||controller_keys[k]||bluetooth_keys[k];
         if(before!=after)machine_key_raw(k,after);
     }
     unsigned next_port=enabled&&cfg[0]==1?(unsigned)cfg[1]:0;
@@ -118,3 +120,14 @@ void controller_json(char *out,size_t size) {
 }
 
 void controller_get_config(int32_t out[19]) {for(int i=0;i<19;i++)out[i]=cfg[i];}
+
+/* Called between frames. Aggregate aliases (e.g. both Shift keys) before release. */
+void controller_bluetooth_keyboard(const uint8_t usages[32]){
+ bool desired[256]={0};keyboard_capture=desired;
+ for(unsigned i=4;i<256;i++)if(usages[i/8]&(1u<<(i%8)))machine_key_sdl(i,true);
+ keyboard_capture=NULL;
+ for(unsigned i=0;i<256;i++)if(desired[i]!=bluetooth_keys[i]){
+  bool before=keyboard[i]||controller_keys[i]||bluetooth_keys[i];bluetooth_keys[i]=desired[i];
+  bool after=keyboard[i]||controller_keys[i]||bluetooth_keys[i];if(before!=after)machine_key_raw(i,after);
+ }
+}

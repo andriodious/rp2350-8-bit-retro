@@ -6,6 +6,7 @@
 extern "C" {
 #endif
 void controller_reset(void);
+void controller_bluetooth_keyboard(const uint8_t usages[32]);
 void controller_frame(void);
 void controller_input(bool connected, const int16_t axes[4], unsigned directions, const int32_t buttons[8], bool menu);
 int controller_config(const char *text);

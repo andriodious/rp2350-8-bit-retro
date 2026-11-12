@@ -1,6 +1,9 @@
 #include "firmware_identity.h"
 #if NIMBUS_TEST
 #include "presto_bluetooth.h"
+#if BT_KEYBOARD_DISCOVERY
+#include "keyboard_discovery.h"
+#endif
 #endif
 // The command layer (see api.h): every operation once, for the USB channel and the HTTP API.
 #include <malloc.h>
@@ -666,6 +669,9 @@ static void cmd_command(api_req_t *r) {
 }
 
 #if NIMBUS_TEST
+#if BT_KEYBOARD_DISCOVERY
+static void cmd_keyboard_discovery(api_req_t *r){keyboard_discovery_json(r->out,r->size);}
+#endif
 static void cmd_bluetooth(api_req_t *r) {
     int code=presto_bluetooth_command(r->args);
     api_reply(r,code,"{\"ok\":%s}",code==200?"true":"false");
@@ -725,6 +731,9 @@ static const api_cmd_t s_cmds[] = {
 #endif
 #if NIMBUS_TEST
     {"bluetooth", NULL, true, cmd_bluetooth},
+#if BT_KEYBOARD_DISCOVERY
+    {"keyboard/discovery", NULL, false, cmd_keyboard_discovery},
+#endif
 #endif
     {"machine", NULL, true, cmd_machine},
 #if MACHINE_C64 && WEBDIAG

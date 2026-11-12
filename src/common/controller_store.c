@@ -18,6 +18,9 @@ struct record {
     uint32_t preferences_magic, preferences_mask;
     uint8_t preferences[4][5]; // sound, volume, ambient, brightness, lock indicators
     uint32_t preferences_checksum;
+    uint32_t keyboard_magic;
+    uint8_t keyboard_bonded,keyboard_type,keyboard_address[6],keyboard_key[16];
+    uint32_t keyboard_checksum;
 };
 _Static_assert(offsetof(struct record,checksum)==268,"Keep legacy controller record layout");
 _Static_assert(offsetof(struct record,spectrum_magic)==272,"Append Spectrum after the legacy checksum");
@@ -109,4 +112,26 @@ bool controller_store_flush(void) {
     if(!mem_flash_write_sector(off,&state,sizeof state))return false;
     if(memcmp(mem_flash_ptr(off),&state,sizeof state))return false;
     current=next;dirty=false;return true;
+}
+
+static uint32_t keyboard_checksum(void){
+ const uint8_t *b=(const uint8_t *)&state.keyboard_magic;uint32_t crc=0xffffffffu;
+ for(unsigned i=0;i<28;i++){crc^=b[i];for(int k=0;k<8;k++)crc=(crc>>1)^((crc&1)?0xedb88320u:0);}
+ return ~crc;
+}
+bool keyboard_store_bond(uint8_t a[6],uint8_t k[16],uint8_t *type){
+ if(state.keyboard_magic!=0x4b424431u||state.keyboard_bonded!=1||state.keyboard_checksum!=keyboard_checksum())return false;
+ memcpy(a,state.keyboard_address,6);memcpy(k,state.keyboard_key,16);*type=state.keyboard_type;return true;
+}
+void keyboard_store_set_bond(const uint8_t a[6],const uint8_t k[16],uint8_t type){
+ uint8_t olda[6],oldk[16],oldt;
+ if(keyboard_store_bond(olda,oldk,&oldt)&&oldt==type&&!memcmp(a,olda,6)&&!memcmp(k,oldk,16))return;
+ state.keyboard_magic=0x4b424431u;state.keyboard_bonded=1;state.keyboard_type=type;
+ memcpy(state.keyboard_address,a,6);memcpy(state.keyboard_key,k,16);
+ state.keyboard_checksum=keyboard_checksum();dirty=true;
+}
+void keyboard_store_forget(void){
+ state.keyboard_magic=0x4b424431u;state.keyboard_bonded=0;state.keyboard_type=0;
+ memset(state.keyboard_address,0,6);memset(state.keyboard_key,0,16);
+ state.keyboard_checksum=keyboard_checksum();dirty=true;
 }

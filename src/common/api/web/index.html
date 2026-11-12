@@ -310,6 +310,22 @@ progress { width: 100%; height: 6px; margin-top: 8px; accent-color: var(--accent
 <p id="btConnection" role="status"></p>
 <p id="btStorage" role="status"></p>
 <pre id="btValues"></pre><p id="btError" role="status"></p></section>
+<section id="classicKeyboardPanel" hidden><h2>Bluetooth keyboard</h2>
+<p>Classic keyboard trial. Disconnect the keyboard from your Mac, press its Connect button, then select Pair keyboard.</p>
+<label>Keyboard address <input id="keyboardAddress" value="11:21:AC:52:12:23" maxlength="17"></label>
+<button onclick="keyboardHostCommand('connect '+$('keyboardAddress').value)">Pair keyboard</button>
+<button onclick="keyboardHostCommand('disconnect')">Disconnect keyboard</button>
+<button onclick="keyboardHostCommand('reconnect')">Reconnect keyboard</button>
+<button onclick="keyboardHostCommand('forget')">Forget keyboard</button>
+<p id="keyboardHostStatus" role="status"></p><p id="keyboardHostPin" role="status"></p><p id="keyboardHostError" role="status"></p>
+</section>
+<section id="keyboardDiscoveryPanel" hidden><h2>Bluetooth keyboard — discovery trial</h2>
+<p>Switch on your keyboard and press its Connect button, then scan. Discovery takes about 15 seconds. This Classic Bluetooth trial identifies keyboards; pairing and typing are not enabled yet. Your saved Nimbus pairing is kept.</p>
+<button onclick="keyboardScan('keyboard-scan')">Scan for keyboards</button>
+<button onclick="keyboardScan('keyboard-stop')">Stop scan</button>
+<button onclick="keyboardDownload()">Download scan results</button>
+<p id="keyboardScanStatus" role="status"></p><ul id="keyboardScanDevices"></ul>
+</section>
 </main>
 
 <script>
@@ -741,7 +757,40 @@ async function btCommand(command) {
   try { if(command==='reconnect')$('btError').textContent='Enabling reconnection…'; await api('/api/bluetooth',command); $('btError').textContent=command.startsWith('config ')?'Controls saved for this machine.':command==='reconnect'?'Reconnection enabled. One click is enough; keep the Nimbus searching.':''; }
   catch(e) { $('btError').textContent=String(e); }
 }
+let keyboardScanResults=null, keyboardScanPending=false;
+async function keyboardRefresh() {
+  if(keyboardScanPending)return;
+  keyboardScanPending=true;
+  try {
+    const r=await api('/api/keyboard/discovery',null,'GET'); keyboardScanResults=r;
+    const labels={idle:'Ready to scan.',classic_scan:'Scanning Classic Bluetooth…',finished:'Scan finished.',error:'Scan could not start.'};
+    $('keyboardScanStatus').textContent=(labels[r.state]||r.state)+(r.truncated?' List full; keyboard and input-device candidates are prioritised.':'')+(r.output_truncated?' Some results did not fit the response.':'');
+    const list=$('keyboardScanDevices'); list.replaceChildren();
+    for(const d of r.devices){const item=document.createElement('li');item.textContent=`${d.name||'Unnamed device'} — ${d.transport} — ${d.address}${d.hid_hint?' — input device':''}`;list.appendChild(item);}
+  } catch(e){$('keyboardScanStatus').textContent=e.message;}
+  finally {keyboardScanPending=false;}
+}
+async function keyboardScan(command){
+  try{await api('/api/bluetooth',command);await keyboardRefresh();}
+  catch(e){$('keyboardScanStatus').textContent='Could not start or stop scanning. Wait for Wi-Fi and any controller connection attempt to finish, then retry.';}
+}
+function keyboardDownload(){
+  if(!keyboardScanResults)return;
+  const url=URL.createObjectURL(new Blob([JSON.stringify(keyboardScanResults,null,2)],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download='presto-keyboard-discovery.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function keyboardHostCommand(command){
+ try{await api('/api/bluetooth','keyboard '+command);$('keyboardHostError').textContent='';}
+ catch(e){$('keyboardHostError').textContent=e.message;}
+}
 function show(s) {
+ $('classicKeyboardPanel').hidden=!s.bluetooth_keyboard;
+ if(s.bluetooth_keyboard){const k=s.bluetooth_keyboard;
+ $('keyboardHostStatus').textContent=`${k.state} — ${k.remembered?'pairing saved':'not paired'} — ${k.reports} reports${k.error?' — error '+k.error:''}`;
+ $('keyboardHostPin').textContent=k.pin?`Type ${k.pin} on the Bluetooth keyboard, then press Enter.`:'';
+ }
+  $('keyboardDiscoveryPanel').hidden=!s.keyboard_discovery;
+  if(s.keyboard_discovery)keyboardRefresh();
   // Reject old requests before any panel (including diagnostics) changes.
   if(responseEpoch.has(s) && responseEpoch.get(s)!==machineEpoch)return;
   if(s.c64_failure && s.machine==='master')switchingTo=null;

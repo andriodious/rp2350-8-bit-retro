@@ -14,6 +14,12 @@ source=r'''
 #include "nimbus_reconnect.h"
 static bool store_started=true,store_error,ready=true,reconnect=true,scanning,connecting,connected;
 static unsigned cid,attempts,error,retry_streak,failures;
+static bool preferences_pending,keyboard_busy;
+static uint32_t preferences_due;
+static void presto_preferences_save(void){}
+#define BT_KEYBOARD_DISCOVERY 1
+static void keyboard_discovery_frame(void){}
+static bool keyboard_discovery_busy(void){return keyboard_busy;}
 static uint32_t retry_at=3000,now;
 static bool wifi;
 static unsigned selected;
@@ -42,7 +48,9 @@ int main(void){
  attempts=failures=retry_streak=0;retry_at=3000;now=1000;
  bluetooth_frame(false);assert(attempts==0);
  now=3000;bluetooth_frame(false);assert(attempts==1);
- reconnect=false;now=100000;bluetooth_frame(true);assert(attempts==1);
+ keyboard_busy=true;now=100000;bluetooth_frame(true);assert(attempts==1);
+ keyboard_busy=false;bluetooth_frame(true);assert(attempts==2);
+ reconnect=false;now=200000;bluetooth_frame(true);assert(attempts==2);
  puts("Actual retry function: Wi-Fi startup/rejoin gate and original quick reconnect window passed");
 }
 '''

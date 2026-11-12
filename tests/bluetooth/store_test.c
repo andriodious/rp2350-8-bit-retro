@@ -37,6 +37,14 @@ int main(void){
  prefs[1]=99;controller_store_set_preferences(0,prefs);fail=1;assert(!controller_store_flush());fail=0;controller_store_init();
  assert(controller_store_get_preferences(0,readprefs)&&readprefs[1]==10);
  assert(controller_store_get_config(3,out)&&out[0]==42);
+ // Independent keyboard bond survives reload and Nimbus changes.
+ uint8_t ka[6]={9,8,7,6,5,4},kk[16]={42};
+ keyboard_store_set_bond(ka,kk,5);assert(controller_store_flush());controller_store_init();
+ assert(keyboard_store_bond(outa,outk,&type)&&type==5&&!memcmp(outa,ka,6)&&!memcmp(outk,kk,16));
+ controller_store_set_bond(a,k,4);assert(controller_store_flush());controller_store_init();
+ assert(keyboard_store_bond(outa,outk,&type)&&!memcmp(outa,ka,6));
+ keyboard_store_forget();assert(controller_store_flush());controller_store_init();
+ assert(!keyboard_store_bond(outa,outk,&type));assert(controller_store_bond(outa,outk,&type)&&!memcmp(outa,a,6));
  // Old firmware erases the extension when saving its v1 prefix. New firmware
  // must still accept the bond and BBC/C64 settings, without inventing a Spectrum mapping.
  memset(flash+272,255,4096-272);memset(flash+4096+272,255,4096-272);controller_store_init();

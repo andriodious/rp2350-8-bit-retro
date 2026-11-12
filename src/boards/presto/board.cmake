@@ -1,5 +1,7 @@
 option(STARTUP_DIAG "Rear LED startup stage diagnostics" OFF)
 option(STARTUP_DIAG_PREMAIN "Include v6 pre-main LED probes in startup diagnostics" ON)
+option(BT_KEYBOARD_CLASSIC "Experimental Classic HID keyboard" OFF)
+option(BT_KEYBOARD_DISCOVERY "Read-only Classic keyboard discovery trial" OFF)
 option(NIMBUS_TEST "Original Nimbus Bluetooth controller support (legacy option name)" ON)
 # The Pimoroni Presto (RP2350B, 8 MB PSRAM, 480x480 ST7701 panel, WiFi, SD card, piezo, seven
 # LEDs on its back): what a machine's firmware needs of it. Included by the top-level
@@ -30,6 +32,14 @@ function(board_setup TARGET)
     endif()
     target_compile_definitions(${TARGET} PRIVATE WEBDIAG=$<BOOL:${WEBDIAG}>)
     if(NIMBUS_TEST)
+        if(BT_KEYBOARD_CLASSIC)
+            target_sources(${TARGET} PRIVATE ${BOARD_DIR}/keyboard_host.c)
+            target_compile_definitions(${TARGET} PRIVATE BT_KEYBOARD_CLASSIC=1)
+        endif()
+        if(BT_KEYBOARD_DISCOVERY)
+            target_sources(${TARGET} PRIVATE ${BOARD_DIR}/keyboard_discovery.c)
+            target_compile_definitions(${TARGET} PRIVATE BT_KEYBOARD_DISCOVERY=1)
+        endif()
         target_sources(${TARGET} PRIVATE ${BOARD_DIR}/presto_bluetooth.c ${COMMON_DIR}/controller.c ${COMMON_DIR}/controller_store.c
             ${PICO_BTSTACK_PATH}/src/classic/btstack_link_key_db_memory.c)
         target_compile_definitions(${TARGET} PRIVATE NIMBUS_TEST=1)
