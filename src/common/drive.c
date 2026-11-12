@@ -188,6 +188,14 @@ void drive0_restore(void) {
     printf("DISC golden disc restored\n");
 }
 
+#if MACHINE_C64 || MACHINE_SPECTRUM
+// These machines never persist BBC save discs. Do not reserve their sector buffers.
+bool drive0_import(uint32_t size, const char **why) {
+    (void)size; *why = "this build keeps no save disc"; return false;
+}
+void drive0_frame(void) {}
+void drive0_sync(void) {}
+#else
 bool drive0_import(uint32_t size, const char **why) {
     static uint8_t blk[FLASH_SECTOR_SIZE];
     const uint8_t *img = s_staging;
@@ -276,3 +284,5 @@ void drive0_sync(void) {
         commit();
     }
 }
+
+#endif

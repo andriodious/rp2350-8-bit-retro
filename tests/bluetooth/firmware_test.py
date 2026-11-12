@@ -34,6 +34,11 @@ for machine,name,offset in [('launcher','presto_launcher',0),('master','presto_m
     assert 'btstack_link_key_db_memory_instance' in symbols
     assert not any('pico_flash_bank' in s or 'btstack_link_key_db_tlv' in s for s in symbols)
     cache=(build/machine/'CMakeCache.txt').read_text();assert 'NIMBUS_TEST:BOOL=ON' in cache
+    if 'BT_KEYBOARD_CLASSIC:BOOL=ON' in cache:
+        assert 'keyboard_host_frame' in symbols
+        assert 'presto_keyboard_boot_status' in symbols
+    if 'BT_KEYBOARD_DISCOVERY:BOOL=ON' in cache:
+        assert 'keyboard_discovery_start' in symbols
     if machine=='c64':
         # Full D81 clean reference has 28,688 bytes, not the older non-D81 40 KiB.
         # Status/chooser trial adds SRAM-resident display publication and bookkeeping.

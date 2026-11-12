@@ -21,6 +21,9 @@ struct record {
     uint32_t keyboard_magic;
     uint8_t keyboard_bonded,keyboard_type,keyboard_address[6],keyboard_key[16];
     uint32_t keyboard_checksum;
+    uint32_t mapping_magic;
+    uint8_t keyboard_maps[4][KEYBOARD_MAP_BYTES];
+    uint32_t mapping_checksum;
 };
 _Static_assert(offsetof(struct record,checksum)==268,"Keep legacy controller record layout");
 _Static_assert(offsetof(struct record,spectrum_magic)==272,"Append Spectrum after the legacy checksum");
@@ -29,7 +32,8 @@ static int current=-1;
 static bool dirty;
 static uint32_t checksum(const struct record *p) {
     const uint8_t *b=(const uint8_t *)p;uint32_t crc=0xffffffffu;
-    for(size_t i=0;i<offsetof(struct record,checksum);i++) {
+    for(size_t i=0;i<(p->version==2?sizeof *p:offsetof(struct record,checksum));i++) {
+        if(i>=offsetof(struct record,checksum)&&i<offsetof(struct record,checksum)+4)continue;
         crc^=b[i];for(int k=0;k<8;k++)crc=(crc>>1)^((crc&1)?0xedb88320u:0);
     }
     return ~crc;
@@ -65,7 +69,7 @@ void controller_store_set_preferences(unsigned m,const uint8_t p[5]){
  state.preferences_checksum=preferences_checksum(&state);dirty=true;
 }
 static bool valid(const struct record *p) {
-    return p->magic==MAGIC&&p->version==1&&p->bonded<=1&&p->configured<=7&&p->checksum==checksum(p);
+    return p->magic==MAGIC&&(p->version==1||p->version==2)&&p->bonded<=1&&p->configured<=7&&p->checksum==checksum(p);
 }
 void controller_store_init(void) {
     memset(&state,0,sizeof state);current=-1;dirty=false;
@@ -108,7 +112,7 @@ bool controller_store_flush(void) {
     if(!dirty)return true;
     uint32_t off,size;int next=current<0?0:current^1;
     if(!mem_flash_region(MEM_FLASH_CONTROLLER_A+next,&off,&size)||size<sizeof state)return false;
-    state.magic=MAGIC;state.version=1;state.sequence++;state.checksum=checksum(&state);
+    state.magic=MAGIC;state.version=2;state.sequence++;state.checksum=checksum(&state);
     if(!mem_flash_write_sector(off,&state,sizeof state))return false;
     if(memcmp(mem_flash_ptr(off),&state,sizeof state))return false;
     current=next;dirty=false;return true;
@@ -134,4 +138,21 @@ void keyboard_store_forget(void){
  state.keyboard_magic=0x4b424431u;state.keyboard_bonded=0;state.keyboard_type=0;
  memset(state.keyboard_address,0,6);memset(state.keyboard_key,0,16);
  state.keyboard_checksum=keyboard_checksum();dirty=true;
+}
+
+static uint32_t mapping_checksum(void){
+ const uint8_t *b=(const uint8_t *)&state.mapping_magic;uint32_t crc=0xffffffffu;
+ for(unsigned i=0;i<4+sizeof state.keyboard_maps;i++){crc^=b[i];for(int k=0;k<8;k++)crc=(crc>>1)^((crc&1)?0xedb88320u:0);}
+ return ~crc;
+}
+static bool mapping_valid(void){return state.mapping_magic==0x4b4d5031u&&state.mapping_checksum==mapping_checksum();}
+void keyboard_store_get_map(unsigned machine,uint8_t out[KEYBOARD_MAP_BYTES]){
+ memset(out,0,KEYBOARD_MAP_BYTES);
+ if(machine<4&&mapping_valid())memcpy(out,state.keyboard_maps[machine],KEYBOARD_MAP_BYTES);
+}
+void keyboard_store_set_map(unsigned machine,const uint8_t map[KEYBOARD_MAP_BYTES]){
+ if(machine>=4)return;
+ if(!mapping_valid()){state.mapping_magic=0x4b4d5031u;memset(state.keyboard_maps,0,sizeof state.keyboard_maps);}
+ if(!memcmp(state.keyboard_maps[machine],map,KEYBOARD_MAP_BYTES))return;
+ memcpy(state.keyboard_maps[machine],map,KEYBOARD_MAP_BYTES);state.mapping_checksum=mapping_checksum();dirty=true;
 }

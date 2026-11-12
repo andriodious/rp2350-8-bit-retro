@@ -88,9 +88,14 @@ static bool remembered(bd_addr_t address) {
 }
 static void save_key(bd_addr_t address,link_key_t key,link_key_type_t type) {
 #if BT_KEYBOARD_CLASSIC
+    bd_addr_t old_keyboard; link_key_t old_key; uint8_t old_type;
+    bool had_keyboard=keyboard_store_bond(old_keyboard,old_key,&old_type);
     if(keyboard_host_save_key(address,key,type)){
         bd_addr_t a;link_key_t k;uint8_t t;
-        if(keyboard_store_bond(a,k,&t)&&!memcmp(a,address,6)&&!memcmp(k,key,16))ram_db->put_link_key(address,key,type);
+        if(keyboard_store_bond(a,k,&t)&&!memcmp(a,address,6)&&!memcmp(k,key,16)){
+            if(had_keyboard&&memcmp(old_keyboard,address,6))ram_db->delete_link_key(old_keyboard);
+            ram_db->put_link_key(address,key,type);
+        }
         return;
     }
 #endif
@@ -120,6 +125,7 @@ bool btstack_cyw43_init(async_context_t *context) {
 #if BT_KEYBOARD_CLASSIC
     if(keyboard_store_bond(address,key,&type))ram_db->put_link_key(address,key,(link_key_type_t)type);
     keyboard_host_init();
+    uint8_t keyboard_map[64];keyboard_store_get_map(machine_index(),keyboard_map);controller_keyboard_map_set(keyboard_map);
 #endif
     int32_t cfg[19];
     if(controller_store_get_config(machine_index(),cfg)) {
@@ -305,6 +311,20 @@ int presto_bluetooth_command(const char *s) {
     }
     if(!ready)return 503;
 #if BT_KEYBOARD_CLASSIC
+    if(!strncmp(s,"keyboard map ",13)||!strncmp(s,"keyboard unmap ",15)){
+        bool remove=!strncmp(s,"keyboard unmap ",15);unsigned source,target=0;char extra;
+        if(remove){if(sscanf(s+15,"%u %c",&source,&extra)!=1)return 400;}
+        else if(sscanf(s+13,"%u %u %c",&source,&target,&extra)!=2)return 400;
+        if(source<4||source>255||target>127)return 400;
+        uint8_t map[64];controller_keyboard_map_get(map);unsigned slot=64;
+        for(unsigned i=0;i<64;i+=2)if(map[i]==source){slot=i;break;}
+        if(slot==64&&!remove)for(unsigned i=0;i<64;i+=2)if(!map[i]){slot=i;break;}
+        if(slot==64)return remove?404:409;
+        map[slot]=remove?0:source;map[slot+1]=remove?0:target;
+        keyboard_store_set_map(machine_index(),map);
+        store_error=!controller_store_flush();if(store_error)return 500;
+        controller_keyboard_map_set(map);keyboard_host_command("capture-cancel",false);return 200;
+    }
     if(!strncmp(s,"keyboard ",9)){
         bool available=!scanning&&!connecting&&net_boot_has_address();
 #if BT_KEYBOARD_DISCOVERY
@@ -343,6 +363,11 @@ int presto_bluetooth_command(const char *s) {
         connected=false;descriptor_ready=false;clear_input();
         bd_addr_t saved;if(remembered(saved))ram_db->delete_link_key(saved);
         controller_store_forget();store_error=!controller_store_flush();return store_error?500:200;
+    }
+    if(!strcmp(s,"stop-scan")) {
+        if(!scanning)return 200;
+        // Keep scan ownership until the inquiry-complete event arrives.
+        return gap_inquiry_stop()?500:200;
     }
     if(!strcmp(s,"scan")) {
         if(scanning||connecting||connected)return 409;
@@ -383,7 +408,12 @@ static void bluetooth_frame(bool save) {
     if(save&&controller_store_pending()&&!store_error)store_error=!controller_store_flush();
 #if BT_KEYBOARD_DISCOVERY
     keyboard_discovery_frame();
-    if(keyboard_discovery_busy())return;
+    if(keyboard_discovery_busy()){
+#if BT_KEYBOARD_CLASSIC
+        keyboard_host_frame(false,save);
+#endif
+        return;
+    }
 #endif
 #if BT_KEYBOARD_CLASSIC
     keyboard_host_frame(net_boot_has_address()&&!scanning&&!connecting,save);
@@ -438,8 +468,8 @@ void presto_bluetooth_json(char *out,size_t size) {
     char config[160];controller_json(config,sizeof config);
     char list[768];size_t used=0;list[0]=0;
     for(unsigned i=0;i<count;i++)used+=snprintf(list+used,sizeof list-used,"%s\"%s %s\"",i?",":"",bd_addr_to_str(devices[i]),names[i]);
-    snprintf(out,size,",\"bluetooth\":{\"build\":8,\"page_timeout_ms\":2560,\"wifi_wait\":%s,\"retry_streak\":%u,\"last_failure\":%u,\"last_failure_phase\":%u,\"last_failure_ms\":%lu,\"reconnect_enabled\":%s,\"retry_ms\":%u,\"attempts\":%u,\"incoming\":%u,\"failures\":%u,\"remembered\":%s,\"save_error\":%s,\"save_pending\":%s,\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
-        (reconnect&&!connected&&!net_boot_has_address())?"true":"false",retry_streak,last_failure,last_failure_phase,(unsigned long)last_failure_ms,reconnect?"true":"false",wait_ms,attempts,incoming_count,failures,bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
+    snprintf(out,size,",\"bluetooth\":{\"address\":\"%s\",\"build\":8,\"page_timeout_ms\":2560,\"wifi_wait\":%s,\"retry_streak\":%u,\"last_failure\":%u,\"last_failure_phase\":%u,\"last_failure_ms\":%lu,\"reconnect_enabled\":%s,\"retry_ms\":%u,\"attempts\":%u,\"incoming\":%u,\"failures\":%u,\"remembered\":%s,\"save_error\":%s,\"save_pending\":%s,\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
+        connected?bd_addr_to_str(selected):"",(reconnect&&!connected&&!net_boot_has_address())?"true":"false",retry_streak,last_failure,last_failure_phase,(unsigned long)last_failure_ms,reconnect?"true":"false",wait_ms,attempts,incoming_count,failures,bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
         (long)axes[0],(long)axes[1],(long)axes[2],(long)axes[3],(long)buttons[0],(long)buttons[1],(long)buttons[2],(long)buttons[3],(long)buttons[4],(long)buttons[5],(long)buttons[6],(long)buttons[7],(long)hat,(long)menu,(long)dpad[0],(long)dpad[1],(long)dpad[2],(long)dpad[3]);
 #if BT_KEYBOARD_DISCOVERY
     size_t keyboard_n=strlen(out);
@@ -447,10 +477,26 @@ void presto_bluetooth_json(char *out,size_t size) {
 #endif
 #if BT_KEYBOARD_CLASSIC
     size_t host_n=strlen(out);if(host_n<size)keyboard_host_json(out+host_n,size-host_n);
+    uint8_t map[64];controller_keyboard_map_get(map);
+    size_t map_n=strlen(out);if(map_n<size)snprintf(out+map_n,size-map_n,",\"keyboard_mappings\":[");
+    bool comma=false;for(unsigned i=0;i<64;i+=2)if(map[i]){
+        map_n=strlen(out);if(map_n<size)snprintf(out+map_n,size-map_n,"%s[%u,%u]",comma?",":"",map[i],map[i+1]);comma=true;
+    }
+    map_n=strlen(out);if(map_n<size)snprintf(out+map_n,size-map_n,"]");
 #endif
 #if MACHINE_SPECTRUM
     size_t n=strlen(out);
     if(n<size)snprintf(out+n,size-n,",\"bluetooth_startup\":{\"called\":%s,\"store_started\":%s,\"ready\":%s,\"power_result\":%d,\"hci_state\":%u,\"start_ms\":%lu,\"last_event_ms\":%lu,\"events\":%u,\"state_events\":%u,\"commands\":%u,\"last_event\":%u,\"last_opcode\":%u}",start_called?"true":"false",store_started?"true":"false",ready?"true":"false",power_result,store_started?(unsigned)hci_get_state():0,(unsigned long)startup_ms,(unsigned long)last_event_ms,startup_events,startup_states,startup_commands,last_startup_event,last_opcode);
 #endif
 
+}
+
+const char *presto_keyboard_boot_status(void) {
+#if BT_KEYBOARD_CLASSIC
+ const char *status=keyboard_host_boot_status();
+ if(!strcmp(status,"SEARCHING")&&!net_boot_has_address())return "WAITING FOR WIFI";
+ return status;
+#else
+ return "DISABLED IN BUILD";
+#endif
 }

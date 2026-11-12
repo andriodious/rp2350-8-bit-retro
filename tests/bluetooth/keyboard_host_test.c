@@ -37,8 +37,22 @@ int main(void){
  data[3]=0;data[4]=0;data[1]=0;report(data,sizeof data);keyboard_host_frame(false,true);for(unsigned i=0;i<32;i++)assert(!delivered[i]);
  for(unsigned len=2;len<sizeof data;len++)report(data,len);
  assert(invalid_reports>1);
+ // Learning a key suppresses game input, ignores keys held at capture start,
+ // and waits for release before restoring normal input after cancellation.
+ memset(keys,0,sizeof keys);keys[0]=1<<4;
+ assert(keyboard_host_command("capture",true)==200);keyboard_host_frame(false,true);assert(!captured_usage&&!delivered[0]);
+ keys[0]=0;keyboard_host_frame(false,true);keys[0]=1<<5;keyboard_host_frame(false,true);assert(captured_usage==5&&!delivered[0]);
+ keyboard_host_command("capture-cancel",true);keyboard_host_frame(false,true);assert(!delivered[0]);
+ keys[0]=0;keyboard_host_frame(false,true);keys[0]=1<<5;keyboard_host_frame(false,true);assert(delivered[0]==(1<<5));
+ keyboard_host_command("capture",true);test_time+=60001;keyboard_host_frame(false,true);assert(!capturing&&!delivered[0]);
+ memset(keys,0,sizeof keys);
  link_key_t key={42};assert(keyboard_host_save_key(address,key,4)&&bonded);
  assert(keyboard_host_command("disconnect",true)==200);assert(disconnects==1);keyboard_host_frame(false,true);for(unsigned i=0;i<32;i++)assert(!delivered[i]);
  keyboard_host_command("forget",true);assert(!bonded);keyboard_host_save_key(address,key,4);assert(!bonded);
+ // A failed attempt to select another device must reconnect the saved keyboard.
+ memcpy(ba,(uint8_t[]){0x11,0x21,0xac,0x52,0x12,0x23},6);bonded=true;
+ connected=connecting=false;cid=0;memset(address,0x55,6);
+ assert(keyboard_host_command("reconnect",true)==200);assert(!memcmp(address,ba,6));assert(!pairing);
+ memset(address,0x66,6);retry_at=0;keyboard_host_frame(true,true);assert(!memcmp(address,ba,6));assert(connecting);
  puts("Keyboard host: pairing prompt, CID routing, real HID parser, rollover, truncation, release and late bond rejection passed");
 }

@@ -8,3 +8,5 @@ void keyboard_host_frame(bool radio_available,bool deliver_input);
 bool keyboard_host_busy(void);
 int keyboard_host_command(const char *command,bool available);
 void keyboard_host_json(char *out,size_t size);
+
+const char *keyboard_host_boot_status(void);

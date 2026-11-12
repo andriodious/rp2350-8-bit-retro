@@ -4,6 +4,11 @@
 #include "mem.h"
 #include "controller_store.h"
 static unsigned char flash[8192];static int writes,fail;
+static void legacy_bank(unsigned off){
+ uint32_t version=1;memcpy(flash+off+4,&version,4);memset(flash+off+272,255,4096-272);
+ uint32_t crc=0xffffffffu;for(unsigned i=0;i<268;i++){crc^=flash[off+i];for(int b=0;b<8;b++)crc=(crc>>1)^((crc&1)?0xedb88320u:0);}
+ crc=~crc;memcpy(flash+off+268,&crc,4);
+}
 bool mem_flash_region(int region,uint32_t *off,uint32_t *size){if(region<MEM_FLASH_CONTROLLER_A||region>MEM_FLASH_CONTROLLER_B)return false;*off=(region-MEM_FLASH_CONTROLLER_A)*4096;*size=4096;return true;}
 const uint8_t *mem_flash_ptr(uint32_t off){assert(off<8192);return flash+off;}
 bool mem_flash_write_sector(uint32_t off,const void *data,uint32_t len){assert(off==0||off==4096);assert(len<4096);writes++;memset(flash+off,255,4096);memcpy(flash+off,data,fail?len/2:len);return !fail;}
@@ -45,11 +50,20 @@ int main(void){
  assert(keyboard_store_bond(outa,outk,&type)&&!memcmp(outa,ka,6));
  keyboard_store_forget();assert(controller_store_flush());controller_store_init();
  assert(!keyboard_store_bond(outa,outk,&type));assert(controller_store_bond(outa,outk,&type)&&!memcmp(outa,a,6));
+ uint8_t map[64]={4,42},mapout[64];
+ keyboard_store_set_map(0,map);map[1]=33;keyboard_store_set_map(2,map);
+ assert(controller_store_flush());controller_store_init();
+ keyboard_store_get_map(0,mapout);assert(mapout[0]==4&&mapout[1]==42);
+ keyboard_store_get_map(2,mapout);assert(mapout[0]==4&&mapout[1]==33);
+ keyboard_store_get_map(1,mapout);assert(mapout[0]==0);
+ memset(map,0,sizeof map);keyboard_store_set_map(2,map);assert(controller_store_flush());controller_store_init();
+ keyboard_store_get_map(2,mapout);assert(mapout[0]==0);
+ keyboard_store_get_map(0,mapout);assert(mapout[1]==42);
  // Old firmware erases the extension when saving its v1 prefix. New firmware
  // must still accept the bond and BBC/C64 settings, without inventing a Spectrum mapping.
- memset(flash+272,255,4096-272);memset(flash+4096+272,255,4096-272);controller_store_init();
+ legacy_bank(0);legacy_bank(4096);controller_store_init();
  assert(!controller_store_get_config(3,out));assert(controller_store_get_config(1,out)&&out[0]==2);
- assert(!controller_store_get_preferences(0,readprefs));
+ assert(!controller_store_get_preferences(0,readprefs));keyboard_store_get_map(0,mapout);assert(mapout[0]==0);
  // Both copies corrupt => defaults; no unvalidated bond is exposed.
  memset(flash,0,sizeof flash);controller_store_init();assert(!controller_store_bond(outa,outk,&type));assert(!controller_store_get_config(0,out));
  puts("Persistence: reload, per-machine settings, deduplication, interrupted writes, forget and corrupt banks passed");

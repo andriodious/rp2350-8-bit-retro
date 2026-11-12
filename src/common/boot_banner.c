@@ -76,7 +76,11 @@ static void read_status(char *value, size_t size, char *line, size_t line_size) 
     snprintf(value, size, "UNAVAILABLE");
 #endif
 #if NIMBUS_TEST
+    #if BT_KEYBOARD_CLASSIC
+    snprintf(line, line_size, "JOYSTICK: %s\nKEYBOARD: %s", presto_bluetooth_boot_status(), presto_keyboard_boot_status());
+#else
     snprintf(line, line_size, "JOYSTICK: %s", presto_bluetooth_boot_status());
+#endif
 #else
     snprintf(line, line_size, "JOYSTICK: DISABLED IN BUILD");
 #endif
@@ -86,7 +90,11 @@ static void status(uint32_t *fb, const char *value, const char *line) {
     for (int y = 110; y < 180; y++) memset(fb + y * BOARD_DISPLAY_ROW_WORDS, 0, ROW_BYTES - 4);
     text(fb, 20, 114, "DHCP IP ADDRESS");
     text(fb, 20, 127, value);
-    text(fb, 20, 155, line);
+    const char *second = strchr(line, '\n');
+    char first[64];
+    snprintf(first, sizeof first, "%.*s", second ? (int)(second-line) : (int)strlen(line), line);
+    text(fb, 20, 155, first);
+    if(second)text(fb, 20, 168, second+1);
 }
 static void retire_display_table(void) {
     uint32_t frame = board_display_frames();

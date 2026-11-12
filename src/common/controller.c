@@ -12,6 +12,9 @@ static bool button[9];
 static int cfg[19]={0,2,0,15,0,0,-1,-1,-1,-1,-2,-1,-1,-1,-1,-1,-1,-1,-1};
 static bool keyboard[256],controller_keys[256],bluetooth_keys[256];
 static bool *keyboard_capture;
+static uint8_t bluetooth_map[64];
+void controller_keyboard_map_set(const uint8_t map[64]){memcpy(bluetooth_map,map,64);}
+void controller_keyboard_map_get(uint8_t map[64]){memcpy(map,bluetooth_map,64);}
 static unsigned joystick_port;
 static unsigned menu_directions;
 static bool menu_fire,menu_capture,menu_release;
@@ -124,7 +127,11 @@ void controller_get_config(int32_t out[19]) {for(int i=0;i<19;i++)out[i]=cfg[i];
 /* Called between frames. Aggregate aliases (e.g. both Shift keys) before release. */
 void controller_bluetooth_keyboard(const uint8_t usages[32]){
  bool desired[256]={0};keyboard_capture=desired;
- for(unsigned i=4;i<256;i++)if(usages[i/8]&(1u<<(i%8)))machine_key_sdl(i,true);
+ for(unsigned i=4;i<256;i++)if(usages[i/8]&(1u<<(i%8))){
+  bool mapped=false;
+  for(unsigned j=0;j<64;j+=2)if(bluetooth_map[j]==i){machine_key(bluetooth_map[j+1],true);mapped=true;break;}
+  if(!mapped)machine_key_sdl(i,true);
+ }
  keyboard_capture=NULL;
  for(unsigned i=0;i<256;i++)if(desired[i]!=bluetooth_keys[i]){
   bool before=keyboard[i]||controller_keys[i]||bluetooth_keys[i];bluetooth_keys[i]=desired[i];

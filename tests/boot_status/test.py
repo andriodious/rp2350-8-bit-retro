@@ -36,6 +36,7 @@ with tempfile.TemporaryDirectory() as tmp:
 #define DRIVE_IMAGE_MAX (1024u*1024u)
 #define BOARD_HAS_NET 0
 #define NIMBUS_TEST 1
+#define BT_KEYBOARD_CLASSIC 1
 #define RETRO_IMAGE_ID "trial"
 #define GPIO_IN 0
 static uint8_t ram[8u*1024u*1024u];
@@ -49,7 +50,8 @@ static bool load_ok=true;
 static char loaded[256];
 static bool controller_menu_state(unsigned *d,bool *f){*d=joystick_directions;*f=joystick_fire;return joystick_online;}
 static void controller_menu_capture(bool c){captured=c;}
-static const char *presto_bluetooth_boot_status(void){return "IDLE";}
+static const char *presto_bluetooth_boot_status(void){return "CONNECTED";}
+static const char *presto_keyboard_boot_status(void){return "PAIRING - SEE WEB";}
 static void presto_bluetooth_boot_poll(void){}
 static void *board_sd_discs_begin(void){sd_cursor=0;return sd_count?&sd_cursor:NULL;}
 static bool board_sd_discs_next(void *it,char *name,uint32_t cap,uint32_t *size){

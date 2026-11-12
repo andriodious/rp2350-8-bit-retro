@@ -61,5 +61,12 @@ int main(void){
  assert(controller_menu_state(&md,&mf)&&mf&&!keys[42]);
  buttons[0]=0;feed(true,0);assert(controller_menu_state(&md,&mf)&&!mf);
  controller_menu_capture(false);
+ controller_reset();
+ uint8_t remap[64]={4,42,5,42};memset(usages,0,sizeof usages);controller_keyboard_map_set(remap);
+ usages[0]=(1<<4)|(1<<5);controller_bluetooth_keyboard(usages);assert(keys[42]);
+ usages[0]=1<<5;controller_bluetooth_keyboard(usages);assert(keys[42]);
+ machine_key(42,true);usages[0]=0;controller_bluetooth_keyboard(usages);assert(keys[42]);
+ machine_key(42,false);assert(!keys[42]);
+ memset(remap,0,sizeof remap);controller_keyboard_map_set(remap);
  puts("Normalization, ports, dead zone, inversion, keyboard ownership, reset, disconnect and validation passed");
 }

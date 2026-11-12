@@ -93,6 +93,14 @@ void machine_key_sdl(uint32_t code,bool down){
  if(code>=4&&code<=29)machine_key(letters[code-4],down);
  else if(code>=30&&code<=39){static const uint8_t nums[]={15,16,17,18,19,24,23,22,21,20};machine_key(nums[code-30],down);}
  else if(code==40)machine_key(30,down);else if(code==44)machine_key(35,down);
+ else if(code==42||code==76||code==79||code==80||code==81||code==82||code==41){
+  machine_key(0,down);
+  machine_key(code==79?22:code==80?19:code==81?24:code==82?23:code==41?35:20,down);
+ }
+ else if(code==45||code==46||code==51||code==52||code==54||code==55||code==56){
+  machine_key(36,down);
+  machine_key(code==45?33:code==46?31:code==51?26:code==52?23:code==54?38:code==55?37:4,down);
+ }
  else if(code==225||code==229)machine_key(0,down);else if(code==224||code==228)machine_key(36,down);
 }
 void machine_controller(unsigned port,uint16_t x,uint16_t y,unsigned directions,bool fire){(void)port;(void)x;(void)y;spectrum_joystick(directions,fire);}

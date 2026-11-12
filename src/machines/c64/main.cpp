@@ -206,7 +206,7 @@ extern "C" void machine_key_sdl(uint32_t s,bool down){
     if(s>=4 && s<=29){machine_key(letters[s-4],down);return;}
     if(s>=30 && s<=39){machine_key(digits[s-30],down);return;}
     int c=-1;switch(s){case 40:c=1;break;case 41:c=63;break;case 42:c=0;break;case 44:c=60;break;
-    case 45:c=43;break;case 46:c=53;break;case 51:c=50;break;case 54:c=47;break;case 55:c=44;break;case 56:c=55;break;
+    case 45:c=43;break;case 46:c=53;break;case 51:c=50;break;case 52:c=45;break;case 76:c=0;break;case 54:c=47;break;case 55:c=44;break;case 56:c=55;break;
     case 58:c=4;break;case 59:c=68;break;case 60:c=5;break;case 61:c=69;break;case 62:c=6;break;case 63:c=70;break;case 64:c=3;break;case 65:c=67;break;
     case 74:c=51;break;case 79:c=2;break;case 80:c=66;break;case 81:c=7;break;case 82:c=71;break;
     case 224:case 228:c=58;break;case 225:case 229:c=15;break;case 226:case 230:c=61;break;}

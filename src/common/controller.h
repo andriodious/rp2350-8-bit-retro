@@ -5,6 +5,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+void controller_keyboard_map_set(const uint8_t map[64]);
+void controller_keyboard_map_get(uint8_t map[64]);
 void controller_reset(void);
 void controller_bluetooth_keyboard(const uint8_t usages[32]);
 void controller_frame(void);

@@ -12,6 +12,10 @@ static unsigned error,reports,invalid_reports;
 static uint32_t retry_at,started;
 static char pin[7];
 static uint8_t keys[32];
+static bool capturing,suppress_keys;
+static unsigned captured_usage;
+static uint32_t capture_started;
+static uint8_t capture_previous[32];
 static struct {bool valid;uint16_t id;uint8_t keys[32];} report_keys[4];
 static uint32_t now(void){return to_ms_since_boot(get_absolute_time());}
 static bool saved(void){bd_addr_t a;link_key_t k;uint8_t t;return keyboard_store_bond(a,k,&t);}
@@ -105,17 +109,32 @@ bool keyboard_host_event(uint8_t *p,uint16_t size){
  return true;
 }
 void keyboard_host_frame(bool available,bool deliver){
- if(deliver)controller_bluetooth_keyboard(keys);
+ if(capturing){
+  if(!connected||(uint32_t)(now()-capture_started)>60000){capturing=false;captured_usage=0;}
+  else if(!captured_usage)for(unsigned i=4;i<256;i++)if((keys[i/8]&~capture_previous[i/8])&(1u<<(i%8))){captured_usage=i;break;}
+  memcpy(capture_previous,keys,32);
+ }
+ bool any=false;for(unsigned i=0;i<32;i++)any|=keys[i]!=0;
+ if(!any&&!capturing)suppress_keys=false;
+ if(deliver){static const uint8_t empty[32]={0};controller_bluetooth_keyboard(capturing||suppress_keys?empty:keys);}
  if(connecting&&(uint32_t)(now()-started)>30000){enabled=false;if(cid)hid_host_disconnect(cid);connecting=false;connected=false;cid=0;clear();error=0xff;gap_ssp_set_io_capability(SSP_IO_CAPABILITY_NO_INPUT_NO_OUTPUT);}
- if(enabled&&ready&&available&&!connecting&&!connected&&saved()&&(int32_t)(now()-retry_at)>=0)connect_keyboard();
+ if(enabled&&ready&&available&&!connecting&&!connected&&saved()&&(int32_t)(now()-retry_at)>=0){
+  link_key_t key;uint8_t type;keyboard_store_bond(address,key,&type);pairing=false;connect_keyboard();
+ }
 }
 int keyboard_host_command(const char *s,bool available){
+ if(!strcmp(s,"capture")){
+  if(!connected||!descriptor_ready)return 409;
+  capturing=suppress_keys=true;captured_usage=0;capture_started=now();memcpy(capture_previous,keys,32);return 200;
+ }
+ if(!strcmp(s,"capture-cancel")){capturing=false;captured_usage=0;return 200;}
+
  if(!strcmp(s,"disconnect")||!strcmp(s,"forget")){
   enabled=false;pairing=false;if(cid)hid_host_disconnect(cid);clear();
   if(!strcmp(s,"forget"))keyboard_store_forget();
   return 200;
  }
- if(!strcmp(s,"reconnect")){if(!saved())return 404;enabled=true;retry_at=now();return 200;}
+ if(!strcmp(s,"reconnect")){if(connecting||connected)return 409;if(!saved())return 404;link_key_t key;uint8_t type;keyboard_store_bond(address,key,&type);pairing=false;enabled=true;retry_at=now();return 200;}
  if(!strncmp(s,"connect ",8)){
   bd_addr_t target;if(!sscanf_bd_addr(s+8,target))return 400;
   if(!ready||!available||connecting||connected)return 409;
@@ -126,5 +145,13 @@ int keyboard_host_command(const char *s,bool available){
  return 400;
 }
 void keyboard_host_json(char *out,size_t size){
- snprintf(out,size,",\"bluetooth_keyboard\":{\"transport\":\"Classic\",\"state\":\"%s\",\"address\":\"%s\",\"remembered\":%s,\"reconnect\":%s,\"descriptor\":%s,\"error\":%u,\"reports\":%u,\"invalid_reports\":%u,\"pin\":\"%s\"}",!ready?"starting":connected?"connected":connecting?"connecting":"idle",bd_addr_to_str(address),saved()?"true":"false",enabled?"true":"false",descriptor_ready?"true":"false",error,reports,invalid_reports,pin);
+ snprintf(out,size,",\"bluetooth_keyboard\":{\"transport\":\"Classic\",\"state\":\"%s\",\"address\":\"%s\",\"remembered\":%s,\"reconnect\":%s,\"descriptor\":%s,\"error\":%u,\"reports\":%u,\"invalid_reports\":%u,\"pin\":\"%s\",\"capturing\":%s,\"captured_usage\":%u}",!ready?"starting":connected?"connected":connecting?"connecting":"idle",bd_addr_to_str(address),saved()?"true":"false",enabled?"true":"false",descriptor_ready?"true":"false",error,reports,invalid_reports,pin,capturing?"true":"false",captured_usage);
+}
+
+const char *keyboard_host_boot_status(void) {
+ if(connected && descriptor_ready)return "CONNECTED";
+ if(connecting || connected)return pin[0]?"PAIRING - SEE WEB":"CONNECTING";
+ if(!saved())return "NOT PAIRED";
+ if(!enabled)return "DISCONNECTED";
+ return ready?"SEARCHING":"STARTING";
 }
