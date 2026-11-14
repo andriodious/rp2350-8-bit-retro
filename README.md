@@ -9,9 +9,9 @@ experiment. Original Git history, source notices and licence files are retained.
 
 ## Download and try it
 
-**[Download v0.5.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.5.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
+**[Download v0.6.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.6.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
 
-See the **[v0.5.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.5.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
+See the **[v0.6.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.6.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
 
 ## Machines and features
 
@@ -23,11 +23,14 @@ See the **[v0.5.0 release and first-time setup instructions](https://github.com/
 | ZX Spectrum 48K | Pinned [chips fork](https://github.com/andriodious/chips) | SNA/Z80 snapshots and TAP/TZX tapes through SD/web | Kempston joystick/fire or keyboard mappings |
 
 - Select the machine, load disks and use its keyboard from the web interface.
+- Classic Bluetooth keyboard support on all four machines, with scanning, remembered pairing, automatic reconnection and up to 32 custom key mappings per machine.
 - Sound output, volume controls and ambient LEDs on supported builds.
 - Original SteelSeries Nimbus support: pairing, saved per-machine mappings,
   dead zone/inversion controls and reconnection across machine switches.
 - Tested C64 optimisations: CPU/VIC code in SRAM, packed pixel conversion and
   overlapping emulation/display conversion. The RP2350 clock remains 250 MHz.
+
+Version **v0.6.0** adds Classic Bluetooth keyboards alongside Nimbus, saved per-machine keyboard mappings, matching connection/scan controls, keyboard status on the startup/status screens, and C64 web function-key highlighting. All four machines were hardware-tested with reconnection, saved mappings, sound and web responsiveness.
 
 Version **v0.5.0** adds the ZX Spectrum 48K, verified at 50 fps with Elite, with
 beeper audio, a grey-key web keyboard on a black rainbow-striped case, and
@@ -86,14 +89,14 @@ https://github.com/user-attachments/assets/648c8668-27c7-495a-b540-f22d90917808
 Start in the extracted release source folder or clone this repository:
 
 ```sh
-git clone --branch retro-platform https://github.com/andriodious/rp2350-8-bit-retro.git
+git clone --branch v0.6.0 https://github.com/andriodious/rp2350-8-bit-retro.git
 cd rp2350-8-bit-retro
 ```
 
 ```sh
 scripts/setup.sh --no-build --roms
 . deps/env.sh
-EXTRA_OS_CMAKE_ARGS="-DBOOT_STATUS_TRIAL=ON" scripts/build-experimental-four.sh build-release
+scripts/build-classic-keyboard-four.sh build-release
 ```
 
 On Debian/Raspberry Pi OS, add `--apt` to the setup command if host packages need
@@ -103,7 +106,7 @@ Spectrum uses the pinned chips fork; its Elite snapshot is downloaded and checks
 The source archive contains no downloaded game images, ROM set or Wi-Fi secrets.
 
 Result: **`build-release/rp2350-8-bit-retro-presto.uf2`** containing the launcher and
-all four machines. Sound, ambient LEDs and original Nimbus support are enabled;
+all four machines. Sound, ambient LEDs, Classic Bluetooth keyboard and original Nimbus support are enabled;
 profiling and web diagnostics are disabled. See [build instructions](docs/build-retro.md)
 for options and an explanation of the legacy build entry points.
 
@@ -133,14 +136,34 @@ resumes it after an explicit Disconnect. Forget removes pairing but keeps mappin
 Machine switches cleanly close Bluetooth before restarting. See the detailed
 [Nimbus notes](docs/nimbus-test.md) for controls, storage and diagnostics.
 
+## Bluetooth keyboard setup
+
+1. Disconnect the keyboard from other computers/tablets and put it in pairing mode (usually its Connect button).
+2. Open **Bluetooth keyboard**, click **Scan for keyboards**, choose the matching name or address, then **Connect**. **Stop scan** ends discovery early. If a pairing PIN is shown, follow the displayed instructions.
+3. The pairing is remembered. The keyboard and Nimbus reconnect independently after a power cycle or machine switch. A sleeping keyboard may need a keypress to wake before reconnecting. **Reconnect** resumes after an explicit Disconnect; **Forget** removes the remembered pairing.
+4. Under **Key mappings**, click **Add mapping**, press a key on the Bluetooth keyboard, then click its destination on the emulator keyboard. Release the physical key after mapping. Choose a saved mapping and **Delete mapping** to restore that key's normal behaviour.
+
+Mappings are saved separately for Master, BBC Model B, C64 and Spectrum. Up to 32
+overrides are supported per machine; unmapped keys retain their default mapping.
+Capture temporarily suppresses keyboard input and expires after 60 seconds;
+Reset and joystick buttons are not mapping destinations.
+
+This release supports **Classic Bluetooth HID keyboards**, not BLE-only keyboards.
+A generic keyboard advertised as “Bluetooth Keyboard” was tested alongside an
+original Nimbus. See [keyboard support and troubleshooting](docs/bluetooth-keyboard.md).
+
+Settings are upgraded to integrity-checked v2 records. Older firmware may not read
+these records, so rolling back can require re-pairing devices and restoring settings.
+
 ## Status and contributions
 
-The clean release is based on hardware-tested C64 optimisations and Nimbus test 5.
-The user confirmed switching, reconnecting and restoring controls. Local checks
-cover builds, firmware packaging, storage boundaries, interrupted writes and input
-mapping. Those checks are not a claim that every game or controller is supported.
+The v0.6.0 firmware is the exact clean GitHub build verified on all four machines,
+from `reference/four-machine-clean-verified-20261114`. Keyboard and Nimbus
+reconnection, retained mappings, C64 highlighting, sound and web responsiveness
+were confirmed on Presto. See the [verification record](checkpoints/four-machine-clean-verified-20261114.md).
+Compatibility with every game, Bluetooth keyboard or controller is not implied.
 
-See [release notes](docs/releases/retro-initial.md), [credits](CREDITS.md), and
+See [release notes](docs/releases/v0.6.0.md), [credits](CREDITS.md), and
 [contribution guidance](CONTRIBUTING.md). The inherited [upstream README](UPSTREAM-README.md)
 and technical documents remain available as historical and engineering references.
 
@@ -154,7 +177,7 @@ upstream notices before distributing firmware with embedded assets.
 
 ### Startup banner
 
-A power-on screen shows the build, DHCP address and joystick status. With Wi-Fi
+A power-on screen shows the build, DHCP address, joystick and keyboard status. With Wi-Fi
 configured it waits for an address, then holds it for two more seconds (30-second
 network timeout); otherwise it shows for three seconds.
 Machine switching skips the banner. See [startup banner details](docs/boot-banner.md).

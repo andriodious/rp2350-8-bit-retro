@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 @AGENTS.md
 
 AGENTS.md (imported above) is the main guide: build, flash, measure, layout, history and traps.
-What follows only adds to it.
+What follows only adds historical BBC harness guidance. Current releases include Master, BBC Model B, C64 and Spectrum, with Classic Bluetooth keyboard and Nimbus support; use the release recipe in AGENTS.md and docs/build-retro.md.
 
 ## Running the harness
 

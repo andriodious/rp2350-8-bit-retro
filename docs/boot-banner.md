@@ -3,7 +3,7 @@
 Power-on and external reset display the supplied pixel-art logo at the top left,
 with white text on black for approximately three seconds before emulation starts.
 The page shows the Git build identifier (with `dirty` for local changes), compile
-date/time, DHCP address and current joystick connection state. It also gives the
+date/time, DHCP address and current joystick and Classic keyboard connection states. It also gives the
 web address, `http://8bitretro.local/`.
 
 Wi-Fi and controller connection progress during the banner. With configured Wi-Fi

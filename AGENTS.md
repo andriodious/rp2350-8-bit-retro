@@ -6,12 +6,25 @@ where things are, what has already been tried, and the traps that cost time.
 ## What this is
 
 A BBC Micro on an RP2350 board, the Pimoroni Presto (two Cortex-M33 cores at 250 MHz, 520 KB
-SRAM, 8 MB PSRAM, 480×480 ST7701 RGB panel). One machine per build:
+SRAM, 8 MB PSRAM, 480×480 ST7701 RGB panel). Four machine payloads plus a launcher are packaged into the release UF2. One machine per payload build:
 
 - `-DMACHINE=beeb` (the default): the BBC Model B on [beebjit](https://github.com/scarybeasts/beebjit),
   Chris Evans' cycle-exact emulator, with a new Thumb-2 JIT backend. Target `presto_beebjit`.
 - `-DMACHINE=master`: the BBC Master 128 on Kieran Connell's cycle-stepped emulator (kc-beeb).
   Target `presto_master`.
+- `-DMACHINE=c64`: FRANK/Frodo C64 PAL, target `presto_c64`.
+- `-DMACHINE=spectrum`: pinned chips ZX Spectrum 48K, target `presto_spectrum`.
+
+Current four-machine release recipe: `scripts/setup.sh --no-build --roms`, source
+`deps/env.sh`, then `scripts/build-classic-keyboard-four.sh build-release`. This
+enables Classic keyboard, Nimbus and paused BOOT status/SD chooser with the tested
+D81 options. Legacy two-machine commands below are historical development entry
+points. See `docs/build-retro.md` and `docs/bluetooth-keyboard.md`.
+
+Shared input changes must preserve independent web/keyboard/Nimbus key ownership,
+per-machine saved mappings, capture suppression/release, and C64 SRAM budget.
+Do not replace a hardware-verified release asset with an untested rebuild.
+
 
 By role: `src/cores/` the emulators, `src/machines/<machine>/` each one's glue, `src/common/` what
 both share on any RP2350 board (the command layer and web page, the USB channel, drive 0 and the

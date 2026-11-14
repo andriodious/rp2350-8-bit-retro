@@ -15,6 +15,9 @@ ownership of the emulator cores, ROMs or games.
   port. https://github.com/rh1tech/frank-c64
 - **Christian Bauer and Frodo contributors:** C64 CPU, video, sound and peripheral
   emulation incorporated by FRANK. See [C64 provenance](docs/c64-credits.md).
+- **Andre Weissflog (floooh) and chips contributors:** ZX Spectrum 48K and Z80 core,
+  via the pinned [andriodious/chips fork](https://github.com/andriodious/chips).
+  See `src/cores/chips/UPSTREAM` for revisions and retained licence.
 - **Ricardo Quesada and Bluepad32 contributors:** original Nimbus protocol/usage
   reference. Bluepad32 source is not compiled into this integration.
 - **BlueKitchen:** BTstack Bluetooth host stack. Its licence is retained in

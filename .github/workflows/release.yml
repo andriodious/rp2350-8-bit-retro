@@ -25,7 +25,7 @@ jobs:
       - name: Build four-machine release configuration
         run: |
           . deps/env.sh
-          EXTRA_OS_CMAKE_ARGS="-DBOOT_STATUS_TRIAL=ON" scripts/build-experimental-four.sh build-release
+          scripts/build-classic-keyboard-four.sh build-release
           python3 tests/bluetooth/firmware_test.py build-release "$(command -v arm-none-eabi-nm)"
       - uses: actions/upload-artifact@v6
         with:
