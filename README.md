@@ -38,10 +38,11 @@ Kempston controls. Reset returns to BASIC; Restart Elite loads the built-in snap
 Elite, Manic Miner TZX and YU_SKOOL TAP have been tested on hardware. This is a
 48K machine; 128K snapshots and every possible TZX encoding are not supported.
 
-Press **BOOT** for the SD chooser when a joystick is enabled and connected and
-compatible titles are present on the SD card. Up/down browses; Nimbus **A** or
-mapped Fire loads the selection. A second BOOT press shows status; a third returns
-to the emulator. Without eligible titles/controller, BOOT toggles status directly.
+Press **BOOT** for the SD chooser when a Bluetooth keyboard is connected, or a joystick is enabled
+and connected, and compatible titles are present on the SD card. Keyboard **Up/Down**
+browses and **Return** loads the selection; joystick Up/Down and Nimbus **A** or
+mapped Fire also work. A second BOOT press shows status; a third returns
+to the emulator. Without eligible titles or a connected input device, BOOT toggles status directly.
 Emulation pauses and audio is temporarily muted while these screens are open;
 the web interface stays available. All four machines have been verified without
 chooser/status flickering. Sound, volume, LEDs and brightness are remembered per

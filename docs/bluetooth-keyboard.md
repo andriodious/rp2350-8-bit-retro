@@ -17,3 +17,7 @@ Open Key mappings, Add mapping, press one physical Bluetooth key, then click the
 An empty discovery chooser means no selectable keyboard has been found; ensure pairing mode is active and another host is not connected. The startup and BOOT status screens also report keyboard state. Web typing remains available without a Bluetooth keyboard. Game joystick mode may need enabling separately (including C64 Elite).
 
 The settings format is v2 with whole-record integrity and imports previous v1 settings. Older firmware cannot read v2 settings and rollback may require re-pairing and reapplying preferences. No new save-disc overwrite payload is included in normal combined firmware.
+
+## BOOT SD chooser
+
+With a keyboard connected and compatible titles on the SD card, press BOOT to browse using Up/Down and load with Return (or keypad Enter). A joystick is optional. These menu keys work independently of saved emulator key mappings. The emulator pauses while the chooser is open, and held keys must be released before they can reach the resumed game. Press BOOT again for status and once more to resume.

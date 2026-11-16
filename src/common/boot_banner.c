@@ -229,7 +229,15 @@ static void titles_end(void) {
 }
 static bool joystick_state(unsigned *directions,bool *fire) {
 #if NIMBUS_TEST
-    return controller_menu_state(directions,fire);
+    bool joystick=controller_menu_state(directions,fire);
+    unsigned kd;bool kf;controller_keyboard_menu_state(&kd,&kf);
+    *directions|=kd;*fire|=kf;
+    if((*directions & 3u)==3u)*directions &= ~3u;
+#if BT_KEYBOARD_CLASSIC
+    return joystick || !strcmp(presto_keyboard_boot_status(),"CONNECTED");
+#else
+    return joystick;
+#endif
 #else
     *directions=0;*fire=false;return false;
 #endif
@@ -298,7 +306,7 @@ static void status_draw(unsigned buffer) {
             snprintf(line,sizeof line,"%u / %u%s",title_selected+1,title_count,title_limit?" - LIST LIMIT":"");
             text(fb,20,190,line);
         }
-        text(fb,20,211,"UP/DOWN: CHOOSE  FIRE: LOAD");
+        text(fb,20,211,"UP/DOWN: CHOOSE  A/ENTER: LOAD");
         text(fb,20,227,"BOOT: STATUS SCREEN");
         return;
     }

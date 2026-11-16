@@ -1,0 +1,21 @@
+{
+  "base": "d6cc73d5c0adafdcd215074c9de981e740258e21",
+  "branch": "experiment/boot-chooser-keyboard",
+  "sha256": "47552892dbe6c19b3596d92031cea0761d3b01a444d06201669bf162064f3f79",
+  "images": {
+    "master": "a2864f6174b3a174",
+    "beeb": "71a79abf6a42ad00",
+    "c64": "592b965b9263e2ae",
+    "spectrum": "7d038bac8eb7151c"
+  },
+  "tests": [
+    "four-machine chooser ASan/UBSan",
+    "controller keyboard capture, mapping independence, keypad Enter, release suppression ASan/UBSan",
+    "C64/Spectrum HID mapping",
+    "mapping commands",
+    "Wi-Fi reconnect gate",
+    "combined four-machine firmware build"
+  ],
+  "hardware": "User verified 2026-11-16: keyboard-only Up/Down and Return on all four machines, Nimbus selection, clean menu resume; reported works perfectly.",
+  "release_and_reference_tags": "unchanged"
+}

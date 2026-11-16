@@ -44,14 +44,17 @@ static const uint16_t *emulator[481];
 static const uint16_t *const *display=emulator;
 static uint32_t now_ms, frames=100;
 static bool down,muted,render_held,joystick_online,joystick_fire,captured;
+static bool keyboard_online,keyboard_fire;
+static unsigned keyboard_directions;
 static unsigned joystick_directions,sd_count,sd_cursor;
 static const char *sd_names[8];
 static bool load_ok=true;
 static char loaded[256];
-static bool controller_menu_state(unsigned *d,bool *f){*d=joystick_directions;*f=joystick_fire;return joystick_online;}
+static bool controller_menu_state(unsigned *d,bool *f){*d=joystick_online?joystick_directions:0;*f=joystick_online&&joystick_fire;return joystick_online;}
 static void controller_menu_capture(bool c){captured=c;}
 static const char *presto_bluetooth_boot_status(void){return "CONNECTED";}
-static const char *presto_keyboard_boot_status(void){return "PAIRING - SEE WEB";}
+static void controller_keyboard_menu_state(unsigned *d,bool *f){*d=keyboard_directions;*f=keyboard_fire;}
+static const char *presto_keyboard_boot_status(void){return keyboard_online?"CONNECTED":"PAIRING - SEE WEB";}
 static void presto_bluetooth_boot_poll(void){}
 static void *board_sd_discs_begin(void){sd_cursor=0;return sd_count?&sd_cursor:NULL;}
 static bool board_sd_discs_next(void *it,char *name,uint32_t cap,uint32_t *size){
@@ -187,6 +190,13 @@ int main(void){
  assert(!memcmp(saved,status_sram+live*STATUS_BANK_ROWS*BOARD_DISPLAY_ROW_WORDS,sizeof saved));
  assert(display==runtime_rows+status_active*481);
  status_close();
+ // Keyboard alone opens the chooser and Return loads the selected title.
+ joystick_online=false;keyboard_online=true;keyboard_fire=false;
+ titles_begin();assert(chooser);status_open();titles_poll();
+ step(false,4000,400);
+ keyboard_directions=2;step(false,4100,405);assert(title_selected==1);
+ keyboard_directions=0;keyboard_fire=true;load_ok=true;
+ step(false,4200,410);assert(!status_visible&&!captured);
 #if !MACHINE_C64 && !MACHINE_SPECTRUM
  free(status_sram);
 #endif
