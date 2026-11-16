@@ -1,0 +1,26 @@
+{
+  "commit": "983f5d55c07032d64e1b45dba640880b44009c03",
+  "clean_checkout": true,
+  "combined_partition_payloads": "exact match to launcher and all four component UF2s; no overlaps",
+  "sha256": "01cdc75991042a03be55b42d2deb5522f9365b85ce7c3fd5f6e7a3ff1b9e814e",
+  "images": {
+    "master": "4255cde74cfc96d9",
+    "beeb": "aecd3560e09066f6",
+    "c64": "8476729683f0f658",
+    "spectrum": "7b957627586efcc8"
+  },
+  "spectrum_fork": "4e29e48867477a39c93173750a3902bc470f34d0; vendored chips and systems match exactly",
+  "spectrum_elite_sha256": "fd30c946000135368a9937504bcd55a8d18980f79b406bac862034ea922e8d43",
+  "tests": "four-machine chooser ASan/UBSan and controller mapping tests passed",
+  "hardware": "User verified all four machines on 2026-11-16",
+  "toolchain": "Arm GNU 14.2.rel1; Pico SDK 2.2.0",
+  "hardware_tested": true,
+  "hardware_tests": [
+    "All four machines passed",
+    "BOOT cycling",
+    "Keyboard and Nimbus file/machine selection",
+    "Keyboard and Nimbus reconnection after switching",
+    "Sound and web responsiveness"
+  ],
+  "reference_tag": "reference/four-machine-clean-boot-selector-20261116"
+}

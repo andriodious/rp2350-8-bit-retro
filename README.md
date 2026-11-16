@@ -9,9 +9,9 @@ experiment. Original Git history, source notices and licence files are retained.
 
 ## Download and try it
 
-**[Download v0.6.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.6.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
+**[Download v0.7.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.7.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
 
-See the **[v0.6.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.6.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
+See the **[v0.7.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.7.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
 
 ## Machines and features
 
@@ -29,6 +29,8 @@ See the **[v0.6.0 release and first-time setup instructions](https://github.com/
   dead zone/inversion controls and reconnection across machine switches.
 - Tested C64 optimisations: CPU/VIC code in SRAM, packed pixel conversion and
   overlapping emulation/display conversion. The RP2350 clock remains 250 MHz.
+
+Version **v0.7.0** adds Bluetooth keyboard SD selection and a BOOT machine selector. Use Up/Down and Return, or Nimbus Up/Down and A/Fire, to load a title or switch machines without the web page. The exact clean GitHub build was hardware-verified on all four machines, including BOOT cycling, keyboard/Nimbus reconnection, sound and web responsiveness.
 
 Version **v0.6.0** adds Classic Bluetooth keyboards alongside Nimbus, saved per-machine keyboard mappings, matching connection/scan controls, keyboard status on the startup/status screens, and C64 web function-key highlighting. All four machines were hardware-tested with reconnection, saved mappings, sound and web responsiveness.
 

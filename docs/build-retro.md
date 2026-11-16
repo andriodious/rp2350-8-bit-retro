@@ -35,12 +35,12 @@ The clean firmware has sound controls but hides test traces and raw controller
 readouts. Controller pairing, maps and reconnect remain visible. Existing saved
 pairing, Wi-Fi and disk-save locations are unchanged. Clock frequency is 250 MHz.
 
-## v0.6.0 four-machine release
+## v0.7.0 four-machine release
 
-The release uses the verified checkpoint `reference/four-machine-clean-verified-20261114`.
+The release uses the verified checkpoint `reference/four-machine-clean-boot-selector-20261116`.
 The historical `build-experimental-four.sh` name also supplies the release's
 D81 performance options. `BOOT_STATUS_TRIAL=ON` enables the verified paused SD
-chooser and status screen. Keep APP and SAVE unset to reproduce this release.
+chooser, machine selector and status screen. Keep APP and SAVE unset to reproduce this release.
 Spectrum sources in `src/cores/chips` match the pinned fork recorded in `UPSTREAM`;
 `scripts/fetch-spectrum.py` downloads and verifies Elite against
 `test-assets/elite48/provenance.json`. Game images are not committed to Git.
@@ -49,4 +49,4 @@ Build IDs and source labels can differ on rebuild. The downloadable release UF2
 is the exact hardware-tested checkpoint, with its original component IDs and
 source label. See the release checksum manifest for identification.
 
-Classic HID keyboard support is enabled; BLE-only keyboards are not supported. The exact release firmware comes from clean source commit `554a331`; later release commits update documentation and CI only. Settings v2 can require re-pairing when rolling back to older firmware.
+Classic HID keyboard support is enabled; BLE-only keyboards are not supported. The exact release firmware comes from clean source commit `983f5d5`; later release commits update documentation and CI only. Settings v2 can require re-pairing when rolling back to older firmware.
