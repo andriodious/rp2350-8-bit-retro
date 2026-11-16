@@ -20,4 +20,4 @@ The settings format is v2 with whole-record integrity and imports previous v1 se
 
 ## BOOT SD chooser
 
-With a keyboard connected and compatible titles on the SD card, press BOOT to browse using Up/Down and load with Return (or keypad Enter). A joystick is optional. These menu keys work independently of saved emulator key mappings. The emulator pauses while the chooser is open, and held keys must be released before they can reach the resumed game. Press BOOT again for status and once more to resume.
+With a keyboard connected and compatible titles on the SD card, press BOOT to browse using Up/Down and load with Return (or keypad Enter). A joystick is optional. These menu keys work independently of saved emulator key mappings. The emulator pauses while the chooser is open, and held keys must be released before they can reach the resumed game. Press BOOT again for the machine selector, again for status, and once more to resume. The machine selector uses the same Up/Down and Return controls, initially highlights the current machine, and restarts into a different selected machine. Selecting the current machine resumes it without restarting.

@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory() as tmp:
     (d/'subject.c').write_text(source)
     for name in ['boot_button.h','boot_logo.h']:
         (d/name).write_text((root/'src/common'/name).read_text())
-    for name in ['boot_banner.h','board.h','drive.h','machine_if.h','net_if.h','pico/stdlib.h','hardware/watchdog.h','hardware/sync.h','firmware_identity.h','sound.h','controller.h','presto_bluetooth.h']:
+    for name in ['system.h','api/api.h','boot_banner.h','board.h','drive.h','machine_if.h','net_if.h','pico/stdlib.h','hardware/watchdog.h','hardware/sync.h','firmware_identity.h','sound.h','controller.h','presto_bluetooth.h']:
         p=d/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('#include "mock.h"\n')
     (d/'mock.h').write_text(r'''
 #pragma once
@@ -49,6 +49,12 @@ static unsigned keyboard_directions;
 static unsigned joystick_directions,sd_count,sd_cursor;
 static const char *sd_names[8];
 static bool load_ok=true;
+static bool launched=true,switch_ok=true;
+static char switched[16];
+typedef struct {const char *args,*from;bool json;int code;} api_req_t;
+static bool system_launched(void){return launched;}
+static bool api_call(const char *name,api_req_t *r){(void)name;snprintf(switched,sizeof switched,"%s",r->args);r->code=switch_ok?200:500;return true;}
+
 static char loaded[256];
 static bool controller_menu_state(unsigned *d,bool *f){*d=joystick_online?joystick_directions:0;*f=joystick_online&&joystick_fire;return joystick_online;}
 static void controller_menu_capture(bool c){captured=c;}
@@ -167,17 +173,19 @@ int main(void){
  step(false,2600,230);assert(title_selected==2);
  joystick_directions=0;joystick_fire=true;step(false,2700,235);
  assert(!status_visible && !captured && !strcmp(loaded,"Zeta.tap"));
- // Three BOOT presses: chooser, status, emulator.
+ // Four BOOT presses: chooser, machines, status, emulator.
  joystick_fire=false;
  step(true,2800,240);step(true,2840,242);assert(chooser && status_visible);
  step(false,2900,245);step(false,2940,247);
- step(true,3000,250);step(true,3040,252);assert(!chooser && status_visible);
+ step(true,3000,250);step(true,3040,252);assert(!chooser && machine_chooser && status_visible);
  step(false,3100,255);step(false,3140,257);
- step(true,3200,260);step(true,3240,262);assert(!status_visible);
+ step(true,3200,260);step(true,3240,262);assert(status_visible&&!machine_chooser);
+ step(false,3250,264);step(false,3290,266);
+ step(true,3300,268);step(true,3340,270);assert(!status_visible);
  // Failed load keeps a readable status page and an exit path.
  titles_begin();status_open();load_ok=false;
- step(false,3300,265);step(false,3340,267);joystick_fire=true;
- step(false,3400,270);assert(status_visible && !chooser && load_error);
+ step(false,3500,275);step(false,3540,277);joystick_fire=true;
+ step(false,3600,280);assert(status_visible && !chooser && load_error);
  status_close();sd_count=0;titles_begin();assert(!chooser);
  // A full chooser page must fit, and drawing the next screen leaves the live bank untouched.
  sd_count=8;for(unsigned i=0;i<8;i++)sd_names[i]="ABCDEFGHgjpqy.tap";
@@ -197,6 +205,24 @@ int main(void){
  keyboard_directions=2;step(false,4100,405);assert(title_selected==1);
  keyboard_directions=0;keyboard_fire=true;load_ok=true;
  step(false,4200,410);assert(!status_visible&&!captured);
+ // Machine selection uses the same keyboard actions and switch command.
+ keyboard_fire=false;machines_begin();assert(machine_chooser);status_open();
+ machine_selected=0;step(false,4300,415);
+ keyboard_directions=2;step(false,4400,420);assert(machine_selected==1);
+ keyboard_directions=0;keyboard_fire=true;step(false,4500,425);
+ assert(!status_visible&&!captured&&!strcmp(switched,"beeb"));
+ // Held Return cannot immediately select on entering the next menu.
+ machines_begin();status_open();step(false,4600,430);assert(status_visible);
+ keyboard_fire=false;step(false,4700,435);switch_ok=false;
+ keyboard_fire=true;step(false,4800,440);assert(status_visible&&!machine_chooser&&load_error);
+ status_close();switch_ok=true;keyboard_online=false;keyboard_fire=false;
+ joystick_online=true;joystick_fire=false;machines_begin();status_open();
+ machine_selected=3;step(false,4900,445);
+ joystick_directions=2;step(false,5000,450);assert(machine_selected==3);
+ joystick_directions=1;step(false,5100,455);assert(machine_selected==2);
+ joystick_directions=0;joystick_fire=true;step(false,5200,460);
+ assert(!status_visible&&!captured&&!strcmp(switched,"c64"));
+ launched=false;machines_begin();assert(!machine_chooser);
 #if !MACHINE_C64 && !MACHINE_SPECTRUM
  free(status_sram);
 #endif

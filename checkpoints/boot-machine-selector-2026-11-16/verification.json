@@ -1,0 +1,28 @@
+{
+  "base": "be812a4228b8a961257f416dc07ed042739ba3f1",
+  "sha256": "b2e44b1d3dadbda2094a388c855c49b7a05f6d54af307aaa298e356b76b23a13",
+  "images": {
+    "master": "2d7a4f38d847a41a",
+    "beeb": "241c4adec9643e93",
+    "c64": "8f75352c06eb07de",
+    "spectrum": "5a324f0f9fa5540d"
+  },
+  "checks": [
+    "ASan/UBSan four-machine menu cycle and rendering",
+    "keyboard and Nimbus machine selection, bounds, held-input suppression and failure path",
+    "controller mapping and ownership",
+    "combined build"
+  ],
+  "hardware": {
+    "verified": "2026-11-16",
+    "reported_by": "user",
+    "result": "All tests passed",
+    "checks": [
+      "BOOT cycling: file chooser, machine selector, status, emulator",
+      "Machine selection with Bluetooth keyboard and Nimbus",
+      "Selecting the current machine resumes cleanly",
+      "Keyboard and Nimbus reconnect after switching"
+    ]
+  },
+  "reference_tag": "reference/four-machine-boot-selector-20261116"
+}

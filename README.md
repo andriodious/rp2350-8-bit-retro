@@ -41,8 +41,10 @@ Elite, Manic Miner TZX and YU_SKOOL TAP have been tested on hardware. This is a
 Press **BOOT** for the SD chooser when a Bluetooth keyboard is connected, or a joystick is enabled
 and connected, and compatible titles are present on the SD card. Keyboard **Up/Down**
 browses and **Return** loads the selection; joystick Up/Down and Nimbus **A** or
-mapped Fire also work. A second BOOT press shows status; a third returns
-to the emulator. Without eligible titles or a connected input device, BOOT toggles status directly.
+mapped Fire also work. A second BOOT press shows the machine selector, using the same
+Up/Down and Return or A/Fire controls. Selecting the current machine resumes it;
+selecting another saves settings and restarts into it. A third BOOT press shows
+status; a fourth returns to the emulator. Without eligible titles or a connected input device, BOOT toggles status directly.
 Emulation pauses and audio is temporarily muted while these screens are open;
 the web interface stays available. All four machines have been verified without
 chooser/status flickering. Sound, volume, LEDs and brightness are remembered per

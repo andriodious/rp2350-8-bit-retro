@@ -193,6 +193,8 @@ void boot_banner_show(void) {
 
 #if BOOT_STATUS_TRIAL
 #include "boot_button.h"
+#include "system.h"
+#include "api/api.h"
 #include "firmware_identity.h"
 #if NIMBUS_TEST
 #include "controller.h"
@@ -216,6 +218,10 @@ _Static_assert(2 * BANNER_ROWS * ROW_BYTES + TITLE_LIMIT * TITLE_NAME_BYTES <= B
                "title list overlaps status buffers");
 static unsigned title_count, title_selected;
 static bool chooser, chooser_dirty, title_limit, fire_armed;
+static bool machine_chooser;
+static unsigned machine_selected;
+static const char *const machine_ids[]={"master","beeb","c64","spectrum"};
+static const char *const machine_labels[]={"BBC MASTER 128","BBC MICRO","COMMODORE 64","ZX SPECTRUM 48K"};
 static int held_direction;
 static uint32_t repeat_at;
 static void *title_iterator;
@@ -242,9 +248,15 @@ static bool joystick_state(unsigned *directions,bool *fire) {
     *directions=0;*fire=false;return false;
 #endif
 }
+static void machines_begin(void) {
+    titles_end();chooser=false;machine_chooser=system_launched();
+    machine_selected=0;
+    for(unsigned i=0;i<4;i++)if(!strcmp(machine_name(),machine_ids[i]))machine_selected=i;
+    held_direction=0;fire_armed=false;chooser_dirty=true;
+}
 static int title_compare(const void *a,const void *b){return strcasecmp(a,b);}
 static void titles_begin(void) {
-    titles_end();title_count=title_selected=0;title_limit=false;load_error=NULL;
+    titles_end();machine_chooser=false;title_count=title_selected=0;title_limit=false;load_error=NULL;
     held_direction=0;fire_armed=false;
     unsigned directions;bool fire;
     chooser=joystick_state(&directions,&fire);
@@ -290,6 +302,19 @@ static void status_draw(unsigned buffer) {
 #if !MACHINE_C64 && !MACHINE_SPECTRUM
     for(unsigned y=0;y<BANNER_ROWS;y++)fb[(y+1)*BOARD_DISPLAY_ROW_WORDS-1]=BOARD_DISPLAY_ROW_END;
 #endif
+    if(machine_chooser) {
+        text(fb,20,15,"SELECT MACHINE");
+        for(unsigned i=0;i<4;i++) {
+            unsigned y=48+i*28;
+            if(i==machine_selected)
+                for(unsigned yy=y-2;yy<y+9;yy++)for(unsigned x=8;x<14;x++)pixel(fb,x,yy,6);
+            text(fb,20,y,machine_labels[i]);
+        }
+        text(fb,20,190,"UP/DOWN: CHOOSE  A/ENTER: SELECT");
+        text(fb,20,211,"BOOT: STATUS SCREEN");
+        text(fb,20,227,"EMULATION PAUSED");
+        return;
+    }
     if(chooser) {
         text(fb,20,15,"SD TITLES");
         char line[64];
@@ -307,7 +332,7 @@ static void status_draw(unsigned buffer) {
             text(fb,20,190,line);
         }
         text(fb,20,211,"UP/DOWN: CHOOSE  A/ENTER: LOAD");
-        text(fb,20,227,"BOOT: STATUS SCREEN");
+        text(fb,20,227,"BOOT: MACHINE SELECTOR");
         return;
     }
     text(fb, 20, 15, "8-BIT RETRO STATUS");
@@ -352,7 +377,7 @@ static void status_present(void) {
     board_display_set_rows(table);
 }
 static void status_close(void) {
-    titles_end();chooser=false;
+    titles_end();chooser=false;machine_chooser=false;
 #if NIMBUS_TEST
     controller_menu_capture(false);
 #endif
@@ -420,10 +445,36 @@ void boot_status_frame(void) {
     if (pending_toggle) {
         pending_toggle = false;
         if(status_visible && chooser) {
-            titles_end();chooser=false;chooser_dirty=true;
+            machines_begin();
+        } else if(status_visible && machine_chooser) {
+            machine_chooser=false;chooser_dirty=true;
         } else if(status_visible)status_close();
         else {titles_begin();if(!status_open())titles_end();}
         status_frame = frame; status_updated_ms = now;
+    }
+    if(status_visible && machine_chooser) {
+        unsigned directions=0;bool fire=false;
+        joystick_state(&directions,&fire);
+        if(!fire)fire_armed=true;
+        int direction=(directions&1)?-1:((directions&2)?1:0);
+        if(direction && (direction!=held_direction || (int32_t)(now-repeat_at)>=0)) {
+            if(direction<0 && machine_selected)machine_selected--;
+            if(direction>0 && machine_selected<3)machine_selected++;
+            repeat_at=now+(direction!=held_direction?400:140);chooser_dirty=true;
+        }
+        held_direction=direction;
+        if(fire && fire_armed) {
+            const char *want=machine_ids[machine_selected];
+            status_close();
+            // Reuse the web/USB switch path: flush preferences and disc saves,
+            // persist the selection, then restart through the launcher.
+            api_req_t request={.args=want,.from="BOOT machine selector",.json=false};
+            if(!api_call("machine",&request) || request.code!=200) {
+                load_error="MACHINE SWITCH FAILED";status_open();
+            }
+            status_frame=board_display_frames();status_updated_ms=now;
+            return;
+        }
     }
     if(status_visible && chooser) {
         titles_poll();
