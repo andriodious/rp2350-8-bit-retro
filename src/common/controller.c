@@ -23,6 +23,8 @@ static bool keyboard_menu_release;
 void controller_keyboard_menu_state(unsigned *d,bool *f) {
  *d=((menu_keys[0x52/8]>>(0x52%8))&1) | (((menu_keys[0x51/8]>>(0x51%8))&1)<<1);
  if(*d==3)*d=0;
+ unsigned horizontal=(((menu_keys[0x50/8]>>(0x50%8))&1)<<2)|(((menu_keys[0x4f/8]>>(0x4f%8))&1)<<3);
+ if(horizontal!=12)*d|=horizontal;
  *f=(menu_keys[0x28/8]&(1u<<(0x28%8))) || (menu_keys[0x58/8]&(1u<<(0x58%8)));
 }
 bool controller_menu_state(unsigned *directions,bool *fire){

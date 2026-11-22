@@ -500,3 +500,28 @@ const char *presto_keyboard_boot_status(void) {
  return "DISABLED IN BUILD";
 #endif
 }
+
+void presto_bluetooth_setup_state(bool keyboard,bluetooth_setup_state_t *out) {
+ memset(out,0,sizeof *out);
+#if BT_KEYBOARD_CLASSIC
+ if(keyboard){
+  keyboard_host_setup_state(out);
+#if BT_KEYBOARD_DISCOVERY
+  out->scanning=keyboard_discovery_busy();out->devices=keyboard_discovery_count();
+#endif
+  return;
+ }
+#endif
+ bd_addr_t saved;out->remembered=remembered(saved);
+ if(connected||connecting)snprintf(out->address,sizeof out->address,"%s",bd_addr_to_str(selected));
+ else if(out->remembered)snprintf(out->address,sizeof out->address,"%s",bd_addr_to_str(saved));
+ out->scanning=scanning;out->devices=count;out->connected=connected;out->connecting=connecting;out->reconnect=reconnect;
+}
+bool presto_bluetooth_setup_device(bool keyboard,unsigned index,bluetooth_setup_device_t *out) {
+#if BT_KEYBOARD_DISCOVERY
+ if(keyboard)return keyboard_discovery_device(index,out);
+#endif
+ if(keyboard||index>=count)return false;
+ snprintf(out->address,sizeof out->address,"%s",bd_addr_to_str(devices[index]));
+ snprintf(out->name,sizeof out->name,"%s",names[index]);return true;
+}

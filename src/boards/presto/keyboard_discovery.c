@@ -83,3 +83,11 @@ void keyboard_discovery_json(char *out,size_t size){
  }
  snprintf(out+used,size-used,"],\"output_truncated\":%s}",output_truncated?"true":"false");
 }
+
+unsigned keyboard_discovery_count(void){return count;}
+bool keyboard_discovery_device(unsigned index,bluetooth_setup_device_t *out){
+ if(index>=count)return false;
+ snprintf(out->address,sizeof out->address,"%s",bd_addr_to_str(devices[index].address));
+ snprintf(out->name,sizeof out->name,"%s",devices[index].name);
+ return true;
+}

@@ -77,11 +77,10 @@ static void core1(void){
    __atomic_fetch_add(&render_us,time_us_32()-t,__ATOMIC_RELAXED);
    __atomic_fetch_add(&completed,1,__ATOMIC_RELEASE);__sev();continue;
   }
-  if(__atomic_exchange_n(&ambient_pending,false,__ATOMIC_ACQUIRE)){
+  __atomic_exchange_n(&ambient_pending,false,__ATOMIC_ACQUIRE);
 #if WITH_AMBIENT
-   if(board_leds_due())board_leds_update();
+  if(board_leds_due()){board_leds_update();continue;}
 #endif
-  }
   __wfe();
  }
 }

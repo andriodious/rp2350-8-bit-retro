@@ -63,6 +63,7 @@ static volatile uint32_t s_frames;          // core 0's frame count
 static uint32_t s_updated_frames;           // at core 1's last update
 static volatile uint32_t s_test_start;
 static volatile uint32_t s_updates;
+static bool s_settings_pending; // core 0 publishes; only core 1 writes the LEDs
 
 static uint8_t s_gamma[256];
 static uint8_t s_sqrt[256];
@@ -106,7 +107,7 @@ void board_leds_frame(uint8_t locks) {
 }
 
 bool __not_in_flash_func(board_leds_due)(void) {
-    return !STARTUP_DIAG && (s_sm >= 0) && ((s_frames - s_updated_frames) >= 2);
+    return !STARTUP_DIAG && (s_sm >= 0) && (__atomic_load_n(&s_settings_pending, __ATOMIC_ACQUIRE) || ((s_frames - s_updated_frames) >= 2));
 }
 
 // the seven colours out, if the PIO has sent the last lot
@@ -138,6 +139,9 @@ void __not_in_flash_func(board_leds_update)(void) {
     static uint16_t counts[9][8];           // samples of each colour, in each cell
     static int8_t word_cell[ROW_WORDS];     // each word's column of the grid, or -1
     uint8_t rgb[NUM_LEDS][3];
+    // Keep a settings request pending until the hardware can accept all LEDs.
+    if (!pio_sm_is_tx_fifo_empty(s_pio, (uint)s_sm)) return;
+    bool settings = __atomic_exchange_n(&s_settings_pending, false, __ATOMIC_ACQUIRE);
     s_updated_frames = s_frames;
     s_updates++;
 
@@ -160,6 +164,17 @@ void __not_in_flash_func(board_leds_update)(void) {
         return;
     }
 
+    if (settings) {
+        // Menus pause rendering. Re-scale the last emulated picture's colours
+        // without sampling a menu framebuffer or advancing emulation.
+        for (int i=0;i<NUM_LEDS;i++)for(int ch=0;ch<3;ch++) {
+            uint32_t v=(s_gamma[s_level[i][ch]>>8]*s_bright)/100;
+            rgb[i][ch]=(uint8_t)(v<GLOW?GLOW:v);
+        }
+        show_locks(rgb);
+        send(rgb);
+        return;
+    }
     memset(counts, 0, sizeof(counts));
     uint32_t bw0 = s_box_w0, bw1 = s_box_w1, by0 = s_box_y0, by1 = s_box_y1;
     for (uint32_t w = 0; w < ROW_WORDS; w++) {
@@ -276,6 +291,8 @@ void board_leds_set(int on, int bright, int locks) {
     }
     if (bright >= 0) s_bright = (bright > 100) ? 100 : (uint32_t) bright;
     if (locks >= 0) s_locks_on = (locks != 0);
+    __atomic_store_n(&s_settings_pending, true, __ATOMIC_RELEASE);
+    __sev();
 }
 
 void board_leds_command(const char *args) {

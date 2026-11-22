@@ -176,7 +176,12 @@ static void core1(){
 #if WITH_SOUND && WEBDIAG
         c64_audio_diag_poll();
 #endif
-        if(!frame_ready.load(std::memory_order_acquire)){__wfe();continue;}
+        if(!frame_ready.load(std::memory_order_acquire)){
+#if WITH_AMBIENT
+            if(board_leds_due()){board_leds_update();continue;}
+#endif
+            __wfe();continue;
+        }
         __dmb();uint32_t t=time_us_32();convert_frame();trace_rendered++;conversion_us=time_us_32()-t;
 #if WITH_AMBIENT
         if(board_leds_due())board_leds_update();

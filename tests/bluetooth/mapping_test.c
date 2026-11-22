@@ -80,6 +80,12 @@ int main(void){
  memset(usages,0,sizeof usages);controller_bluetooth_keyboard(usages);
  usages[0x28/8]|=1u<<(0x28%8);controller_bluetooth_keyboard(usages);assert(keys[0x28]);
  memset(usages,0,sizeof usages);controller_bluetooth_keyboard(usages);assert(!keys[0x28]);
+ // Horizontal cursor keys navigate the touchscreen keyboard without leaking keys.
+ controller_menu_capture(true);usages[0x50/8]|=1u<<(0x50%8);
+ controller_bluetooth_keyboard(usages);controller_keyboard_menu_state(&md,&mf);assert(md==4&&!mf);
+ usages[0x4f/8]|=1u<<(0x4f%8);controller_bluetooth_keyboard(usages);controller_keyboard_menu_state(&md,&mf);assert(md==0);
+ usages[0x50/8]&=~(1u<<(0x50%8));controller_bluetooth_keyboard(usages);controller_keyboard_menu_state(&md,&mf);assert(md==8);
+ memset(usages,0,sizeof usages);controller_bluetooth_keyboard(usages);
  // Keypad Enter is also accepted; opposing cursor directions cancel.
  controller_menu_capture(true);
  usages[0x58/8]|=1u<<(0x58%8);

@@ -473,7 +473,13 @@ static void run(void)
             // CAPS LOCK and SHIFT LOCK are lit when their IC32 latch bits (6, 7) are low
             board_leds_frame((uint8_t)(((m->ic32 & 0x40) ? 0 : 1) | ((m->ic32 & 0x80) ? 0 : 2)));
 #endif
+            uint64_t paused_before = frontend_paused_us();
             presto_machine_frame();   // may reset the machine (s_was_reset)
+            // Menu wall time is not emulated time. Otherwise the 2 MHz clock
+            // demands all missed cycles on resume, even with Turbo disabled.
+            uint64_t paused = frontend_paused_us() - paused_before;
+            t0 += paused;
+            stat_t += paused;
             frame_hook(m);
         }
     }

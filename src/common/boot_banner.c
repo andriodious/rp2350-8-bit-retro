@@ -25,7 +25,7 @@
 #endif
 
 // Original compact 5x7 uppercase bitmap alphabet, one row per byte.
-static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .:-/";
+static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .:-/!\"#$%&'()<>?+*=;,@[]^_{}~|";
 static const uint8_t glyphs[][7] = {
  {14,17,17,31,17,17,17},{30,17,17,30,17,17,30},{14,17,16,16,16,17,14},
  {30,17,17,17,17,17,30},{31,16,16,30,16,16,31},{31,16,16,30,16,16,16},
@@ -40,10 +40,37 @@ static const uint8_t glyphs[][7] = {
  {30,1,1,14,1,1,30},{2,6,10,18,31,2,2},{31,16,16,30,1,1,30},
  {14,16,16,30,17,17,14},{31,1,2,4,8,8,8},{14,17,17,14,17,17,14},
  {14,17,17,15,1,1,14},{0,0,0,0,0,0,0},{0,0,0,0,0,12,12},
- {0,12,12,0,12,12,0},{0,0,0,31,0,0,0},{1,2,2,4,8,8,16}
+ {0,12,12,0,12,12,0},{0,0,0,31,0,0,0},{1,2,2,4,8,8,16},
+ {4,4,4,4,4,0,4},
+ {10,10,10,0,0,0,0},
+ {10,31,10,10,31,10,0},
+ {4,15,20,14,5,30,4},
+ {25,26,2,4,8,11,19},
+ {12,18,20,8,21,18,13},
+ {4,4,8,0,0,0,0},
+ {2,4,8,8,8,4,2},
+ {8,4,2,2,2,4,8},
+ {2,4,8,16,8,4,2},
+ {8,4,2,1,2,4,8},
+ {14,17,1,2,4,0,4},
+ {0,4,4,31,4,4,0},
+ {0,21,14,31,14,21,0},
+ {0,0,31,0,31,0,0},
+ {0,12,12,0,12,4,8},
+ {0,0,0,0,12,4,8},
+ {14,17,23,21,23,16,14},
+ {14,8,8,8,8,8,14},
+ {14,2,2,2,2,2,14},
+ {4,10,17,0,0,0,0},
+ {0,0,0,0,0,0,31},
+ {2,4,4,8,4,4,2},
+ {8,4,4,2,4,4,8},
+ {0,0,9,22,0,0,0},
+ {4,4,4,4,4,4,4}
 };
 #define ROW_BYTES (BOARD_DISPLAY_ROW_WORDS * 4)
 #define BANNER_ROWS 240
+#define BORROW_STATUS_FB (MACHINE_C64 || MACHINE_SPECTRUM || PRESTO_BEEBJIT_WIRE)
 _Static_assert(2 * BANNER_ROWS * ROW_BYTES <= DRIVE_IMAGE_MAX, "banner exceeds upload staging");
 
 static void pixel(uint32_t *fb, int x, int y, unsigned colour) {
@@ -105,7 +132,7 @@ static void retire_display_table(void) {
     }
 }
 // Publish only immutable SRAM pixels: PSRAM scanout can starve the LCD FIFO.
-#define BOOT_BANK_ROWS 128
+#define BOOT_BANK_ROWS 96
 static bool boot_rows_pack(const uint32_t *src,uint32_t *bank,const uint16_t **rows) {
     unsigned used=0;
     for(unsigned y=0;y<BANNER_ROWS;y++) {
@@ -131,7 +158,7 @@ void boot_banner_show(void) {
     const uint16_t **rows = malloc(2 * (BOARD_DISPLAY_HEIGHT + 1) * sizeof *rows);
     if (!rows) return; // Failure must never prevent the emulator from booting.
     const size_t bank_bytes=2*BOOT_BANK_ROWS*ROW_BYTES;
-#if BOOT_STATUS_TRIAL && (MACHINE_C64 || MACHINE_SPECTRUM)
+#if BOOT_STATUS_TRIAL && BORROW_STATUS_FB
     // Rendering has not started; borrow and preserve the existing SRAM framebuffer.
     uint32_t *banks=machine_status_framebuffer(true);
     void *saved=board_psram()+board_psram_size()-BOARD_STATUS_BYTES;
@@ -215,7 +242,7 @@ void boot_banner_show(void) {
     } while (true);
 restore_banner:
     board_display_backlight(0);
-#if BOOT_STATUS_TRIAL && (MACHINE_C64 || MACHINE_SPECTRUM)
+#if BOOT_STATUS_TRIAL && BORROW_STATUS_FB
     // Stop scanning borrowed pixels before restoring them.
     board_display_set_rows(previous);
     retire_display_table();
@@ -225,7 +252,7 @@ restore_banner:
     board_display_set_rows(previous);
     retire_display_table();
     board_display_backlight(255);
-#if !(BOOT_STATUS_TRIAL && (MACHINE_C64 || MACHINE_SPECTRUM))
+#if !(BOOT_STATUS_TRIAL && BORROW_STATUS_FB)
     free(banks);
 #endif
     free(rows);
@@ -324,7 +351,7 @@ static bool status_allocate(void) {
     if (!board_display_get_rows() || !board_psram() || board_psram_size() < BOARD_STATUS_BYTES) return false;
     runtime_rows = malloc(2 * (BOARD_DISPLAY_HEIGHT + 1) * sizeof *runtime_rows);
     if (!runtime_rows) return false;
-#if !MACHINE_C64 && !MACHINE_SPECTRUM
+#if !BORROW_STATUS_FB
     // Packed-4 status uses 46 KiB for two compact banks; emulator drawing
     // continues in its own buffer. Never scan status pixels from PSRAM.
     status_sram=malloc(2*STATUS_BANK_ROWS*ROW_BYTES);
@@ -354,6 +381,9 @@ static void slider(uint32_t *fb,unsigned y,unsigned value) {
     for(unsigned yy=y+1;yy<y+5;yy++)for(unsigned x=21;x<21+value*438/100;x++)pixel(fb,x,yy,3);
     box(fb,20+value*420/100,y-3,20,12,7,3);
 }
+#include "boot_setup.inc"
+#include "boot_touch_keyboard.inc"
+
 static void status_draw(unsigned buffer) {
     uint32_t *fb=(uint32_t *)(board_psram()+board_psram_size()-BOARD_STATUS_BYTES);
     (void)buffer;fb+=BANNER_ROWS*BOARD_DISPLAY_ROW_WORDS;
@@ -361,7 +391,11 @@ static void status_draw(unsigned buffer) {
 #if !MACHINE_C64 && !MACHINE_SPECTRUM
     for(unsigned y=0;y<BANNER_ROWS;y++)fb[(y+1)*BOARD_DISPLAY_ROW_WORDS-1]=BOARD_DISPLAY_ROW_END;
 #endif
-    ui_button(fb,8,214,148,24,"PREVIOUS",0);
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+    if(touch_keyboard){touch_key_draw(fb);return;}
+    if(setup_page){setup_draw(fb);return;}
+#endif
+    ui_button(fb,8,214,148,24,chooser?"KEYBOARD":"PREVIOUS",0);
     ui_button(fb,166,214,148,24,"NEXT",0);
     ui_button(fb,324,214,148,24,"EXIT",4);
     char line[64];
@@ -402,6 +436,10 @@ static void status_draw(unsigned buffer) {
     snprintf(line,sizeof line,"%.*s",keyboard?(int)(keyboard-joystick):(int)strlen(joystick),joystick);
     text(fb,20,115,line);
     if(keyboard)text(fb,20,134,keyboard+1);
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+    ui_button(fb,12,147,222,23,"JOYSTICK SETUP",setup_focus==0?3:0);
+    ui_button(fb,246,147,222,23,"KEYBOARD SETUP",setup_focus==1?3:0);
+#endif
     box(fb,12,175,456,30,0,7);centred_text(fb,180,"8BITRETRO.LOCAL",false);centred_text(fb,195,load_error?load_error:"EMULATION PAUSED",false);
 }
 static void status_present(void) {
@@ -439,16 +477,20 @@ static void status_present(void) {
     board_display_set_rows(table);
 }
 static void status_close(void) {
+    setup_end();
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+    touch_keyboard=false;
+#endif
     titles_end();chooser=false;machine_chooser=false;touch_select=false;
 #if NIMBUS_TEST
     controller_menu_capture(false);
 #endif
-#if MACHINE_C64 || MACHINE_SPECTRUM
+#if BORROW_STATUS_FB
             board_display_backlight(0);
             memcpy(status_sram, board_psram()+board_psram_size()-BOARD_STATUS_BYTES, BANNER_ROWS*ROW_BYTES);
 #endif
             board_display_set_rows(emulator_rows);
-#if MACHINE_C64 || MACHINE_SPECTRUM
+#if BORROW_STATUS_FB
             retire_display_table();
             machine_status_framebuffer(false);
             board_display_backlight(255);
@@ -468,7 +510,7 @@ static bool status_open(void) {
 #if WITH_SOUND
             audio_status_mute(true);
 #endif
-#if MACHINE_C64 || MACHINE_SPECTRUM
+#if BORROW_STATUS_FB
             board_display_backlight(0);
             status_sram = machine_status_framebuffer(true);
             memcpy(board_psram()+board_psram_size()-BOARD_STATUS_BYTES, status_sram, BANNER_ROWS*ROW_BYTES);
@@ -476,7 +518,7 @@ static bool status_open(void) {
             status_active ^= 1u;
             status_draw(status_active);
             status_present();
-#if MACHINE_C64 || MACHINE_SPECTRUM
+#if BORROW_STATUS_FB
             retire_display_table();board_display_backlight(255);
 #endif
             status_visible = true;
@@ -507,14 +549,35 @@ void boot_status_frame(void) {
     static bool touch_held;
     unsigned tx=0,ty=0;bool touched=board_touch(&tx,&ty);
     bool tap=touched&&!touch_held;touch_held=touched;ty/=2;
+    // A touch opens the keyboard; a physical BOOT press keeps the file-first path.
+    bool open_keyboard=tap&&!status_visible&&!pending_toggle;
     if(tap&&!status_visible)pending_toggle=true;
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+    else if(status_visible&&touch_keyboard) {
+        if(pending_toggle){pending_toggle=false;touch_keyboard=false;fire_armed=false;chooser_dirty=true;}
+        else touch_key_frame(tap,tx,ty,now);
+    }
+    else if(status_visible&&setup_page) {
+        if(pending_toggle){pending_toggle=false;setup_end();}
+        else setup_frame(tap,touched,tx,ty,now);
+    }
+    else if(status_visible&&!chooser&&!machine_chooser&&tap&&ty>=147&&ty<170) {
+        setup_open(tx>=246);
+    }
+#endif
     else if(status_visible&&touched) {
         if(tap&&ty>=214) {
             if(tx>=320){status_close();return;}
             if(tx>=160)pending_toggle=true;
             else if(machine_chooser){titles_begin();chooser_dirty=true;}
             else if(!chooser){machines_begin();}
-            else {status_close();return;}
+            else {
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+                touch_key_open();
+#else
+                status_close();return;
+#endif
+            }
         } else if(machine_chooser) {
             if(tap&&ty>=28&&ty<92){machine_selected=((ty-28)/34)*2+(tx>=246);if(machine_selected>3)machine_selected=3;fire_armed=true;touch_select=true;}
             else if((ty>=104&&ty<151)||(ty>=154&&ty<205)) {
@@ -533,19 +596,34 @@ void boot_status_frame(void) {
             else if(tx>=160&&tx<320&&title_selected+1<title_count)title_selected++;
             else if(tx>=320&&title_count){fire_armed=true;touch_select=true;}
             chooser_dirty=true;
-        } else if(tap&&chooser&&!title_iterator&&ty>=35&&ty<160) {
+        } else if(tap&&chooser&&!title_iterator&&tx>=12&&tx<468&&ty>=35&&ty<160&&(ty-35)%25<22) {
             unsigned selected=(title_selected/5)*5+(ty-35)/25;
-            if(selected<title_count){title_selected=selected;chooser_dirty=true;}
+            if(selected<title_count){title_selected=selected;chooser_dirty=true;fire_armed=true;touch_select=true;}
         }
     }
     if (pending_toggle) {
         pending_toggle = false;
-        if(status_visible && chooser) {
+        if(status_visible && chooser
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+       && !touch_keyboard
+#endif
+    ) {
             machines_begin();
         } else if(status_visible && machine_chooser) {
             machine_chooser=false;chooser_dirty=true;
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+            setup_focus=0;setup_fire_armed=false;setup_direction=0;
+#endif
         } else if(status_visible)status_close();
-        else {titles_begin();if(!status_open())titles_end();}
+        else {
+            titles_begin();
+            if(!status_open())titles_end();
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+            else if(open_keyboard)touch_key_open();
+#else
+            (void)open_keyboard;
+#endif
+        }
         status_frame = frame; status_updated_ms = now;
     }
     if(status_visible && machine_chooser) {
@@ -572,7 +650,11 @@ void boot_status_frame(void) {
             return;
         }
     }
-    if(status_visible && chooser) {
+    if(status_visible && chooser
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+       && !touch_keyboard
+#endif
+    ) {
         titles_poll();
         unsigned directions=0;bool fire=false;
         joystick_state(&directions,&fire);fire|=touch_select;touch_select=false;
@@ -596,6 +678,16 @@ void boot_status_frame(void) {
             }
         }
     }
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+    if(status_visible&&!chooser&&!machine_chooser&&!setup_page) {
+        unsigned directions=0;bool fire=false;joystick_state(&directions,&fire);
+        if(!fire)setup_fire_armed=true;
+        int direction=(directions&1)?-1:(directions&2)?1:0;
+        if(direction&&direction!=setup_direction){setup_focus=direction>0?1:0;chooser_dirty=true;}
+        setup_direction=direction;
+        if(fire&&setup_fire_armed){setup_fire_armed=false;setup_open(setup_focus==1);}
+    }
+#endif
     if (status_visible && (chooser_dirty || (!chooser && (uint32_t)(now - status_updated_ms) >= 1000))) {
         chooser_dirty=false;
         status_active ^= 1u;

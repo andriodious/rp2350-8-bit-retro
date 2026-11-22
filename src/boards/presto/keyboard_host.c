@@ -155,3 +155,11 @@ const char *keyboard_host_boot_status(void) {
  if(!enabled)return "DISCONNECTED";
  return ready?"SEARCHING":"STARTING";
 }
+
+void keyboard_host_setup_state(bluetooth_setup_state_t *out) {
+ memset(out,0,sizeof *out);
+ snprintf(out->address,sizeof out->address,"%s",bd_addr_to_str(address));
+ snprintf(out->pin,sizeof out->pin,"%s",pin);
+ out->connected=connected;out->connecting=connecting;out->reconnect=enabled;
+ out->remembered=saved();out->capturing=capturing;out->captured_usage=captured_usage;
+}

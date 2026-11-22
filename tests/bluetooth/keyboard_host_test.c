@@ -29,6 +29,8 @@ int main(void){
  assert(keyboard_host_command("connect 11:21:AC:52:12:23",false)==409);
  assert(keyboard_host_command("connect 11:21:AC:52:12:23",true)==200);
  uint8_t pin_event[]={HCI_EVENT_PIN_CODE_REQUEST,6,0x23,0x12,0x52,0xac,0x21,0x11};assert(keyboard_host_event(pin_event,sizeof pin_event));assert(!strcmp(pin,"123456"));
+ bluetooth_setup_state_t view;keyboard_host_setup_state(&view);
+ assert(!strcmp(view.address,"11:21:AC:52:12:23")&&!strcmp(view.pin,"123456"));
  uint8_t open[]={HCI_EVENT_HID_META,13,HID_SUBEVENT_CONNECTION_OPENED,7,0,0,0x23,0x12,0x52,0xac,0x21,0x11,0,0,0};assert(keyboard_host_event(open,sizeof open));assert(connected);
  uint8_t available[]={HCI_EVENT_HID_META,4,HID_SUBEVENT_DESCRIPTOR_AVAILABLE,7,0,0};assert(keyboard_host_event(available,sizeof available));
  uint8_t other[]={HCI_EVENT_HID_META,4,HID_SUBEVENT_DESCRIPTOR_AVAILABLE,8,0,0};assert(!keyboard_host_event(other,sizeof other));

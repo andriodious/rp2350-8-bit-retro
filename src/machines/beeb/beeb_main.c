@@ -84,6 +84,16 @@ static uint32_t s_fb[k_beebjit_panel_rows][k_beebjit_panel_row_words];
 static const uint16_t* s_row_table[BOARD_DISPLAY_HEIGHT + 1];
 static struct beebjit_panel s_panel;
 
+#if BOOT_STATUS_TRIAL && PRESTO_BEEBJIT_WIRE
+uint32_t *machine_status_framebuffer(bool active) {
+  // Called at a stopped producer boundary. Sync waits until all queued drawing
+  // has completed before the menu borrows the existing SRAM scanlines.
+  if (active) beebjit_wire_sync();
+  return &s_fb[0][0];
+}
+#endif
+
+
 #if PRESTO_BEEBJIT_PANEL_PIO
 /* ---- 640 -> 480 on PIO0 ----
  *

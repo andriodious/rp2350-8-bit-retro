@@ -275,11 +275,18 @@ static void frontend_frame_once(void) {
 
 // Stay at the emulator's normal frame boundary while the BOOT UI is open.
 // Core 1 can finish queued rendering; networking and controller input continue.
+static uint64_t s_menu_paused_us;
+uint64_t frontend_paused_us(void) { return s_menu_paused_us; }
+
 void frontend_frame(void) {
+    uint64_t entered = time_us_64();
+    bool paused = false;
     do {
         frontend_frame_once();
         if (!boot_status_visible()) break;
+        paused = true;
         watchdog_update();
         sleep_ms(20);
     } while (true);
+    if (paused) s_menu_paused_us += time_us_64() - entered;
 }

@@ -16,6 +16,8 @@ extern "C" {
 void frontend_init(void);       // once the machine is set up
 void frontend_poll(void);
 void frontend_frame(void);
+// Cumulative wall time spent in paused menus, core 0 only.
+uint64_t frontend_paused_us(void);
 
 // the chip's temperature, in hundredths of a degree (the RP2350's sensor)
 int frontend_temp_centi(void);

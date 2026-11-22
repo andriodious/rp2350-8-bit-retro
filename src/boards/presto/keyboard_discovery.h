@@ -8,3 +8,7 @@ void keyboard_discovery_stop(void);
 void keyboard_discovery_frame(void);
 bool keyboard_discovery_event(uint8_t *packet, uint16_t size);
 void keyboard_discovery_json(char *out, size_t size);
+
+#include "presto_bluetooth.h"
+unsigned keyboard_discovery_count(void);
+bool keyboard_discovery_device(unsigned index, bluetooth_setup_device_t *out);

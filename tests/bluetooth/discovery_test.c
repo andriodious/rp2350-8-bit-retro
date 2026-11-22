@@ -16,6 +16,9 @@ int main(void){
  assert(keyboard_discovery_event(key,sizeof key));
  key[25]=0;assert(keyboard_discovery_event(key,sizeof key));
  keyboard_discovery_json(json,sizeof json);assert(strstr(json,"Bluetooth Keyboard"));assert(strstr(json,"\"hid_hint\":true"));assert(strstr(json,"\"truncated\":true"));assert(!strstr(json,"BLE"));
+ bluetooth_setup_device_t view;assert(keyboard_discovery_count()==32);
+ assert(keyboard_discovery_device(0,&view));assert(strlen(view.address)==17);
+ assert(!keyboard_discovery_device(32,&view));
  uint8_t ble[]={GAP_EVENT_ADVERTISING_REPORT,0};assert(!keyboard_discovery_event(ble,sizeof ble));
  uint8_t done[]={GAP_EVENT_INQUIRY_COMPLETE,1,0};assert(keyboard_discovery_event(done,sizeof done));assert(!keyboard_discovery_busy());
  assert(keyboard_discovery_start()==200);test_time=15001;keyboard_discovery_frame();assert(!keyboard_discovery_busy()&&stops==1);

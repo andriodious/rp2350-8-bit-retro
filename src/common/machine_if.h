@@ -15,7 +15,7 @@ extern "C" {
 
 // "beeb" (BBC Model B) or "master" (BBC Master 128): /api/status's "machine"
 const char *machine_name(void);
-#if BOOT_STATUS_TRIAL && (MACHINE_C64 || MACHINE_SPECTRUM)
+#if BOOT_STATUS_TRIAL && (MACHINE_C64 || MACHINE_SPECTRUM || PRESTO_BEEBJIT_WIRE)
 // Core 0: stop display conversion, drain outstanding work, lend SRAM pixels.
 uint32_t *machine_status_framebuffer(bool active);
 #endif
