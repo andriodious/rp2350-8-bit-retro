@@ -137,6 +137,8 @@ jobs:
       - run: scripts/setup.sh --no-build --roms
       - name: Network timeout regression
         run: python3 tests/network/mdns_timeout_test.py
+      - name: C64 audio clock and driver regression
+        run: python3 tests/c64/audio_host_test.py
       - name: Startup recovery and display DMA regression
         run: |
           python3 tests/startup/c64_early_watchdog_test.py

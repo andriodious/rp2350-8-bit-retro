@@ -8,6 +8,7 @@
 #include "sound.h"
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #define N 4096u
 #define B 256u
 static int16_t ring[N];
@@ -45,10 +46,36 @@ static void fill(uint32_t *p){
  }
 }
 static void irq_audio(void){for(int i=0;i<2;i++)if(dma_irqn_get_channel_status(1,channels[i])){dma_irqn_acknowledge_channel(1,channels[i]);blocks++;fill(buffers[i]);dma_channel_set_read_addr(channels[i],buffers[i],false);}}
+static void audio_clock_fraction(uint32_t hz,uint16_t *numerator,uint16_t *denominator){
+ // DMA accepts a 16-bit fraction of clk_sys. An integer divider of 5668 at
+ // 250 MHz plays 7.27 extra samples/s, steadily emptying a full-speed SID ring.
+ // Search the nearby legal denominators for each possible numerator. At the
+ // normal 250 MHz clock this examines just twelve numerators, once at startup.
+ const uint32_t rate=44100u,limit=65535u;
+ assert(hz>=rate);
+ uint32_t best_n=1,best_d=1;
+ uint64_t best_error=hz-rate;
+ const uint32_t max_n=((uint64_t)rate*limit+hz-1)/hz;
+ for(uint32_t n=1;n<=max_n;n++){
+  uint64_t scaled=(uint64_t)hz*n;
+  uint32_t floor_d=scaled/rate;
+  for(unsigned next=0;next<2;next++){
+   uint32_t d=floor_d+next;
+   if(d<1)d=1;
+   if(d>limit)d=limit;
+   uint64_t wanted=(uint64_t)rate*d;
+   uint64_t error=scaled>wanted?scaled-wanted:wanted-scaled;
+   if(error*best_d<best_error*d){best_n=n;best_d=d;best_error=error;}
+  }
+ }
+ *numerator=(uint16_t)best_n;*denominator=(uint16_t)best_d;
+}
 void audio_init(void){
  unsigned pin=BOARD_AUDIO_PWM_PIN,slice=pwm_gpio_to_slice_num(pin);
  gpio_set_function(pin,GPIO_FUNC_PWM);pwm_config pc=pwm_get_default_config();pwm_config_set_wrap(&pc,1023);pwm_init(slice,&pc,true);
- int timer=dma_claim_unused_timer(true);audio_timer=timer;dma_timer_set_fraction(timer,1,clock_get_hz(clk_sys)/44100);
+ int timer=dma_claim_unused_timer(true);audio_timer=timer;
+ uint16_t numerator,denominator;audio_clock_fraction(clock_get_hz(clk_sys),&numerator,&denominator);
+ dma_timer_set_fraction(timer,numerator,denominator);
  channels[0]=dma_claim_unused_channel(true);channels[1]=dma_claim_unused_channel(true);
  for(int i=0;i<2;i++){fill(buffers[i]);dma_channel_config c=dma_channel_get_default_config(channels[i]);channel_config_set_transfer_data_size(&c,DMA_SIZE_32);channel_config_set_read_increment(&c,true);channel_config_set_ring(&c,false,10);channel_config_set_write_increment(&c,false);channel_config_set_dreq(&c,dma_get_timer_dreq(timer));channel_config_set_chain_to(&c,channels[i^1]);
  volatile uint32_t *cc=&pwm_hw->slice[slice].cc;

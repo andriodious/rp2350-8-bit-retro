@@ -40,6 +40,18 @@ python3 tests/c64/dependency_test.py /path/frank-c64-main.zip /path/elite-commod
 
 Native harness leak detection is disabled; its frame checks do not establish absence of memory leaks. See `docs/c64-validation.md` for this fileset's results and hardware limitations.
 
+## Audio clock and driver
+
+`python3 tests/c64/audio_host_test.py` includes the complete production audio
+driver with mocked Pico hardware under AddressSanitizer and UBSan, with web
+diagnostics both disabled and enabled. It checks sample conversion, buffering,
+DMA/IRQ setup and shutdown, fractional clock selection, and long-duration
+producer/consumer models. See [the harness notes](audio_host/README.md) for the
+model assumptions and hardware limitations. These tests do not flash a board.
+
+The clock-only hardware results and exact tested firmware identity are recorded
+in [the verified checkpoint](../../checkpoints/four-machine-c64-audio-clock-20261122/README.md).
+
 ## T64 program loading
 
 See [T64 validation](../../docs/c64-t64.md#validation-and-hardware-test) for the

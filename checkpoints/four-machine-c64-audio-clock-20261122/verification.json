@@ -1,0 +1,165 @@
+{
+  "date": "2026-11-22",
+  "reference": "reference/four-machine-c64-audio-clock-20261122",
+  "previous_reference": "reference/four-machine-startup-dma-20261122",
+  "base_release": "v0.9.0",
+  "base_commit": "4affae5fa3f8ba03123239c3d1743fa679029bb1",
+  "hardware_verified": true,
+  "reported_by": "user hardware testing",
+  "hardware_verification_scope": {
+    "c64": "New clock-only image tested with Elite, settled Monkey Island D81, physical resets, sound and web responsiveness.",
+    "other_payloads": "Launcher, Master, BBC Micro and Spectrum are byte-identical to v0.9.0; not newly hardware-tested in this audio sequence."
+  },
+  "combined_uf2": {
+    "file": "retro8bit-c64-audio-clock-only-test.uf2",
+    "sha256": "8d929614938bf490e941851b59a9383af3ae8d7e6520dc8dc02ab7b89e3f7243",
+    "bytes": 7724032,
+    "blocks": 15086
+  },
+  "images": {
+    "master": "94b748eb89fceb1e",
+    "beeb": "3eb96fee51390a3d",
+    "c64": "a9b493c27aacb283",
+    "spectrum": "c0652c3c18d02d2b"
+  },
+  "launcher_sha256": "4f64f88f7b5f22f9d7f0409459142639f6a7045db5d71802d2757f2f14d868fa",
+  "firmware_rebuilt_for_checkpoint": false,
+  "firmware_source_change": "C64 audio fractional DMA timer selection at startup only",
+  "audio_source_sha256": "5e5adf9860dc5675ca9c6e39c72fc45c7849f6c5a15ef78f490816e6ddc5ada4",
+  "elite": {
+    "title": "Elite C64 PAL",
+    "turbo": false,
+    "sound_on": true,
+    "volume": 100,
+    "samples": [
+      {
+        "uptime_ms": 255588,
+        "frames": 12350,
+        "rendered": 12349,
+        "samples": 10892689,
+        "blocks": 42549,
+        "underruns": 540,
+        "core0": 68,
+        "core1": 35,
+        "free": 24456
+      },
+      {
+        "uptime_ms": 291487,
+        "frames": 14145,
+        "rendered": 14144,
+        "samples": 12475877,
+        "blocks": 48733,
+        "underruns": 559,
+        "core0": 68,
+        "core1": 36,
+        "free": 24456
+      }
+    ],
+    "measurement": {
+      "elapsed_seconds": 35.899,
+      "frames": 1795,
+      "fps": 50.00139279645673,
+      "new_underruns": 19,
+      "underruns_per_second": 0.5292626535558094,
+      "produced_samples_per_second": 44101.172734616564
+    }
+  },
+  "d81_uninterrupted": {
+    "title": "Monkey_Island_v1.2.d81",
+    "turbo": false,
+    "sound_on": true,
+    "volume": 100,
+    "samples": [
+      {
+        "uptime_ms": 4301406,
+        "frames": 210138,
+        "rendered": 210137,
+        "samples": 185341487,
+        "underruns": 3973894,
+        "core0": 75,
+        "core1": 50,
+        "free": 20616,
+        "net_max_gap_us": 24830088
+      },
+      {
+        "uptime_ms": 4345146,
+        "frames": 212325,
+        "rendered": 212324,
+        "samples": 187270418,
+        "underruns": 3973894,
+        "core0": 75,
+        "core1": 40,
+        "free": 20616,
+        "net_max_gap_us": 24830088
+      }
+    ],
+    "measurement": {
+      "elapsed_seconds": 43.74,
+      "frames": 2187,
+      "fps": 50.0,
+      "new_underruns": 0,
+      "underruns_per_second": 0.0,
+      "produced_samples_per_second": 44099.93141289437,
+      "free_memory_delta": 0
+    }
+  },
+  "user_confirmation": {
+    "physical_resets": "passed; count unspecified",
+    "sound": "fine",
+    "web_responsiveness": "fine"
+  },
+  "latest_post_reset_sample": {
+    "image": "a9b493c27aacb283",
+    "uptime_ms": 17509,
+    "frames": 526,
+    "rendered": 525,
+    "speed": 100,
+    "core0": 63,
+    "core1": 31,
+    "free": 22712,
+    "turbo": false,
+    "recovery": false,
+    "phase": 0,
+    "pc": "00000000",
+    "cfsr": "00000000",
+    "sound_on": true,
+    "volume": 100,
+    "disc": null,
+    "audio_samples": 463934,
+    "audio_blocks": 1811,
+    "audio_underruns": 506,
+    "sid_state_bytes": 1476,
+    "sid_state_sram": true
+  },
+  "pause_affected_intervals_excluded": true,
+  "host_verification": {
+    "full_driver": "passed with AddressSanitizer and UBSan in WEBDIAG=0 and WEBDIAG=1",
+    "clock_fraction": "exhaustive denominator oracle at 21 system clocks",
+    "sample_conversion": "13172736 signed PCM/volume combinations per configuration",
+    "additional_checks": [
+      "FIFO capacity/wrap/overflow",
+      "mute and speaker tone",
+      "DMA setup/IRQ/shutdown",
+      "long-duration producer/consumer models",
+      "startup watchdog regression",
+      "four-machine display DMA restart regression",
+      "audio stop regression"
+    ],
+    "checkpoint_rerun_source_sha256": "5e5adf9860dc5675ca9c6e39c72fc45c7849f6c5a15ef78f490816e6ddc5ada4"
+  },
+  "package_verification": {
+    "total_uf2_blocks": 15086,
+    "unchanged_non_c64_blocks": 10477,
+    "translated_c64_blocks": 4609,
+    "no_overlaps_or_extra_addresses": true,
+    "prior_release_uf2_sha256": "b761a3a64304b67294fb6fcacea3784d83c45539a118e804a5068db37e91c14d"
+  },
+  "limits": [
+    "Finite reset trials do not establish absence of every intermittent reset failure.",
+    "No new Bluetooth reconnection tests or new hardware tests of the three unchanged machine payloads in this sequence.",
+    "Underruns are missing-sample counts and include startup and intentional menu silence; a lifetime count is not a steady-state failure rate.",
+    "Host models do not simulate hardware concurrency, bus contention, interrupt deadlines or analogue audio.",
+    "The fractional DMA clock retains a small residual mismatch with fixed-point SID sample generation."
+  ],
+  "published_release_unchanged": "v0.9.0"
+}
