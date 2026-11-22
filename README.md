@@ -9,9 +9,9 @@ experiment. Original Git history, source notices and licence files are retained.
 
 ## Download and try it
 
-**[Download v0.9.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.9.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
+**[Download v0.9.1 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.9.1/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
 
-See the **[v0.9.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.9.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing and power cycling, tap the screen to use the machine keyboard or press BOOT to browse SD titles. The web interface at **http://8bitretro.local/** remains optional. Existing Wi-Fi settings are retained.
+See the **[v0.9.1 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.9.1)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing and power cycling, tap the screen to use the machine keyboard or press BOOT to browse SD titles. The web interface at **http://8bitretro.local/** remains optional. Existing Wi-Fi settings are retained.
 
 ## Machines and features
 
@@ -31,7 +31,9 @@ See the **[v0.9.0 release and first-time setup instructions](https://github.com/
 - Tested C64 optimisations: CPU/VIC code in SRAM, packed pixel conversion and
   overlapping emulation/display conversion. The RP2350 clock remains 250 MHz.
 
-Version **v0.9.0** fixes network timer exhaustion that could restart C64, extends startup recovery and corrects display DMA restart ordering. Repeated physical resets from C64 Elite and Monkey Island passed; all four machines passed startup, display, menus, sound and web checks. The download is the exact hardware-tested firmware, with a separate clean source build and host regression checks also completed.
+Version **v0.9.1** preserves fast flash reads after saving settings, fixing the persistent C64 D81 slowdown and distorted sound that could follow a menu volume change. It also improves C64 audio-clock accuracy to reduce underruns. The exact clean build passed the requested four-machine hardware checks; all v0.9.0 stability fixes are retained.
+
+Version **v0.9.0** fixes network timer exhaustion that could restart C64, extends startup recovery and corrects display DMA restart ordering. Repeated physical resets from C64 Elite and Monkey Island passed; all four machines passed startup, display, menus, sound and web checks. Its release download remains the exact hardware-tested firmware, with a separate clean source build and host regression checks also completed.
 
 Version **v0.8.0** makes Presto usable independently of the web interface. Touch opens a full machine keyboard; SETTINGS opens SD titles, machine/audio/LED configuration and system status, with dedicated joystick and keyboard setup screens. Wi-Fi failure no longer leaves the keyboard waiting indefinitely. All four machines passed hardware testing, including offline and restored Wi-Fi, both Bluetooth devices and web responsiveness.
 
@@ -116,14 +118,14 @@ https://github.com/user-attachments/assets/648c8668-27c7-495a-b540-f22d90917808
 Start in the extracted release source folder or clone this repository:
 
 ```sh
-git clone --branch v0.9.0 https://github.com/andriodious/rp2350-8-bit-retro.git
+git clone --branch v0.9.1 https://github.com/andriodious/rp2350-8-bit-retro.git
 cd rp2350-8-bit-retro
 ```
 
 ```sh
 scripts/setup.sh --no-build --roms
 . deps/env.sh
-EXTRA_OS_CMAKE_ARGS='-DC64_ABORT_DIAG=ON' scripts/build-classic-keyboard-four.sh build-release
+EXTRA_OS_CMAKE_ARGS='-DC64_ABORT_DIAG=ON -DC64_RUNTIME_DIAG=ON' scripts/build-classic-keyboard-four.sh build-release
 ```
 
 On Debian/Raspberry Pi OS, add `--apt` to the setup command if host packages need
@@ -134,7 +136,7 @@ The source archive contains no downloaded commercial game images, commercial ROM
 
 Result: **`build-release/rp2350-8-bit-retro-presto.uf2`** containing the launcher and
 all four machines. Sound, ambient LEDs, Classic Bluetooth keyboard and original Nimbus support are enabled;
-profiling and web diagnostics are disabled. C64 terminal-caller capture is enabled, matching the tested release configuration. Source rebuilds are separate artifacts and are not automatically hardware verified. See [build instructions](docs/build-retro.md)
+general profiling and web diagnostics are disabled. C64 terminal-caller capture and the read-only runtime diagnostic endpoint are enabled, matching the tested release configuration. Source rebuilds are separate artifacts and are not automatically hardware verified. See [build instructions](docs/build-retro.md)
 for options and an explanation of the legacy build entry points.
 
 ## Install and use
@@ -183,18 +185,20 @@ these records, so rolling back can require re-pairing devices and restoring sett
 
 ## Status and contributions
 
-The v0.9.0 download is the exact combined firmware tested on all four machines,
-from `reference/four-machine-startup-dma-20261122`, with SHA256
-`b761a3a64304b67294fb6fcacea3784d83c45539a118e804a5068db37e91c14d`.
-C64 Elite/D81 resets and the other machines' startup, display, menu, sound and
-web checks passed. The user subsequently reported numerous additional successful
-physical C64 resets and reboots, without recording counts. See the original
-[verification record](checkpoints/four-machine-startup-dma-20261122/verification.json).
-A clean source rebuild remains separate from this hardware-tested download.
-v0.8.0 and earlier checkpoints remain unchanged. Compatibility with every game,
-Bluetooth keyboard or controller is not implied.
+The v0.9.1 download is the exact clean GitHub build subsequently accepted on
+hardware, from source commit `481b5bf6ce9661b9a7a87664fe3a26fd57a579ca` and
+`reference/four-machine-c64-flash-read-restore-20261122`. Its SHA256 is
+`8ccb9e0a0aaf64e57b846d5352a5a847481d8faae7f0f4dad940e451bd99b108`.
+The user confirmed “Build checks out fine” after the requested four-machine
+startup, settings-save, menu-resume and sound checks, plus C64 Monkey Island D81
+playback and physical resets. Individual counts were not supplied. See the
+[clean-build verification record](checkpoints/four-machine-c64-flash-read-clean-verified-20261122/verification.json).
+The release adds documentation and build-recipe updates without rebuilding that
+firmware. Future source rebuilds are not automatically hardware verified.
+v0.9.0 and all earlier checkpoints remain unchanged. Compatibility with every
+game, Bluetooth keyboard or controller is not implied.
 
-See [release notes](docs/releases/v0.9.0.md), [credits](CREDITS.md), and
+See [release notes](docs/releases/v0.9.1.md), [credits](CREDITS.md), and
 [contribution guidance](CONTRIBUTING.md). The inherited [upstream README](UPSTREAM-README.md)
 and technical documents remain available as historical and engineering references.
 

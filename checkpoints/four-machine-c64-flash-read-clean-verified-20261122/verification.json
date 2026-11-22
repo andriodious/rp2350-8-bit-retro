@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-22",
+  "hardware_verified": true,
+  "verification_basis": "User-reported hardware acceptance of the delivered clean build",
+  "user_confirmation": "Build checks out fine",
+  "requested_test_scope": [
+    "Power cycle and startup on all four machines",
+    "Settings saves, menu resume and sound on all four machines",
+    "C64 Monkey Island D81 playback",
+    "C64 physical resets"
+  ],
+  "confirmation_scope_note": "General confirmation in response to the requested test sequence; individual results, reset counts and fresh status reports were not separately supplied.",
+  "source_commit": "481b5bf6ce9661b9a7a87664fe3a26fd57a579ca",
+  "reference_tag": "reference/four-machine-c64-flash-read-restore-20261122",
+  "firmware": {
+    "file": "retro8bit-c64-flash-read-restore-clean-build.uf2",
+    "sha256": "8ccb9e0a0aaf64e57b846d5352a5a847481d8faae7f0f4dad940e451bd99b108",
+    "bytes": 7731712,
+    "blocks": 15101,
+    "end_address_exclusive": "0x10cb6f00"
+  },
+  "machine_images": {
+    "master": "1bb01075ee4086ef",
+    "beeb": "cb3b0bd1945923ca",
+    "c64": "cab5f1222f5dd3a9",
+    "spectrum": "bde51d736867f106"
+  },
+  "original_clean_build_archive": "../clean-github-flash-read-restore-20261122",
+  "original_archive_checksums_verified": 54,
+  "v0.9.0_unchanged": true,
+  "previous_checkpoints_unchanged": true,
+  "published_release": "v0.9.1",
+  "release_firmware_filename": "rp2350-8-bit-retro-presto.uf2",
+  "publication_note": "This is the later hardware acceptance of the clean build; release uses identical firmware bytes. Publication state is recorded in release assets, not the original build-time manifest.",
+  "original_acceptance_record_actions": {
+    "firmware_rebuilt": false,
+    "firmware_replaced": false,
+    "git_refs_changed": false
+  }
+}
