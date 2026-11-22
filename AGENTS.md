@@ -16,10 +16,11 @@ SRAM, 8 MB PSRAM, 480×480 ST7701 RGB panel). Four machine payloads plus a launc
 - `-DMACHINE=spectrum`: pinned chips ZX Spectrum 48K, target `presto_spectrum`.
 
 Current four-machine release recipe: `scripts/setup.sh --no-build --roms`, source
-`deps/env.sh`, then `scripts/build-classic-keyboard-four.sh build-release`. This
-enables Classic keyboard, Nimbus and paused BOOT status/SD chooser with the tested
-D81 options. Legacy two-machine commands below are historical development entry
-points. See `docs/build-retro.md` and `docs/bluetooth-keyboard.md`.
+`deps/env.sh`, then
+`EXTRA_OS_CMAKE_ARGS='-DC64_ABORT_DIAG=ON' scripts/build-classic-keyboard-four.sh build-release`.
+This enables Classic keyboard, Nimbus and paused BOOT status/SD chooser with the
+tested D81 options and retained C64 terminal-caller capture. Legacy two-machine
+commands below are historical development entry points. See `docs/build-retro.md` and `docs/bluetooth-keyboard.md`.
 
 Shared input changes must preserve independent web/keyboard/Nimbus key ownership,
 per-machine saved mappings, capture suppression/release, and C64 SRAM budget.
