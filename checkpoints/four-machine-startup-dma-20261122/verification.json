@@ -1,0 +1,118 @@
+{
+  "date": "2026-11-22",
+  "hardware_verified": true,
+  "reported_by": "user hardware testing",
+  "reference": "reference/four-machine-startup-dma-20261122",
+  "previous_reference": "reference/four-machine-touch-offline-20261122",
+  "base_release": "v0.8.0",
+  "uf2": "retro8bit-startup-dma-fix-test.uf2",
+  "uf2_sha256": "b761a3a64304b67294fb6fcacea3784d83c45539a118e804a5068db37e91c14d",
+  "images": {
+    "master": {
+      "RETRO_IMAGE_ID": "94b748eb89fceb1e",
+      "RETRO_LAUNCHER_SHA256": "4f64f88f7b5f22f9d7f0409459142639f6a7045db5d71802d2757f2f14d868fa"
+    },
+    "beeb": {
+      "RETRO_IMAGE_ID": "3eb96fee51390a3d",
+      "RETRO_LAUNCHER_SHA256": "4f64f88f7b5f22f9d7f0409459142639f6a7045db5d71802d2757f2f14d868fa"
+    },
+    "c64": {
+      "RETRO_IMAGE_ID": "e4e9971288b6eadd",
+      "RETRO_LAUNCHER_SHA256": "4f64f88f7b5f22f9d7f0409459142639f6a7045db5d71802d2757f2f14d868fa"
+    },
+    "spectrum": {
+      "RETRO_IMAGE_ID": "c0652c3c18d02d2b",
+      "RETRO_LAUNCHER_SHA256": "4f64f88f7b5f22f9d7f0409459142639f6a7045db5d71802d2757f2f14d868fa"
+    }
+  },
+  "firmware_rebuilt": false,
+  "c64_abort_diag": true,
+  "results": {
+    "c64": [
+      "Physical resets with Elite running passed; Elite and web interface returned",
+      "Physical resets with Monkey Island D81 running passed; Elite and web interface returned each time, without fallback to Master",
+      "Settled D81 interval: 6737 frames and rendered frames in 134741 ms, approximately 50.00 fps, zero additional audio underruns",
+      "D81 free memory dropped from 20616 to 18872 bytes then held; after reset Elite returned to 24,456 bytes",
+      "Latest C64 sample: image e4e9971288b6eadd, turbo off, sound on, no recovery or recorded fault, free 24,456 bytes"
+    ],
+    "spectrum": [
+      "Startup, display, menu resume, sound and web responsiveness passed",
+      "Profile approximately 50.08 fps; no pipeline stalls or recorded fault; free 35,488 bytes unchanged across two samples"
+    ],
+    "beeb": [
+      "Startup, display, menu resume, sound and web responsiveness passed",
+      "Status 100% speed, core 0 11%, core 1 13%, free 49,768 bytes"
+    ],
+    "master": [
+      "Startup, display, menu resume, sound and web responsiveness passed",
+      "Status 100% speed, core 0 46%, core 1 43%, free 66,224 bytes"
+    ]
+  },
+  "c64_d81_samples": [
+    {
+      "uptime_ms": 223874,
+      "frames": 7867,
+      "rendered": 7866,
+      "underruns": 2622005,
+      "free": 20616
+    },
+    {
+      "uptime_ms": 279535,
+      "frames": 10650,
+      "rendered": 10649,
+      "underruns": 2622005,
+      "free": 20616
+    },
+    {
+      "uptime_ms": 303674,
+      "frames": 11857,
+      "rendered": 11856,
+      "underruns": 2622005,
+      "free": 20616
+    },
+    {
+      "uptime_ms": 327415,
+      "frames": 13044,
+      "rendered": 13043,
+      "underruns": 2622005,
+      "free": 18872
+    },
+    {
+      "uptime_ms": 358615,
+      "frames": 14604,
+      "rendered": 14603,
+      "underruns": 2622005,
+      "free": 18872
+    }
+  ],
+  "latest_c64_sample": {
+    "image": "e4e9971288b6eadd",
+    "uptime_ms": 31820,
+    "frames": 1518,
+    "rendered": 1517,
+    "speed": 99,
+    "free": 24456,
+    "recovery": false,
+    "pc": "00000000",
+    "cfsr": "00000000",
+    "audio_underruns": 49176,
+    "turbo": false,
+    "sound_on": true
+  },
+  "separate_timer_only_run": {
+    "image": "d6732ae6816431fa",
+    "uptime_ms": 1853470,
+    "frames": 92304,
+    "rendered": 92303,
+    "free": 24456,
+    "underruns": 13996,
+    "recovery": false
+  },
+  "limits": [
+    "Physical reset trial counts were not specified; passing trials do not prove elimination of every intermittent reset failure",
+    "Watchdog protection starts at main; ROM/CRT/XIP failures before entry remain outside its coverage",
+    "Bluetooth reconnection was not newly verified in this test sequence; retain prior features without claiming new reconnection results",
+    "The 30-minute53-second stability observation belongs to the separate timer-only build, not this combined startup/DMA candidate"
+  ],
+  "published_release_unchanged": "v0.8.0"
+}

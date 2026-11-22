@@ -135,6 +135,15 @@ jobs:
           path: deps
           key: deps-${{ runner.os }}-${{ hashFiles('scripts/setup.sh', 'third_party/c64-sources.json', 'third_party/frank-c64-presto.patch') }}
       - run: scripts/setup.sh --no-build --roms
+      - name: Network timeout regression
+        run: python3 tests/network/mdns_timeout_test.py
+      - name: Startup recovery and display DMA regression
+        run: |
+          python3 tests/startup/c64_early_watchdog_test.py
+          python3 tests/startup/display_dma_restart_test.py
+          python3 tests/startup/launcher_selection_test.py
+          python3 tests/boot_banner_test.py
+          python3 tests/boot_status/pacing_test.py
       - name: Native controller checks
         run: |
           cc -Wall -Wextra -Werror -fsanitize=address,undefined -Isrc/common src/common/controller_store.c tests/bluetooth/store_test.c -o /tmp/store-test

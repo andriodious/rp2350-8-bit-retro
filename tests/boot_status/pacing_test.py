@@ -15,6 +15,7 @@ with tempfile.TemporaryDirectory() as directory:
 #include <assert.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "c64_abort_record.h"
 static uint64_t now;
 static unsigned menu_steps,polls,watchdogs;
 static uint64_t time_us_64(void){return now;}
@@ -47,6 +48,6 @@ int main(void){
 }
 '''
     (p/'test.c').write_text(source)
-    subprocess.run(['cc','-Wall','-Wextra','-Werror','-fsanitize=address,undefined',str(p/'test.c'),'-o',str(p/'test')],check=True)
+    subprocess.run(['cc','-Wall','-Wextra','-Werror','-fsanitize=address,undefined','-I'+str(root/'src/common'),str(p/'test.c'),'-o',str(p/'test')],check=True)
     subprocess.run([str(p/'test')],check=True)
 print('Paused frontend: network/input polling retained; Master has no post-menu catch-up debt: PASS')

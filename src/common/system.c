@@ -1,3 +1,4 @@
+#include "c64_abort_record.h"
 // The system (system.h): which machine the launcher boots, from either machine.
 #include <stdio.h>
 #include <string.h>
@@ -76,6 +77,13 @@ void system_capture_c64_failure(void) {
 }
 void system_failure_json(char *out, uint32_t size) {
     if (!c64_failed) {if(size)out[0]=0;return;}
+    if (c64_abort_valid(c64_cfsr)) {
+        snprintf(out,size,",\"c64_failure\":{\"build\":\"r11\",\"reason\":\"terminal-call\",\"diag_version\":1,\"phase\":%lu,\"core\":%lu,\"kind\":%lu,\"frontend_stage\":%lu,\"line\":%lu,\"caller\":\"%08lx\",\"detail\":\"%08lx\"}",
+            (unsigned long)(c64_phase&255u),(unsigned long)((c64_phase>>8)&1u),
+            (unsigned long)((c64_cfsr>>20)&15u),(unsigned long)((c64_cfsr>>16)&15u),
+            (unsigned long)(c64_cfsr&65535u),(unsigned long)c64_pc,(unsigned long)c64_bfar);
+        return;
+    }
     snprintf(out,size,",\"c64_failure\":{\"build\":\"r11\",\"reason\":\"watchdog\",\"phase\":%lu,\"pc\":\"%08lx\",\"cfsr\":\"%08lx\",\"bfar\":\"%08lx\"}",
         (unsigned long)c64_phase,(unsigned long)c64_pc,(unsigned long)c64_cfsr,(unsigned long)c64_bfar);
 }

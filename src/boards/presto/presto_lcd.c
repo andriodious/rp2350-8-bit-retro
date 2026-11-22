@@ -117,7 +117,7 @@ static uint32_t __not_in_flash_func(timing_word)(uint row, uint phase) {
 // channel streams this table into it and a second channel restarts it at the end of each frame
 static uint32_t timing_table[TIMING_V_FRONT * 4];
 static const uint32_t *timing_table_addr = timing_table;
-static uint timing_dma, timing_dma2;
+static uint timing_dma, timing_dma2, timing_offset;
 #else
 static uint16_t timing_row, timing_phase;
 
@@ -195,6 +195,66 @@ static void __not_in_flash_func(publish_rows)(void) {
 #endif
 }
 
+// RP2350-E5: disabling just the row DMA is insufficient. The timing reload can
+// chain through frame_dma/frame_dma2 and write the row channel's trigger alias.
+// Quiesce the whole display graph before aborting any channel; an in-flight
+// write can still retire during abort, so rebuild pointers only after all aborts.
+static void __not_in_flash_func(restart_rows)(void) {
+    const uint channels[] = {
+#if PRESTO_LCD_TIMING_DMA
+        timing_dma, timing_dma2, frame_dma, frame_dma2,
+#endif
+        lcd_dma2, lcd_dma
+    };
+    for (uint i = 0; i < count_of(channels); i++)
+        hw_clear_bits(&dma_hw->ch[channels[i]].al1_ctrl, DMA_CH0_CTRL_TRIG_EN_BITS);
+    pio_sm_set_enabled(lcd_pio, parallel_sm, false);
+#if PRESTO_LCD_TIMING_DMA
+    pio_sm_set_enabled(timing_pio, timing_sm, false);
+#endif
+    for (uint i = 0; i < count_of(channels); i++) dma_channel_abort(channels[i]);
+
+    publish_rows();
+    dma_channel_set_read_addr(lcd_dma2, &row_table[1], false);
+    dma_channel_set_trans_count(lcd_dma2, 1, false);
+    dma_channel_set_read_addr(lcd_dma, row_table[0], false);
+    dma_channel_set_trans_count(lcd_dma, BOARD_DISPLAY_ROW_WORDS, false);
+    pio_sm_clear_fifos(lcd_pio, parallel_sm);
+    pio_sm_restart(lcd_pio, parallel_sm);
+    load_colours();
+    sm_exec(pio_encode_jmp(st7701_rgbe_offset_row_start));
+    pio_interrupt_clear(lcd_pio, 0);
+    pio_interrupt_clear(lcd_pio, 4);
+#if PRESTO_LCD_TIMING_DMA
+    // Restart at line zero rather than resuming a possibly half-completed
+    // timing/frame chain. This changes timing only on an actual resync.
+    dma_channel_set_read_addr(timing_dma, timing_table, false);
+    dma_channel_set_trans_count(timing_dma, count_of(timing_table), false);
+    dma_channel_set_read_addr(timing_dma2, &timing_table_addr, false);
+    dma_channel_set_trans_count(timing_dma2, 1, false);
+    row_table_1 = &row_table[1];
+    dma_channel_set_read_addr(frame_dma, &row_table_1, false);
+    dma_channel_set_trans_count(frame_dma, 1, false);
+    dma_channel_set_read_addr(frame_dma2, &row_table[0], false);
+    dma_channel_set_trans_count(frame_dma2, 1, false);
+    pio_sm_clear_fifos(timing_pio, timing_sm);
+    pio_sm_restart(timing_pio, timing_sm);
+    pio_sm_exec(timing_pio, timing_sm, pio_encode_jmp(timing_offset + st7701_timing_wrap_target));
+    pio_interrupt_clear(lcd_pio, 1);
+#endif
+    // AL1_CTRL does not trigger a transfer. Arm every destination before either
+    // producer starts, with the new row table and PIO state already published.
+    for (uint i = 0; i < count_of(channels); i++)
+        hw_set_bits(&dma_hw->ch[channels[i]].al1_ctrl, DMA_CH0_CTRL_TRIG_EN_BITS);
+    pio_sm_set_enabled(lcd_pio, parallel_sm, true);
+    dma_channel_start(lcd_dma);
+#if PRESTO_LCD_TIMING_DMA
+    frame_time_us = time_us_32() + (TIMING_V_BACK * line_ns) / 1000;
+    dma_channel_start(timing_dma);
+    pio_sm_set_enabled(timing_pio, timing_sm, true);
+#endif
+}
+
 static void __not_in_flash_func(frame_start_isr)(void) {
     if (lcd_pio->irq & 0x2) {
         // start of frame (the front porch)
@@ -228,30 +288,11 @@ static void __not_in_flash_func(frame_start_isr)(void) {
             return;
         }
         resyncs++;
-        dma_channel_abort(lcd_dma2);
-        dma_channel_abort(lcd_dma);
-        dma_channel_wait_for_finish_blocking(lcd_dma);
-        pio_sm_set_enabled(lcd_pio, parallel_sm, false);
-        pio_sm_clear_fifos(lcd_pio, parallel_sm);
-        pio_sm_restart(lcd_pio, parallel_sm);
-        load_colours();
-        sm_exec(pio_encode_jmp(st7701_rgbe_offset_row_start));
-        pio_sm_set_enabled(lcd_pio, parallel_sm, true);
-        publish_rows();
+        restart_rows();
 #else
         // (the timing from an interrupt too: the rows restarted here, each frame)
         frame_time_us = now + display_offset_us;
-        dma_channel_abort(lcd_dma);
-        dma_channel_wait_for_finish_blocking(lcd_dma);
-        pio_sm_set_enabled(lcd_pio, parallel_sm, false);
-        pio_sm_clear_fifos(lcd_pio, parallel_sm);
-        pio_sm_restart(lcd_pio, parallel_sm);
-        load_colours();
-        sm_exec(pio_encode_jmp(st7701_rgbe_offset_row_start));
-        pio_sm_set_enabled(lcd_pio, parallel_sm, true);
-        publish_rows();
-        dma_hw->ch[lcd_dma2].read_addr = (uintptr_t) &row_table[1];
-        dma_channel_set_read_addr(lcd_dma, row_table[0], true);
+        restart_rows();
 #endif
         __sev();
     }
@@ -342,7 +383,10 @@ void board_display_init(const uint16_t *const *rows) {
 
     parallel_sm = pio_claim_unused_sm(lcd_pio, true);
     timing_sm = pio_claim_unused_sm(timing_pio, true);
-    uint timing_offset = pio_add_program(timing_pio, &st7701_timing_program);
+#if !PRESTO_LCD_TIMING_DMA
+    uint timing_offset;
+#endif
+    timing_offset = pio_add_program(timing_pio, &st7701_timing_program);
     // the pixel program has PIO1 to itself, at offset 0 (it jumps to absolute addresses). Never
     // panic here: this runs on core 1 while core 0 waits for it, so the board would just hang
     rgbe_ok = pio_can_add_program_at_offset(lcd_pio, &st7701_rgbe_program, 0);

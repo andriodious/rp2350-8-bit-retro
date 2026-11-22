@@ -18,7 +18,11 @@
 #define MEMP_NUM_TCP_SEG            32
 #define MEMP_NUM_PBUF               32              // the page goes out from flash, a pbuf per piece; several at once
 #define MEMP_NUM_ARP_QUEUE          10
-#define MEMP_NUM_SYS_TIMEOUT        (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 4)
+// One IPv4 mDNS interface can hold a probe/announce timer, three multicast
+// suppression timers, two delayed replies and one timer per stored TC question.
+// These are additional to lwIP's cyclic timers (including the shared TCP timer).
+// Leave two spare entries; exhaustion asserts even with an otherwise healthy heap.
+#define MEMP_NUM_SYS_TIMEOUT        (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 6 + MDNS_MAX_STORED_PKTS + 2)
 #define PBUF_POOL_SIZE              8               // incoming packets, ~1.5KB each
 #define LWIP_ARP                    1
 #define LWIP_ETHERNET               1
@@ -49,6 +53,7 @@
 #define LWIP_MDNS_RESPONDER         1
 #define LWIP_NUM_NETIF_CLIENT_DATA  1
 #define MDNS_MAX_SERVICES           1
+#define MDNS_MAX_STORED_PKTS        4
 
 #define MEM_STATS                   0
 #define SYS_STATS                   0

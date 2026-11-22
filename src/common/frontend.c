@@ -1,3 +1,4 @@
+#include "c64_abort_record.h"
 #include "startup_diag.h"
 #if NIMBUS_TEST
 #include "controller.h"
@@ -252,24 +253,24 @@ void frontend_poll(void) {
 }
 
 static void frontend_frame_once(void) {
-    boot_status_frame();
+    c64_abort_stage(1); boot_status_frame();
 #if NIMBUS_TEST
-    presto_preferences_restore();
+    c64_abort_stage(2); presto_preferences_restore();
 #endif
     static unsigned frames;
     if (frames < 100 && ++frames == 100) {
         boot_guard_ok();     // running: disarm the boot guard (boot_guard.c)
         startup_diag_mark(7);
     }
-    usb_poll();
-    api_frame();
-    drive0_frame();     // the save disc
+    c64_abort_stage(3); usb_poll();
+    c64_abort_stage(4); api_frame();
+    c64_abort_stage(5); drive0_frame();     // the save disc
 #if BOARD_HAS_NET
-    net_frame();
+    c64_abort_stage(6); net_frame();
 #endif
 #if NIMBUS_TEST
-    presto_bluetooth_frame();
-    controller_frame();
+    c64_abort_stage(7); presto_bluetooth_frame();
+    c64_abort_stage(8); controller_frame();
 #endif
 }
 
@@ -289,4 +290,5 @@ void frontend_frame(void) {
         sleep_ms(20);
     } while (true);
     if (paused) s_menu_paused_us += time_us_64() - entered;
+    c64_abort_stage(0);
 }

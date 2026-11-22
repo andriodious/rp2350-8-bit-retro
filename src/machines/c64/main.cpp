@@ -1,3 +1,4 @@
+#include "c64_abort_record.h"
 #include "startup_diag.h"
 #if C64_FULL_1581
 #include "drive_bridge.h"
@@ -66,12 +67,18 @@ static constexpr uint32_t DIAG_MAGIC=0x64360000;
 static bool recovery;
 static uint32_t previous_phase, previous_pc, previous_cfsr;
 static volatile bool fault_seen;
+#if C64_ABORT_DIAG
+extern "C" void c64_terminal_mark(void){fault_seen=true;}
+#endif
 static uint32_t trace_frames;
 static volatile uint32_t trace_rendered;
-static void phase(uint32_t n){if(!fault_seen)watchdog_hw->scratch[0]=DIAG_MAGIC|(n&255);}
+static void phase(uint32_t n){if(!fault_seen && !recovery)watchdog_hw->scratch[0]=DIAG_MAGIC|(n&255);}
 extern "C" void c64_network_phase(uint32_t n){phase(n);}
 extern "C" void c64_fault(uint32_t *frame){
     fault_seen=true;
+#if C64_ABORT_DIAG
+    if(c64_abort_valid(watchdog_hw->scratch[1]))for(;;)__wfi();
+#endif
     watchdog_hw->scratch[2]=frame[6];
     watchdog_hw->scratch[1]=scb_hw->cfsr;
     watchdog_hw->scratch[3]=scb_hw->bfar;
@@ -305,25 +312,48 @@ extern "C" void machine_drive_clean(){}
 static void __no_inline_not_in_flash_func(slow_flash)(){
     hw_write_masked(&qmi_hw->m[0].timing,(3u<<QMI_M0_TIMING_CLKDIV_LSB)|(2u<<QMI_M0_TIMING_RXDELAY_LSB),QMI_M0_TIMING_CLKDIV_BITS|QMI_M0_TIMING_RXDELAY_BITS);
 }
-int main(){
-    startup_diag_mark(0x201);
-    slow_flash();startup_diag_mark(0x202);
-    vreg_set_voltage(VREG_VOLTAGE_1_25);set_sys_clock_khz(250000,true);
-    startup_diag_mark(0x203);
+static void startup_phase(uint32_t n){
+    phase(n);
+#if C64_WATCHDOG
+    watchdog_update();
+#endif
+}
+static void c64_startup_init(){
+    // Capture the previous failure before watchdog_enable changes SDK scratch 4.
+    // The SDK starts the clk_ref watchdog tick before main; changing clk_sys
+    // below does not change its timeout, and it runs with interrupts disabled.
     recovery=watchdog_enable_caused_reboot() && (watchdog_hw->scratch[0]&0xffff0000u)==DIAG_MAGIC;
     previous_phase=watchdog_hw->scratch[0]&511;previous_pc=watchdog_hw->scratch[2];previous_cfsr=watchdog_hw->scratch[1];
     watchdog_disable();
-    stdio_init_all();startup_diag_mark(0x204);board_init();board_psram_init();c64_memory_init();
-    if(recovery){
-        printf("C64 RECOVERY phase=%lu pc=%08lx cfsr=%08lx\n",(unsigned long)previous_phase,(unsigned long)previous_pc,(unsigned long)previous_cfsr);
-        frontend_init();
-        for(;;){frontend_frame();sleep_ms(20);}
+    if(!recovery){
+        watchdog_hw->scratch[1]=0;watchdog_hw->scratch[2]=0;watchdog_hw->scratch[3]=0;
     }
-    watchdog_hw->scratch[0]=DIAG_MAGIC;watchdog_hw->scratch[1]=0;watchdog_hw->scratch[2]=0;watchdog_hw->scratch[3]=0;
-    phase(1);
+    phase(10); // Flash timing, including the first optional LED marker.
 #if C64_WATCHDOG
     watchdog_enable(8000,true);
 #endif
+    startup_diag_mark(0x201);
+    slow_flash();startup_diag_mark(0x202);
+    startup_phase(11); // Voltage / system clock.
+    vreg_set_voltage(VREG_VOLTAGE_1_25);set_sys_clock_khz(250000,true);
+    startup_diag_mark(0x203);
+    startup_phase(12); // USB stdio.
+    stdio_init_all();startup_diag_mark(0x204);
+    startup_phase(13);board_init();
+    startup_phase(14);board_psram_init();
+    startup_phase(15);c64_memory_init();
+    startup_phase(1); // Display preparation; give it a fresh full timeout.
+}
+int main(){
+    c64_startup_init();
+    if(recovery){
+        printf("C64 RECOVERY phase=%lu pc=%08lx cfsr=%08lx\n",(unsigned long)previous_phase,(unsigned long)previous_pc,(unsigned long)previous_cfsr);
+        frontend_init();
+        // Keep a healthy standalone recovery UI available indefinitely. phase()
+        // also preserves its original scratch evidence during Wi-Fi startup.
+        watchdog_disable();
+        for(;;){frontend_frame();sleep_ms(20);}
+    }
     memset(keys,255,8);memset(reverse_keys,255,8);
     for(int i=0;i<16;i++){
         uint32_t p=palette[i],v=((p>>8)&0xf800)|((p>>5)&0x07e0)|((p>>3)&0x1f),rev;
