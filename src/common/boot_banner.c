@@ -1,6 +1,7 @@
 // A bounded power-on banner. The upload staging area is idle until the HTTP
 // listener is enabled after this function returns. No permanent framebuffer RAM.
 #include "boot_banner.h"
+#include "c64_runtime_diag.h"
 #include "board.h"
 #include "drive.h"
 #include "machine_if.h"
@@ -477,6 +478,7 @@ static void status_present(void) {
     board_display_set_rows(table);
 }
 static void status_close(void) {
+    c64_runtime_diag_capture(C64_RUNTIME_DIAG_MENU_CLOSE_BEGIN, 0);
     setup_end();
 #if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
     touch_keyboard=false;
@@ -499,10 +501,12 @@ static void status_close(void) {
             audio_status_mute(false);
 #endif
             status_visible = false;
+    c64_runtime_diag_capture(C64_RUNTIME_DIAG_MENU_CLOSE_END, 0);
 
 }
 static bool status_open(void) {
     if(!status_allocate())return false;
+    c64_runtime_diag_capture(C64_RUNTIME_DIAG_MENU_OPEN_BEGIN, 0);
 #if NIMBUS_TEST
     controller_menu_capture(true);
 #endif
@@ -522,6 +526,7 @@ static bool status_open(void) {
             retire_display_table();board_display_backlight(255);
 #endif
             status_visible = true;
+    c64_runtime_diag_capture(C64_RUNTIME_DIAG_MENU_OPEN_END, 0);
 
     return true;
 }

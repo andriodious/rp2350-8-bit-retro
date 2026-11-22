@@ -1,4 +1,5 @@
 #include "firmware_identity.h"
+#include "c64_runtime_diag.h"
 #if NIMBUS_TEST
 #include "presto_bluetooth.h"
 #if BT_KEYBOARD_DISCOVERY
@@ -256,6 +257,9 @@ static void status_json(char *j, size_t size) {
 #endif
 #endif
     if(n>0 && (size_t)n<size){system_failure_json(j+n,size-n);n+=(int)strlen(j+n);}
+#if C64_RUNTIME_DIAG
+    if(n>0 && (size_t)n<size){c64_runtime_diag_summary_json(j+n,size-n);n+=(int)strlen(j+n);}
+#endif
     if (n > 0 && (size_t) n + 2 <= size) strcpy(j + n, "}");
 }
 
@@ -270,6 +274,20 @@ static void cmd_status(api_req_t *r) {
         printf("STATUS %s\n", j);
     }
 }
+
+#if C64_RUNTIME_DIAG
+static void cmd_c64_runtime(api_req_t *r) {
+    if (r->json) {
+        c64_runtime_diag_json(r->out, r->size);
+        r->code = 200;
+    } else {
+        size_t size;
+        char *j = api_buffer(&size);
+        c64_runtime_diag_json(j, size);
+        printf("C64_RUNTIME %s\n", j);
+    }
+}
+#endif
 
 #if MACHINE_C64 && WEBDIAG
 extern bool c64_watchdog_set(bool enabled);
@@ -721,6 +739,9 @@ static void cmd_spectrum_tape(api_req_t *r){
 
 static const api_cmd_t s_cmds[] = {
     {"status", NULL, false, cmd_status},
+#if C64_RUNTIME_DIAG
+    {"c64-runtime", NULL, false, cmd_c64_runtime},
+#endif
 #if MACHINE_SPECTRUM
     {"spectrum/tape", NULL, true, cmd_spectrum_tape},
 #endif

@@ -10,7 +10,7 @@ with tempfile.TemporaryDirectory() as tmp:
     source=source.replace('__asm("rbit %0, %1" : "=r"(pins) : "r"(rgb << 16));',
                           'pins = 0; for (unsigned bit=0; bit<16; bit++) pins |= ((rgb >> bit) & 1u) << (15-bit);')
     (d/'subject.c').write_text(source)
-    for name in ['boot_button.h','boot_logo.h','boot_setup.inc','boot_setup_keys.h','boot_touch_keys.h','boot_touch_keyboard.inc']:
+    for name in ['boot_button.h','boot_logo.h','boot_setup.inc','boot_setup_keys.h','boot_touch_keys.h','boot_touch_keyboard.inc','c64_runtime_diag.h']:
         (d/name).write_text((root/'src/common'/name).read_text())
     for name in ['system.h','api/api.h','boot_banner.h','board.h','drive.h','machine_if.h','net_if.h','pico/stdlib.h','hardware/watchdog.h','hardware/sync.h','firmware_identity.h','sound.h','controller.h','presto_bluetooth.h']:
         p=d/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('#include "mock.h"\n')

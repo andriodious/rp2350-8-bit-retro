@@ -1,4 +1,5 @@
 #include "c64_abort_record.h"
+#include "c64_runtime_diag.h"
 #include "startup_diag.h"
 #if C64_FULL_1581
 #include "drive_bridge.h"
@@ -346,6 +347,7 @@ static void c64_startup_init(){
 }
 int main(){
     c64_startup_init();
+    c64_runtime_diag_init();
     if(recovery){
         printf("C64 RECOVERY phase=%lu pc=%08lx cfsr=%08lx\n",(unsigned long)previous_phase,(unsigned long)previous_pc,(unsigned long)previous_cfsr);
         frontend_init();
@@ -369,6 +371,7 @@ int main(){
 #if C64_WATCHDOG
     watchdog_enable(8000,true);
 #endif
+    c64_runtime_diag_capture(C64_RUNTIME_DIAG_BOOT_READY, 0);
     uint64_t due=time_us_64(),stat=due,busy=0;unsigned frames=0;
     for(;;){
         if(install_hold){

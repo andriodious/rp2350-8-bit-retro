@@ -1,0 +1,131 @@
+{
+  "date": "2026-11-22",
+  "provenance": "Selected fields transcribed from user-supplied status/runtime reports and confirmations in this chat; not full raw reports.",
+  "c64_image": "634e4a505777a51f",
+  "disc": "Monkey_Island_v1.2.d81",
+  "turbo": false,
+  "sound": true,
+  "samples": [
+    {
+      "label": "before_volume_save",
+      "uptime_ms": 148092,
+      "frames": 4128,
+      "rendered": 4127,
+      "speed": 100,
+      "core0": 76,
+      "core1": 38,
+      "volume": 84,
+      "samples": 3640893,
+      "blocks": 23996,
+      "underruns": 2507099,
+      "free": 18632,
+      "flashWrites": 0,
+      "changed": 0
+    },
+    {
+      "label": "after_volume_save",
+      "uptime_ms": 183689,
+      "frames": 5613,
+      "rendered": 5612,
+      "speed": 99,
+      "core0": 73,
+      "core1": 37,
+      "volume": 82,
+      "samples": 4950662,
+      "blocks": 30122,
+      "underruns": 2762055,
+      "free": 18632,
+      "flashWrites": 1,
+      "changed": 0
+    },
+    {
+      "label": "settled_after_save",
+      "uptime_ms": 239608,
+      "frames": 8409,
+      "rendered": 8408,
+      "speed": 99,
+      "core0": 73,
+      "core1": 36,
+      "volume": 82,
+      "samples": 7416731,
+      "blocks": 39755,
+      "underruns": 2762092,
+      "free": 18632,
+      "flashWrites": 1,
+      "changed": 0
+    }
+  ],
+  "settled_interval": {
+    "seconds": 55.919,
+    "frames": 2796,
+    "rendered_frames": 2796,
+    "fps": 50.000894150467644,
+    "audio_samples": 2466069,
+    "additional_underruns": 37,
+    "underrun_audio_ms": 0.8390022675736961,
+    "memory_free_bytes": 18632
+  },
+  "runtime": {
+    "registers": {
+      "m0": [
+        1610641923,
+        299688,
+        235,
+        4096,
+        40962
+      ],
+      "m1": [
+        1614693122,
+        397994,
+        235,
+        4778,
+        56
+      ],
+      "xipCtrl": 2179,
+      "bootram": [
+        1750114817,
+        2287102097,
+        106776336,
+        0,
+        0
+      ],
+      "clocks": [
+        1,
+        65536,
+        397312,
+        125
+      ],
+      "devinfo": 3072
+    },
+    "values_identical_at_all_recorded_events": true,
+    "boot_ready_us": 8791426,
+    "menu_open_begin_us": 172593574,
+    "menu_open_end_us": 172678332,
+    "flash_begin_us": 177520956,
+    "flash_end_us": 177571579,
+    "flash_offset": 15732736,
+    "menu_close_begin_us": 178462726,
+    "menu_close_end_us": 178491934,
+    "live_us": 202068304,
+    "flashWrites": 1,
+    "changed": 0,
+    "lcd": [
+      18961,
+      0,
+      2,
+      1
+    ]
+  },
+  "user_confirmations": [
+    {
+      "question": "Does the sound now remain clear after the menu and volume change?",
+      "answer": "yes"
+    },
+    {
+      "request": "Please try a few repeated settings changes and physical resets before we checkpoint it.",
+      "answer": "confirmed"
+    }
+  ],
+  "scope": "C64 flash-save performance and audio plus repeated settings changes and physical resets verified. Counts of repeated saves/resets not specified. Other three payloads and launcher unchanged from preceding clean clock package; not newly hardware-tested in this sequence.",
+  "limitations": "Cumulative underruns include loading and intentional menu pauses. Settled result is not zero underruns. Runtime instrumentation retained in tested C64 binary. No claim that all possible audio faults are eliminated."
+}

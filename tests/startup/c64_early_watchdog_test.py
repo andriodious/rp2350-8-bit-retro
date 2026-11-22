@@ -38,6 +38,7 @@ prefix = r'''
 #include <cstdio>
 #include <cstring>
 #include "system.h"
+#include "c64_runtime_diag.h"
 static constexpr uint32_t DIAG_MAGIC = C64_DIAG_MAGIC;
 static constexpr uint32_t WATCHDOG_NON_REBOOT_MAGIC = 0x6ab73121u;
 static bool recovery, fault_seen;
