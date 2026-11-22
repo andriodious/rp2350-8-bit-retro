@@ -97,9 +97,9 @@ int main(void) {
 #endif
     startup_diag_mark(0x102);
     const system_settings_t *s = (const system_settings_t *) (XIP_NOCACHE_NOALLOC_BASE + BOARD_FLASH_SYSTEM_OFFSET);
-    // Power-on and external reset start Master. Watchdog/software restarts
-    // retain the selected machine for web switching and C64 recovery.
-    int slot = watchdog_caused_reboot() ? system_slot(system_settings_machine(s)) : SYSTEM_SLOT_MASTER;
+    // Retain the saved machine across power cycles as well as software resets.
+    // Invalid or absent settings resolve to Master.
+    int slot = system_slot(system_settings_machine(s));
     // Only an armed C64 watchdog failure triggers fallback, not a web restart.
     if (watchdog_enable_caused_reboot() && (watchdog_hw->scratch[0] & 0xffff0000u) == C64_DIAG_MAGIC) {
         watchdog_hw->scratch[0] = C64_RETURN_MAGIC | (watchdog_hw->scratch[0] & 511u);

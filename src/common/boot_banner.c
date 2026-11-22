@@ -59,13 +59,14 @@ static void pixel(uint32_t *fb, int x, int y, unsigned colour) {
     *p = (*p & ~(15u << shift)) | ((colour & 7u) << shift);
 #endif
 }
+static unsigned text_ink=7;
 static void text(uint32_t *fb, int x, int y, const char *s) {
     for (; *s && x + 10 <= 464; s++, x += 12) {
         const char *g = strchr(alphabet, toupper((unsigned char)*s));
         if (!g) continue;
         for (int yy = 0; yy < 7; yy++) for (int xx = 0; xx < 5; xx++)
             if (glyphs[g-alphabet][yy] & (16 >> xx)) {
-                pixel(fb, x+xx*2, y+yy, 7); pixel(fb, x+xx*2+1, y+yy, 7);
+                pixel(fb, x+xx*2, y+yy, text_ink); pixel(fb, x+xx*2+1, y+yy, text_ink);
             }
     }
 }
@@ -103,6 +104,22 @@ static void retire_display_table(void) {
         sleep_ms(1);
     }
 }
+// Publish only immutable SRAM pixels: PSRAM scanout can starve the LCD FIFO.
+#define BOOT_BANK_ROWS 128
+static bool boot_rows_pack(const uint32_t *src,uint32_t *bank,const uint16_t **rows) {
+    unsigned used=0;
+    for(unsigned y=0;y<BANNER_ROWS;y++) {
+        unsigned match=0;
+        for(;match<used;match++)if(!memcmp(bank+match*BOARD_DISPLAY_ROW_WORDS,src+y*BOARD_DISPLAY_ROW_WORDS,ROW_BYTES))break;
+        if(match==used) {
+            if(used==BOOT_BANK_ROWS)return false;
+            memcpy(bank+used++*BOARD_DISPLAY_ROW_WORDS,src+y*BOARD_DISPLAY_ROW_WORDS,ROW_BYTES);
+        }
+        rows[y*2]=rows[y*2+1]=(const uint16_t *)(bank+match*BOARD_DISPLAY_ROW_WORDS);
+    }
+    rows[BOARD_DISPLAY_HEIGHT]=NULL;
+    return true;
+}
 void boot_banner_show(void) {
     // Web machine switches use a watchdog restart: leave their network and
     // controller startup path untouched, and skip recovery restarts too.
@@ -113,6 +130,16 @@ void boot_banner_show(void) {
     if (!fb || !previous) return;
     const uint16_t **rows = malloc(2 * (BOARD_DISPLAY_HEIGHT + 1) * sizeof *rows);
     if (!rows) return; // Failure must never prevent the emulator from booting.
+    const size_t bank_bytes=2*BOOT_BANK_ROWS*ROW_BYTES;
+#if BOOT_STATUS_TRIAL && (MACHINE_C64 || MACHINE_SPECTRUM)
+    // Rendering has not started; borrow and preserve the existing SRAM framebuffer.
+    uint32_t *banks=machine_status_framebuffer(true);
+    void *saved=board_psram()+board_psram_size()-BOARD_STATUS_BYTES;
+    memcpy(saved,banks,bank_bytes);
+#else
+    uint32_t *banks=malloc(bank_bytes);
+    if(!banks){free(rows);return;}
+#endif
     const unsigned words = BANNER_ROWS * BOARD_DISPLAY_ROW_WORDS;
     uint32_t *buffers[2] = {fb, fb + words};
     const uint16_t **tables[2] = {rows, rows + BOARD_DISPLAY_HEIGHT + 1};
@@ -142,6 +169,7 @@ void boot_banner_show(void) {
     strcpy(last_value, value); strcpy(last_line, line);
     // Never expose an old emulator scanline/cursor while changing row tables.
     board_display_backlight(0);
+    if(!boot_rows_pack(fb,banks,rows))goto restore_banner;
     board_display_set_rows(rows);
     retire_display_table();
     board_display_backlight(255);
@@ -167,6 +195,7 @@ void boot_banner_show(void) {
             unsigned next = active ^ 1u;
             memcpy(buffers[next], buffers[active], BANNER_ROWS * ROW_BYTES);
             status(buffers[next], value, line);
+            if(!boot_rows_pack(buffers[next],banks+next*BOOT_BANK_ROWS*BOARD_DISPLAY_ROW_WORDS,tables[next]))break;
             board_display_set_rows(tables[next]);
             // The previous buffer must leave DMA before it can be drawn into.
             retire_display_table();
@@ -184,10 +213,21 @@ void boot_banner_show(void) {
         if (now >= minimum_until && network_done) break;
         sleep_ms(20);
     } while (true);
+restore_banner:
     board_display_backlight(0);
+#if BOOT_STATUS_TRIAL && (MACHINE_C64 || MACHINE_SPECTRUM)
+    // Stop scanning borrowed pixels before restoring them.
+    board_display_set_rows(previous);
+    retire_display_table();
+    memcpy(banks,saved,bank_bytes);
+    machine_status_framebuffer(false);
+#endif
     board_display_set_rows(previous);
     retire_display_table();
     board_display_backlight(255);
+#if !(BOOT_STATUS_TRIAL && (MACHINE_C64 || MACHINE_SPECTRUM))
+    free(banks);
+#endif
     free(rows);
 }
 
@@ -219,9 +259,9 @@ _Static_assert(2 * BANNER_ROWS * ROW_BYTES + TITLE_LIMIT * TITLE_NAME_BYTES <= B
 static unsigned title_count, title_selected;
 static bool chooser, chooser_dirty, title_limit, fire_armed;
 static bool machine_chooser;
+static bool touch_select;
 static unsigned machine_selected;
 static const char *const machine_ids[]={"master","beeb","c64","spectrum"};
-static const char *const machine_labels[]={"BBC MASTER 128","BBC MICRO","COMMODORE 64","ZX SPECTRUM 48K"};
 static int held_direction;
 static uint32_t repeat_at;
 static void *title_iterator;
@@ -258,9 +298,8 @@ static int title_compare(const void *a,const void *b){return strcasecmp(a,b);}
 static void titles_begin(void) {
     titles_end();machine_chooser=false;title_count=title_selected=0;title_limit=false;load_error=NULL;
     held_direction=0;fire_armed=false;
-    unsigned directions;bool fire;
-    chooser=joystick_state(&directions,&fire);
-    if(chooser){title_iterator=board_sd_discs_begin();if(!title_iterator)chooser=false;}
+    chooser=true;
+    title_iterator=board_sd_discs_begin();
 }
 static void titles_poll(void) {
     if(!title_iterator)return;
@@ -275,7 +314,7 @@ static void titles_poll(void) {
     }
     if(!title_iterator){
         qsort(titles(),title_count,TITLE_NAME_BYTES,title_compare);
-        if(!title_count)chooser=false;
+
         chooser_dirty=true;
     }
 }
@@ -294,66 +333,84 @@ static bool status_allocate(void) {
     return true;
 }
 
+static void box(uint32_t *fb,int x,int y,int w,int h,unsigned fill,unsigned edge) {
+    for(int yy=0;yy<h;yy++)for(int xx=0;xx<w;xx++)
+        pixel(fb,x+xx,y+yy,(xx==0||xx==w-1||yy==0||yy==h-1)?edge:fill);
+}
+static void ui_button(uint32_t *fb,int x,int y,int w,int h,const char *label,unsigned fill) {
+    box(fb,x,y,w,h,fill,7);
+    text_ink=fill==3?0:7;
+    text(fb,x+(w-(int)strlen(label)*12)/2,y+(h-7)/2,label);
+    text_ink=7;
+}
+static void centred_text(uint32_t *fb,int y,const char *label,bool bold) {
+    int width=(int)strlen(label)*12-2+(bold?1:0);
+    int x=(480-width)/2;
+    text(fb,x,y,label);
+    if(bold)text(fb,x+1,y,label);
+}
+static void slider(uint32_t *fb,unsigned y,unsigned value) {
+    box(fb,20,y,440,6,0,7);
+    for(unsigned yy=y+1;yy<y+5;yy++)for(unsigned x=21;x<21+value*438/100;x++)pixel(fb,x,yy,3);
+    box(fb,20+value*420/100,y-3,20,12,7,3);
+}
 static void status_draw(unsigned buffer) {
-    uint32_t *fb = (uint32_t *)(board_psram() + board_psram_size() - BOARD_STATUS_BYTES);
-    (void)buffer;
-    fb += BANNER_ROWS * BOARD_DISPLAY_ROW_WORDS;
+    uint32_t *fb=(uint32_t *)(board_psram()+board_psram_size()-BOARD_STATUS_BYTES);
+    (void)buffer;fb+=BANNER_ROWS*BOARD_DISPLAY_ROW_WORDS;
     memset(fb,0,BANNER_ROWS*ROW_BYTES);
 #if !MACHINE_C64 && !MACHINE_SPECTRUM
     for(unsigned y=0;y<BANNER_ROWS;y++)fb[(y+1)*BOARD_DISPLAY_ROW_WORDS-1]=BOARD_DISPLAY_ROW_END;
 #endif
+    ui_button(fb,8,214,148,24,"PREVIOUS",0);
+    ui_button(fb,166,214,148,24,"NEXT",0);
+    ui_button(fb,324,214,148,24,"EXIT",4);
+    char line[64];
     if(machine_chooser) {
-        text(fb,20,15,"SELECT MACHINE");
-        for(unsigned i=0;i<4;i++) {
-            unsigned y=48+i*28;
-            if(i==machine_selected)
-                for(unsigned yy=y-2;yy<y+9;yy++)for(unsigned x=8;x<14;x++)pixel(fb,x,yy,6);
-            text(fb,20,y,machine_labels[i]);
-        }
-        text(fb,20,190,"UP/DOWN: CHOOSE  A/ENTER: SELECT");
-        text(fb,20,211,"BOOT: STATUS SCREEN");
-        text(fb,20,227,"EMULATION PAUSED");
+        centred_text(fb,8,"CONFIGURATION",true);
+        const char *labels[]={"BBC MASTER","BBC MICRO","COMMODORE 64","ZX SPECTRUM"};
+        for(unsigned i=0;i<4;i++)ui_button(fb,12+(i%2)*234,28+(i/2)*34,222,30,labels[i],i==machine_selected?3:0);
+        bool on,led,locks;unsigned vol,bright;
+        audio_get(&on,&vol);board_leds_get(&led,&bright,&locks);
+        ui_button(fb,12,104,170,24,on?"SOUND ON":"SOUND OFF",0);
+        snprintf(line,sizeof line,"VOLUME %u",vol);text(fb,200,113,line);slider(fb,139,vol);
+        ui_button(fb,12,158,170,24,led?"LEDS ON":"LEDS OFF",0);
+        snprintf(line,sizeof line,"BRIGHTNESS %u",bright);text(fb,200,167,line);slider(fb,193,bright);
         return;
     }
     if(chooser) {
-        text(fb,20,15,"SD TITLES");
-        char line[64];
-        if(title_iterator)text(fb,20,40,"READING SD CARD...");
+        centred_text(fb,6,"SD TITLES",true);text(fb,20,19,machine_name());
+        if(title_iterator)text(fb,20,70,"READING SD CARD...");
+        else if(!title_count)text(fb,20,70,"NO COMPATIBLE SD TITLES");
         else {
-            unsigned start=(title_selected/8)*8;
-            for(unsigned i=start;i<title_count && i<start+8;i++) {
-                unsigned y=42+(i-start)*18;
-                if(i==title_selected) {
-                    for(unsigned yy=y-2;yy<y+9;yy++)for(unsigned x=8;x<14;x++)pixel(fb,x,yy,6);
-                }
-                snprintf(line,sizeof line,"%.36s",titles()[i]);text(fb,20,y,line);
+            unsigned start=(title_selected/5)*5;
+            for(unsigned i=start;i<title_count&&i<start+5;i++) {
+                snprintf(line,sizeof line,"%.35s",titles()[i]);
+                ui_button(fb,12,35+(i-start)*25,456,22,line,i==title_selected?3:0);
             }
-            snprintf(line,sizeof line,"%u / %u%s",title_selected+1,title_count,title_limit?" - LIST LIMIT":"");
-            text(fb,20,190,line);
+            snprintf(line,sizeof line,"%u OF %u",title_selected+1,title_count);text(fb,170,166,line);
         }
-        text(fb,20,211,"UP/DOWN: CHOOSE  A/ENTER: LOAD");
-        text(fb,20,227,"BOOT: MACHINE SELECTOR");
+        ui_button(fb,8,183,148,24,"UP",0);ui_button(fb,166,183,148,24,"DOWN",0);ui_button(fb,324,183,148,24,"BOOT",3);
         return;
     }
-    text(fb, 20, 15, "8-BIT RETRO STATUS");
-    char line[64], value[48], joystick[64];
-    snprintf(line, sizeof line, "MACHINE: %s", machine_name()); text(fb, 20, 36, line);
-    text(fb, 20, 54, "IMAGE " RETRO_IMAGE_ID);
-    unsigned c0, c1, speed; machine_perf_get(&c0, &c1, &speed);
-    snprintf(line, sizeof line, "SPEED %u / CPU %u / %u", speed, c0, c1); text(fb, 20, 75, line);
-    read_status(value, sizeof value, joystick, sizeof joystick);
-    status(fb, value, joystick);
-    text(fb, 20, 192, "WEB: 8BITRETRO.LOCAL");
-    text(fb, 20, 211, "BOOT: RETURN TO EMULATOR");
-    text(fb, 20, 227, load_error ? load_error : "EMULATION PAUSED");
+    centred_text(fb,8,"SYSTEM STATUS",true);
+    snprintf(line,sizeof line,"MACHINE: %s",machine_name());text(fb,20,33,line);
+    text(fb,20,52,"IMAGE " RETRO_IMAGE_ID);
+    // The paused status page has its own compact layout; startup reserves space for the logo.
+    char value[48],joystick[64];read_status(value,sizeof value,joystick,sizeof joystick);
+    text(fb,20,76,"DHCP IP ADDRESS");text(fb,20,89,value);
+    const char *keyboard=strchr(joystick,'\n');
+    snprintf(line,sizeof line,"%.*s",keyboard?(int)(keyboard-joystick):(int)strlen(joystick),joystick);
+    text(fb,20,115,line);
+    if(keyboard)text(fb,20,134,keyboard+1);
+    box(fb,12,175,456,30,0,7);centred_text(fb,180,"8BITRETRO.LOCAL",false);centred_text(fb,195,load_error?load_error:"EMULATION PAUSED",false);
 }
 static void status_present(void) {
     const uint32_t *staged=(const uint32_t *)(board_psram()+board_psram_size()-BOARD_STATUS_BYTES);
     staged+=BANNER_ROWS*BOARD_DISPLAY_ROW_WORDS;
     uint32_t *bank=status_sram+status_active*STATUS_BANK_ROWS*BOARD_DISPLAY_ROW_WORDS;
     const uint16_t **table=runtime_rows+status_active*(BOARD_DISPLAY_HEIGHT+1);
-    // Blank scanlines share one immutable SRAM row. Only nonblank text rows
-    // consume space, so two complete screens fit without large SRAM buffers.
+    // Identical scanlines share immutable SRAM rows, including button fills
+    // and borders, so two complete screens fit without large SRAM buffers.
     memset(bank,0,ROW_BYTES);
 #if !MACHINE_C64 && !MACHINE_SPECTRUM
     bank[BOARD_DISPLAY_ROW_WORDS-1]=BOARD_DISPLAY_ROW_END;
@@ -365,9 +422,14 @@ static void status_present(void) {
         for(unsigned x=0;x<BOARD_DISPLAY_ROW_WORDS-1;x++)nonblank|=src[x]!=0;
         const uint32_t *row=bank;
         if(nonblank) {
-            if(used>=STATUS_BANK_ROWS){status_active^=1u;return;} // Never publish an incomplete table.
-            row=bank+used++*BOARD_DISPLAY_ROW_WORDS;
-            memcpy((void *)row,src,ROW_BYTES);
+            // Repeated button borders/fills share immutable rows, preserving SRAM budget.
+            unsigned match=1;
+            for(;match<used;match++)if(!memcmp(bank+match*BOARD_DISPLAY_ROW_WORDS,src,ROW_BYTES))break;
+            if(match==used) {
+                if(used>=STATUS_BANK_ROWS){status_active^=1u;return;}
+                memcpy(bank+used++*BOARD_DISPLAY_ROW_WORDS,src,ROW_BYTES);
+            }
+            row=bank+match*BOARD_DISPLAY_ROW_WORDS;
         }
         table[y*2]=table[y*2+1]=(const uint16_t *)row;
     }
@@ -377,7 +439,7 @@ static void status_present(void) {
     board_display_set_rows(table);
 }
 static void status_close(void) {
-    titles_end();chooser=false;machine_chooser=false;
+    titles_end();chooser=false;machine_chooser=false;touch_select=false;
 #if NIMBUS_TEST
     controller_menu_capture(false);
 #endif
@@ -442,6 +504,40 @@ void boot_status_frame(void) {
     uint32_t frame = board_display_frames();
     // Allow the previous scanout table/buffer to retire without blocking audio.
     if ((uint32_t)(frame - status_frame) < 2) return;
+    static bool touch_held;
+    unsigned tx=0,ty=0;bool touched=board_touch(&tx,&ty);
+    bool tap=touched&&!touch_held;touch_held=touched;ty/=2;
+    if(tap&&!status_visible)pending_toggle=true;
+    else if(status_visible&&touched) {
+        if(tap&&ty>=214) {
+            if(tx>=320){status_close();return;}
+            if(tx>=160)pending_toggle=true;
+            else if(machine_chooser){titles_begin();chooser_dirty=true;}
+            else if(!chooser){machines_begin();}
+            else {status_close();return;}
+        } else if(machine_chooser) {
+            if(tap&&ty>=28&&ty<92){machine_selected=((ty-28)/34)*2+(tx>=246);if(machine_selected>3)machine_selected=3;fire_armed=true;touch_select=true;}
+            else if((ty>=104&&ty<151)||(ty>=154&&ty<205)) {
+                bool on,led,locks;unsigned vol,bright;char args[32];
+                audio_get(&on,&vol);board_leds_get(&led,&bright,&locks);
+                bool sound=ty<151;
+                if(((sound&&ty<128)||(!sound&&ty<182)) && tx<182) {
+                    if(tap){snprintf(args,sizeof args,"%s",sound?(on?"off":"on"):(led?"off":"screen"));api_req_t r={.args=args};api_call(sound?"sound":"ambient",&r);chooser_dirty=true;}
+                } else if((sound&&ty>=130)||(!sound&&ty>=184)) {
+                    unsigned value=tx<=20?0:tx>=460?100:(tx-20)*100/440;
+                    if(value!=(sound?vol:bright)){snprintf(args,sizeof args,"%s %u",sound?"vol":"bright",value);api_req_t r={.args=args};api_call(sound?"sound":"ambient",&r);chooser_dirty=true;}
+                }
+            }
+        } else if(tap&&chooser&&!title_iterator&&ty>=183&&ty<207) {
+            if(tx<160&&title_selected)title_selected--;
+            else if(tx>=160&&tx<320&&title_selected+1<title_count)title_selected++;
+            else if(tx>=320&&title_count){fire_armed=true;touch_select=true;}
+            chooser_dirty=true;
+        } else if(tap&&chooser&&!title_iterator&&ty>=35&&ty<160) {
+            unsigned selected=(title_selected/5)*5+(ty-35)/25;
+            if(selected<title_count){title_selected=selected;chooser_dirty=true;}
+        }
+    }
     if (pending_toggle) {
         pending_toggle = false;
         if(status_visible && chooser) {
@@ -454,7 +550,7 @@ void boot_status_frame(void) {
     }
     if(status_visible && machine_chooser) {
         unsigned directions=0;bool fire=false;
-        joystick_state(&directions,&fire);
+        joystick_state(&directions,&fire);fire|=touch_select;touch_select=false;
         if(!fire)fire_armed=true;
         int direction=(directions&1)?-1:((directions&2)?1:0);
         if(direction && (direction!=held_direction || (int32_t)(now-repeat_at)>=0)) {
@@ -479,9 +575,8 @@ void boot_status_frame(void) {
     if(status_visible && chooser) {
         titles_poll();
         unsigned directions=0;bool fire=false;
-        if(!joystick_state(&directions,&fire)) {
-            titles_end();chooser=false;chooser_dirty=true;
-        } else if(!title_iterator && title_count) {
+        joystick_state(&directions,&fire);fire|=touch_select;touch_select=false;
+        if(!title_iterator && title_count) {
             if(!fire)fire_armed=true;
             int direction=(directions&1)?-1:((directions&2)?1:0);
             if(direction && (direction!=held_direction || (int32_t)(now-repeat_at)>=0)) {

@@ -50,6 +50,7 @@ function(board_setup TARGET)
             ${BOARD_DIR}/presto_board.c     # board_init
             ${BOARD_DIR}/presto_lcd.c       # the panel: 4-bit rows, scanned out by PIO and DMA
             ${BOARD_DIR}/presto_psram.c
+            ${BOARD_DIR}/presto_touch.c
             ${BOARD_DIR}/presto_sd.c        # the SD card and the disc in drive 0
             ${BOARD_DIR}/fatfs/ff.c
             ${BOARD_DIR}/fatfs/ffunicode.c
@@ -66,7 +67,7 @@ function(board_setup TARGET)
             BOARD_FLASH_SAVE_SHIFT=${BOARD_FLASH_SAVE_SHIFT}
             CYW43_HOST_NAME="8bitretro")     # its DHCP name; it also answers as 8bitretro.local (mDNS)
     target_link_libraries(${TARGET} PRIVATE
-            hardware_pio hardware_dma hardware_spi hardware_pwm hardware_adc hardware_flash pico_flash
+            hardware_i2c hardware_pio hardware_dma hardware_spi hardware_pwm hardware_adc hardware_flash pico_flash
             pico_cyw43_arch_lwip_poll   # WiFi, polled from core 0 (presto_net.c)
             pico_lwip_mdns)
 

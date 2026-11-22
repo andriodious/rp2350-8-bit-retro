@@ -90,6 +90,7 @@ bool board_leds_due(void);
 void board_leds_update(void);
 bool board_leds_ready(void);        // whether they started
 // the settings: the screen's colours on, the brightness (percent), CAPS LOCK / SHIFT LOCK shown
+bool board_touch(unsigned *x, unsigned *y);
 void board_leds_get(bool *on, unsigned *bright, bool *locks);
 void board_leds_set(int on, int bright, int locks);      // -1 leaves one as it is
 // "!leds [off|screen|test|bright <percent>|locks on|locks off]": the state ("LEDS ..."), or change it

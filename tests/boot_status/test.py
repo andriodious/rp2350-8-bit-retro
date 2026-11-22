@@ -49,11 +49,15 @@ static unsigned keyboard_directions;
 static unsigned joystick_directions,sd_count,sd_cursor;
 static const char *sd_names[8];
 static bool load_ok=true;
+static bool touching;static unsigned touch_x,touch_y;
+static bool board_touch(unsigned *x,unsigned *y){*x=touch_x;*y=touch_y;return touching;}
+static void audio_get(bool *on,unsigned *vol){*on=true;*vol=20;}
+static void board_leds_get(bool *on,unsigned *bright,bool *locks){*on=true;*bright=40;*locks=false;}
 static bool launched=true,switch_ok=true;
-static char switched[16];
+static char switched[16],last_command[16],last_args[32];
 typedef struct {const char *args,*from;bool json;int code;} api_req_t;
 static bool system_launched(void){return launched;}
-static bool api_call(const char *name,api_req_t *r){(void)name;snprintf(switched,sizeof switched,"%s",r->args);r->code=switch_ok?200:500;return true;}
+static bool api_call(const char *name,api_req_t *r){snprintf(last_command,sizeof last_command,"%s",name);snprintf(last_args,sizeof last_args,"%s",r->args);snprintf(switched,sizeof switched,"%s",r->args);r->code=switch_ok?200:500;return true;}
 
 static char loaded[256];
 static bool controller_menu_state(unsigned *d,bool *f){*d=joystick_online?joystick_directions:0;*f=joystick_online&&joystick_fire;return joystick_online;}
@@ -101,6 +105,11 @@ static void __dmb(void){}
 #include "subject.c"
 static void step(bool pressed, uint32_t ms, uint32_t f){down=pressed;now_ms=ms;frames=f;boot_status_frame();}
 int main(void){
+ // Cold-start banner must fit its compact SRAM banks and restore the borrowed framebuffer.
+ for(unsigned i=0;i<272*241;i++)sram_pixels[i]=0x13579bdf;
+ boot_banner_show();
+ assert(display==emulator&&!render_held&&now_ms>=3000);
+ for(unsigned i=0;i<272*241;i++)assert(sram_pixels[i]==0x13579bdf);
  boot_button_t b={0};
  assert(!boot_button_press(&b,true,0)); // held on boot
  assert(!boot_button_press(&b,true,1000));
@@ -118,6 +127,7 @@ int main(void){
  assert(render_held);
  assert((const uint32_t *)display[0]>=sram_pixels);
 #endif
+ chooser=false;
  const uint16_t *const *first=display;
  for(unsigned i=0;i<sizeof ram-BOARD_STATUS_BYTES;i++)assert(ram[i]==0xa5);
  for(unsigned bank=status_active;bank<=status_active;bank++){
@@ -186,7 +196,7 @@ int main(void){
  titles_begin();status_open();load_ok=false;
  step(false,3500,275);step(false,3540,277);joystick_fire=true;
  step(false,3600,280);assert(status_visible && !chooser && load_error);
- status_close();sd_count=0;titles_begin();assert(!chooser);
+ status_close();sd_count=0;titles_begin();assert(chooser);
  // A full chooser page must fit, and drawing the next screen leaves the live bank untouched.
  sd_count=8;for(unsigned i=0;i<8;i++)sd_names[i]="ABCDEFGHgjpqy.tap";
  titles_begin();status_open();titles_poll();
@@ -222,6 +232,44 @@ int main(void){
  joystick_directions=1;step(false,5100,455);assert(machine_selected==2);
  joystick_directions=0;joystick_fire=true;step(false,5200,460);
  assert(!status_visible&&!captured&&!strcmp(switched,"c64"));
+ // Touch alone opens menus, advances to configuration and exits.
+ joystick_online=false;keyboard_online=false;joystick_fire=false;keyboard_fire=false;
+ touching=true;touch_x=200;touch_y=200;step(false,5300,465);assert(status_visible&&chooser);
+ touching=false;step(false,5400,470);
+ touching=true;touch_x=240;touch_y=456;step(false,5500,475);assert(machine_chooser);
+ touching=false;step(false,5560,478);
+ touching=true;touch_x=240;touch_y=280;step(false,5600,480);
+ assert(!strcmp(last_command,"sound")&&!strcmp(last_args,"vol 50"));
+ touching=false;step(false,5620,482);
+ touching=true;touch_x=350;touch_y=380;step(false,5640,484);
+ assert(!strcmp(last_command,"ambient")&&!strcmp(last_args,"bright 75"));
+ touching=false;step(false,5660,486);
+ touching=true;touch_x=50;touch_y=224;step(false,5680,488);
+ assert(!strcmp(last_command,"sound")&&!strcmp(last_args,"off"));
+ touching=false;step(false,5700,490);
+ touching=true;touch_x=50;touch_y=324;step(false,5720,492);
+ assert(!strcmp(last_command,"ambient")&&!strcmp(last_args,"off"));
+ touching=false;step(false,5740,494);
+ touching=true;touch_x=440;touch_y=456;step(false,5760,496);assert(!status_visible&&!captured);
+ // Touch file rows highlight only; Select explicitly loads the highlighted title.
+ touching=false;step(false,5800,500);touching=true;touch_x=200;touch_y=200;
+ step(false,5840,502);touching=false;step(false,5880,504);
+ loaded[0]=0;touching=true;touch_x=100;touch_y=130;step(false,5920,506);
+ assert(title_selected==1&&status_visible&&!loaded[0]);
+ touching=false;step(false,5960,508);touching=true;touch_x=400;touch_y=390;
+ step(false,6000,510);assert(!status_visible&&loaded[0]);
+ // Every rendered row must reach scanout, even with filled button backgrounds.
+ for(unsigned page=0;page<3;page++) {
+   chooser=page==0;machine_chooser=page==1;title_count=8;title_selected=1;
+   status_draw(status_active);status_present();
+   const uint32_t *staged=(const uint32_t *)(board_psram()+board_psram_size()-BOARD_STATUS_BYTES)+BANNER_ROWS*BOARD_DISPLAY_ROW_WORDS;
+   for(unsigned y=0;y<240;y++)assert(!memcmp(display[y*2],staged+y*BOARD_DISPLAY_ROW_WORDS,ROW_BYTES));
+#if MACHINE_MASTER
+   const char *dir=getenv("MENU_PREVIEW_DIR");
+   if(dir){char path[512];snprintf(path,sizeof path,"%s/menu-%u.ppm",dir,page);FILE *f=fopen(path,"wb");assert(f);fprintf(f,"P6\n480 480\n255\n");
+     for(unsigned y=0;y<480;y++)for(unsigned x=0;x<480;x++){unsigned c=(((const uint32_t *)display[y])[x/8]>>((x%8)*4))&7;unsigned char rgb[3]={c&4?255:0,c&2?255:0,c&1?255:0};fwrite(rgb,1,3,f);}fclose(f);}
+#endif
+ }
  launched=false;machines_begin();assert(!machine_chooser);
 #if !MACHINE_C64 && !MACHINE_SPECTRUM
  free(status_sram);
