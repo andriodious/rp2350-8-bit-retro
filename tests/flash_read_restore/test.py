@@ -17,7 +17,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--baseline', type=Path,
-                    default=ROOT.parent / 'c64-d81-runtime-diag-20261122/src/common/mem.c')
+                    default=HERE / 'fixtures/mem-before-restore.c')
 parser.add_argument('--log-dir', type=Path, default=ROOT / 'build-runtime-diag')
 args = parser.parse_args()
 subject = ROOT / 'src/common/mem.c'
