@@ -13,8 +13,7 @@ it keeps the normal three-second display. A 30-second network timeout allows
 offline boot; joystick connection never holds up boot. The banner is always
 visible for at least three seconds. Web machine switches and watchdog recovery skip the banner entirely, retaining
 the normal network/controller startup path. Recovery paths without
-an initialized display safely skip it. This does not change the Master power-on
-default or machine-specific controller settings.
+an initialized display safely skip it. The selected machine is remembered across power cycles; per-machine controller settings are retained.
 
 The renderer temporarily uses the idle disk-upload staging area in PSRAM and a
 small heap-allocated pair of row tables. Status changes are rendered into an
@@ -40,7 +39,7 @@ An optional output filename produces a 480x480 PPM from the actual renderer for
 visual inspection. The host test verifies display-row layout and terminators,
 framebuffer bounds, three-second display duration, restoration, warm-reboot bypass and inactive-buffer updates.
 Hardware validation should cover cold boot with/without Wi-Fi, a paired Nimbus
-both on and off, and switching between all three machines after boot.
+both on and off, and switching between all four machines after boot.
 
 Hardware testing of the IP-wait banner firmware was reported successful by the
 project owner on 4 November 2026. The tested package was

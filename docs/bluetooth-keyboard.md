@@ -4,13 +4,15 @@ BBC Master 128, BBC Model B, Commodore 64 and ZX Spectrum 48K support a Classic 
 
 ## Pair and reconnect
 
-Disconnect the keyboard from its Mac/iPad or other host, switch it on and press Connect to enter pairing mode. In the web Bluetooth keyboard pane, Scan for keyboards, select the matching name/address and Connect. Stop scan cancels discovery. Follow any displayed PIN instructions. A connected address is displayed without needing manual address entry.
+Disconnect the keyboard from its Mac/iPad or other host, switch it on and press Connect to enter pairing mode. In touchscreen System Status → Keyboard Setup, or the web Bluetooth keyboard pane, Scan for keyboards, select the matching name/address and Connect. Stop scan cancels discovery. Follow any displayed PIN instructions. A connected address is displayed without needing manual address entry.
 
-Pairing is remembered across machine switches and power cycles, independently of Nimbus. Keyboard and joystick startup wait for Wi-Fi readiness. A sleeping keyboard may need a keypress and time to reconnect. Reconnect resumes after Disconnect; Forget removes remembered pairing. Keep the keyboard nearby during discovery.
+First-time Bluetooth use requires Wi-Fi credentials saved once using the [USB Wi-Fi setup guide](presto/wifi.md), because this build initialises the radio through network startup. The network may then be unavailable; touchscreen and SD operation need no Wi-Fi configuration.
+
+Pairing is remembered across machine switches and power cycles, independently of Nimbus. Keyboard and joystick give Wi-Fi an initial opportunity to connect. An explicit Wi-Fi failure or 30 seconds without an address releases Bluetooth for offline use; automatic Wi-Fi retries do not block it again. A sleeping keyboard may need a keypress and time to reconnect. Reconnect resumes after Disconnect; Forget removes remembered pairing. Keep the keyboard nearby during discovery.
 
 ## Per-machine mappings
 
-Open Key mappings, Add mapping, press one physical Bluetooth key, then click the desired key on the emulator keyboard. Release the physical key. Capture suppresses input until release, can be cancelled, and times out after 60 seconds. Up to 32 overrides per machine are saved; adding an existing source replaces it. Select a mapping and Delete mapping to restore default handling. Reset/joystick controls are not valid mapping destinations. Nimbus Game controls remain separate.
+Open Key mappings, Add mapping, press one physical Bluetooth key, then select the desired emulator key in the touchscreen destination list or web keyboard. Release the physical key. Capture suppresses input until release, can be cancelled, and times out after 60 seconds. Up to 32 overrides per machine are saved; adding an existing source replaces it. Select a mapping and Delete mapping to restore default handling. Reset/joystick controls are not valid mapping destinations. Nimbus Game controls remain separate.
 
 ## Troubleshooting and rollback
 
@@ -18,6 +20,17 @@ An empty discovery chooser means no selectable keyboard has been found; ensure p
 
 The settings format is v2 with whole-record integrity and imports previous v1 settings. Older firmware cannot read v2 settings and rollback may require re-pairing and reapplying preferences. No new save-disc overwrite payload is included in normal combined firmware.
 
-## BOOT SD and machine selectors (v0.7.0)
+## Touchscreen and BOOT menus (v0.8.0)
 
-With a keyboard connected and compatible titles on the SD card, press BOOT to browse using Up/Down and load with Return (or keypad Enter). A joystick is optional. These menu keys work independently of saved emulator key mappings. The emulator pauses while the chooser is open, and held keys must be released before they can reach the resumed game. Press BOOT again for the machine selector, again for status, and once more to resume. The machine selector uses the same Up/Down and Return controls, initially highlights the current machine, and restarts into a different selected machine. Selecting the current machine resumes it without restarting.
+Tap the emulator for its touchscreen keyboard; SETTINGS opens SD Titles. Physical
+BOOT opens SD Titles directly, without requiring any connected input device.
+Use touch, keyboard arrows/Return (or keypad Enter), or Nimbus directions/A to
+navigate and select. The settings sequence is SD Titles, Configuration, System
+Status, then the emulator. PREVIOUS/NEXT/EXIT also navigate these pages. System
+Status contains dedicated joystick and keyboard setup screens.
+
+Menu keys work independently of saved emulator key mappings. Emulation pauses
+in menus, and held menu keys must be released before reaching the resumed game.
+Selecting the current machine resumes it; selecting another saves preferences
+and restarts into that machine, which is remembered for the next power-on.
+See the [touchscreen guide](touchscreen.md).

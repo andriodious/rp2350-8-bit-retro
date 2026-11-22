@@ -9,9 +9,9 @@ experiment. Original Git history, source notices and licence files are retained.
 
 ## Download and try it
 
-**[Download v0.7.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.7.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
+**[Download v0.8.0 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.8.0/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
 
-See the **[v0.7.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.7.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing, open **http://8bitretro.local/** or the IP address shown at power-on. Existing Wi-Fi settings are retained.
+See the **[v0.8.0 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.8.0)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing and power cycling, tap the screen to use the machine keyboard or press BOOT to browse SD titles. The web interface at **http://8bitretro.local/** remains optional. Existing Wi-Fi settings are retained.
 
 ## Machines and features
 
@@ -22,13 +22,16 @@ See the **[v0.7.0 release and first-time setup instructions](https://github.com/
 | Commodore 64 PAL | FRANK C64 / Frodo | D64/D81, T64/P00 programs and supported CRT cartridges through SD/web | Joystick port 1/2 or keyboard mappings |
 | ZX Spectrum 48K | Pinned [chips fork](https://github.com/andriodious/chips) | SNA/Z80 snapshots and TAP/TZX tapes through SD/web | Kempston joystick/fire or keyboard mappings |
 
-- Select the machine, load disks and use its keyboard from the web interface.
+- Operate all four machines directly from the touchscreen: enter keys, load SD titles, switch machines, adjust sound and LEDs, and configure Bluetooth devices. No browser, keyboard or joystick is required for menu selection.
+- Keyboard and Nimbus menu controls still work; the web interface remains available for uploads, remote controls and diagnostics.
 - Classic Bluetooth keyboard support on all four machines, with scanning, remembered pairing, automatic reconnection and up to 32 custom key mappings per machine.
 - Sound output, volume controls and ambient LEDs on supported builds.
 - Original SteelSeries Nimbus support: pairing, saved per-machine mappings,
   dead zone/inversion controls and reconnection across machine switches.
 - Tested C64 optimisations: CPU/VIC code in SRAM, packed pixel conversion and
   overlapping emulation/display conversion. The RP2350 clock remains 250 MHz.
+
+Version **v0.8.0** makes Presto usable independently of the web interface. Touch opens a full machine keyboard; SETTINGS opens SD titles, machine/audio/LED configuration and system status, with dedicated joystick and keyboard setup screens. Wi-Fi failure no longer leaves the keyboard waiting indefinitely. All four machines passed hardware testing, including offline and restored Wi-Fi, both Bluetooth devices and web responsiveness.
 
 Version **v0.7.0** adds Bluetooth keyboard SD selection and a BOOT machine selector. Use Up/Down and Return, or Nimbus Up/Down and A/Fire, to load a title or switch machines without the web page. The exact clean GitHub build was hardware-verified on all four machines, including BOOT cycling, keyboard/Nimbus reconnection, sound and web responsiveness.
 
@@ -40,17 +43,19 @@ Kempston controls. Reset returns to BASIC; Restart Elite loads the built-in snap
 Elite, Manic Miner TZX and YU_SKOOL TAP have been tested on hardware. This is a
 48K machine; 128K snapshots and every possible TZX encoding are not supported.
 
-Press **BOOT** for the SD chooser when a Bluetooth keyboard is connected, or a joystick is enabled
-and connected, and compatible titles are present on the SD card. Keyboard **Up/Down**
-browses and **Return** loads the selection; joystick Up/Down and Nimbus **A** or
-mapped Fire also work. A second BOOT press shows the machine selector, using the same
-Up/Down and Return or A/Fire controls. Selecting the current machine resumes it;
-selecting another saves settings and restarts into it. A third BOOT press shows
-status; a fourth returns to the emulator. Without eligible titles or a connected input device, BOOT toggles status directly.
-Emulation pauses and audio is temporarily muted while these screens are open;
-the web interface stays available. All four machines have been verified without
-chooser/status flickering. Sound, volume, LEDs and brightness are remembered per
-machine, alongside controller mappings.
+### Touchscreen and BOOT controls
+
+- **Tap the running emulator** to open its keyboard. Tap a key to resume and send that keypress. **SHIFT OFF/ON** changes the legends and the next keypress; **KEYS / MORE KEYS** opens additional keys where available. **RESET** resets the emulator; **SETTINGS** opens SD Titles.
+- **Press physical BOOT** to open SD Titles directly. Tap a filename to load it, or use **UP**, **DOWN** and **BOOT**. The **KEYBOARD** button returns to key entry.
+- **NEXT** opens Configuration: choose a machine, toggle sound or LEDs, and adjust volume or brightness. LED changes apply immediately. The selected machine is remembered for the next power-on; selecting the current machine resumes it.
+- **NEXT** again opens System Status, including **JOYSTICK SETUP** and **KEYBOARD SETUP**. Pair, reconnect or forget devices, configure game controls and add/delete keyboard mappings on the Presto itself. Diagnostics remain web-only.
+- **PREVIOUS / NEXT / EXIT** navigate the settings screens. Repeated physical BOOT presses cycle **SD Titles → Configuration → System Status → emulator**.
+
+Keyboard arrows/Return and Nimbus directions/A or mapped Fire remain available.
+Emulation pauses and audio is temporarily muted in menus; the web interface stays
+responsive. Closing a menu resumes at normal speed without carrying menu keys into
+the game. Sound, volume, LEDs, brightness and input mappings are saved per machine.
+See the [touchscreen guide](docs/touchscreen.md).
 
 Version v0.3.0 adds read-only C64 `.t64` loading from SD or web upload, with a program selector for multi-entry archives. See [T64 support and limitations](docs/c64-t64.md).
 
@@ -63,7 +68,7 @@ image, choose **N** when asked to use its fastloader.
 
 <img src="presto-nimbus-elite.jpeg" alt="Pimoroni Presto running Elite with an original SteelSeries Nimbus controller" width="480">
 
-### On-screen keyboards
+### Web keyboards
 
 **Commodore 64** — front-face graphics, function keys and joystick controls.
 
@@ -72,6 +77,21 @@ image, choose **N** when asked to use its fastloader.
 **ZX Spectrum 48K** — grey keys, rainbow case stripe and Kempston controls.
 
 ![Current Spectrum 48K on-screen keyboard](spectrum-web-keyboard.png)
+
+### Touchscreen controls — BBC Master examples
+
+Captures from the firmware's screen renderer, with example SD filenames and
+connection states. These are the same layouts shown on the Presto; the status
+example demonstrates Bluetooth connected while Wi-Fi is unavailable.
+
+| Keyboard input | SD game selection |
+|---|---|
+| ![Master touchscreen keyboard with Shift and Settings](docs/images/master-touch-keyboard.png) | ![Master SD game selector with Boot and navigation buttons](docs/images/master-touch-sd-titles.png) |
+
+| Machine, sound and LED settings | System status and Bluetooth setup |
+|---|---|
+| ![Touchscreen configuration with four machines and volume and brightness sliders](docs/images/master-touch-configuration.png) | ![Master system status with joystick and keyboard setup buttons](docs/images/master-touch-status.png) |
+
 
 ## Gameplay videos
 
@@ -94,7 +114,7 @@ https://github.com/user-attachments/assets/648c8668-27c7-495a-b540-f22d90917808
 Start in the extracted release source folder or clone this repository:
 
 ```sh
-git clone --branch v0.6.0 https://github.com/andriodious/rp2350-8-bit-retro.git
+git clone --branch v0.8.0 https://github.com/andriodious/rp2350-8-bit-retro.git
 cd rp2350-8-bit-retro
 ```
 
@@ -108,7 +128,7 @@ On Debian/Raspberry Pi OS, add `--apt` to the setup command if host packages nee
 installing. Setup downloads the pinned compiler/SDK, BBC assets and dependencies;
 C64 configuration fetches the pinned FRANK fork and checksum-verified Elite image.
 Spectrum uses the pinned chips fork; its Elite snapshot is downloaded and checksum-verified during configuration, rather than stored in Git.
-The source archive contains no downloaded game images, ROM set or Wi-Fi secrets.
+The source archive contains no downloaded commercial game images, commercial ROM set or Wi-Fi secrets. The licensed OpenSE ROM and synthetic tape test fixtures remain included.
 
 Result: **`build-release/rp2350-8-bit-retro-presto.uf2`** containing the launcher and
 all four machines. Sound, ambient LEDs, Classic Bluetooth keyboard and original Nimbus support are enabled;
@@ -119,9 +139,8 @@ for options and an explanation of the legacy build entry points.
 
 1. Hold the Presto's BOOT button, tap RESET and release BOOT to expose its USB drive.
 2. Copy `rp2350-8-bit-retro-presto.uf2` to that drive.
-3. Use the existing Wi-Fi setup procedure in [the Presto network guide](docs/presto/wifi.md)
-   if Wi-Fi has not been configured. Existing Wi-Fi settings are retained.
-4. Open `http://8bitretro.local/` or the device's IP address, then select a machine.
+3. Power cycle. Tap the display for key entry, or press BOOT to load a title from SD and open settings.
+4. Wi-Fi is optional for local operation. For web access, follow [the Presto network guide](docs/presto/wifi.md), then open `http://8bitretro.local/` or the startup IP address. Existing credentials are retained. Bluetooth currently also needs Wi-Fi credentials saved once to initialise the radio; the network itself may be unavailable. Local touch and SD menus need no Wi-Fi configuration.
 
 After flashing this version, use `8bitretro.local` instead of the previous
 `beeb.local` or interim `retro8bit.local` address. Saved Wi-Fi credentials are retained.
@@ -131,7 +150,7 @@ profiles from test 3 onwards are retained. Refresh the browser after updating.
 
 ## Controller setup
 
-In **Nimbus controller**, pair the original Nimbus once. Under **Game controls**,
+On the Presto, open **SETTINGS → NEXT → NEXT → JOYSTICK SETUP**, or use the web **Nimbus controller** pane, and pair the original Nimbus once. Under **Game controls**,
 choose Default mappings or configure your own, then Apply controls. Each machine
 saves its own configuration. Defaults use left stick/D-pad and A for fire, BBC
 joystick 1 or C64 port 2. Games may need their own joystick option enabled.
@@ -144,9 +163,9 @@ Machine switches cleanly close Bluetooth before restarting. See the detailed
 ## Bluetooth keyboard setup
 
 1. Disconnect the keyboard from other computers/tablets and put it in pairing mode (usually its Connect button).
-2. Open **Bluetooth keyboard**, click **Scan for keyboards**, choose the matching name or address, then **Connect**. **Stop scan** ends discovery early. If a pairing PIN is shown, follow the displayed instructions.
+2. On the Presto, open **SETTINGS → NEXT → NEXT → KEYBOARD SETUP**, or use the web **Bluetooth keyboard** pane. Scan for keyboards, choose the matching name or address, then **Connect**. **Stop scan** ends discovery early. If a pairing PIN is shown, follow the displayed instructions.
 3. The pairing is remembered. The keyboard and Nimbus reconnect independently after a power cycle or machine switch. A sleeping keyboard may need a keypress to wake before reconnecting. **Reconnect** resumes after an explicit Disconnect; **Forget** removes the remembered pairing.
-4. Under **Key mappings**, click **Add mapping**, press a key on the Bluetooth keyboard, then click its destination on the emulator keyboard. Release the physical key after mapping. Choose a saved mapping and **Delete mapping** to restore that key's normal behaviour.
+4. Under **Key mappings**, choose **Add mapping**, press a key on the Bluetooth keyboard, then choose its destination from the touchscreen key list or web emulator keyboard. Release the physical key after mapping. Choose a saved mapping and **Delete mapping** to restore that key's normal behaviour.
 
 Mappings are saved separately for Master, BBC Model B, C64 and Spectrum. Up to 32
 overrides are supported per machine; unmapped keys retain their default mapping.
@@ -162,13 +181,14 @@ these records, so rolling back can require re-pairing devices and restoring sett
 
 ## Status and contributions
 
-The v0.6.0 firmware is the exact clean GitHub build verified on all four machines,
-from `reference/four-machine-clean-verified-20261114`. Keyboard and Nimbus
-reconnection, retained mappings, C64 highlighting, sound and web responsiveness
-were confirmed on Presto. See the [verification record](checkpoints/four-machine-clean-verified-20261114.md).
+The v0.8.0 download is the exact combined firmware tested on all four machines,
+from `reference/four-machine-touch-offline-20261122`, without a release-time rebuild.
+Startup screens, touchscreen menus, Master pause/resume and immediate LED updates
+passed, followed by keyboard and Nimbus reconnection with Wi-Fi unavailable and
+restored. See the [verification record](checkpoints/four-machine-touch-offline-20261122/verification.json).
 Compatibility with every game, Bluetooth keyboard or controller is not implied.
 
-See [release notes](docs/releases/v0.6.0.md), [credits](CREDITS.md), and
+See [release notes](docs/releases/v0.8.0.md), [credits](CREDITS.md), and
 [contribution guidance](CONTRIBUTING.md). The inherited [upstream README](UPSTREAM-README.md)
 and technical documents remain available as historical and engineering references.
 

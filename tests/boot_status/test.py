@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the real status renderer/toggle code with mocked board IO, under sanitizers."""
 from pathlib import Path
-import subprocess, tempfile
+import subprocess, tempfile, os
 root = Path(__file__).resolve().parents[2]
 with tempfile.TemporaryDirectory() as tmp:
     d=Path(tmp)
@@ -128,6 +128,11 @@ static void *menu_test_malloc(size_t bytes){
 #define malloc menu_test_malloc
 
 ''')
+    if os.environ.get('MENU_PREVIEW_IMAGE_ID'):
+        mock=d/'mock.h'
+        image=os.environ['MENU_PREVIEW_IMAGE_ID']
+        assert len(image)==16 and all(c in '0123456789abcdef' for c in image)
+        mock.write_text(mock.read_text().replace('#define RETRO_IMAGE_ID "trial"', '#define RETRO_IMAGE_ID "'+image+'"'))
     (d/'test.c').write_text(r'''
 #include <assert.h>
 #include "subject.c"
@@ -296,6 +301,13 @@ int main(void){
  // Every rendered row must reach scanout, even with filled button backgrounds.
  for(unsigned page=0;page<3;page++) {
    chooser=page==0;machine_chooser=page==1;title_count=8;title_selected=1;
+#if MACHINE_MASTER
+   if(getenv("MENU_PREVIEW_DIR")) {
+     mock_machine="master";keyboard_online=true;title_count=5;
+     const char *examples[]={"Arcadians.ssd","Elite.ssd","Frak.ssd","Repton3.ssd","Snapper.ssd"};
+     for(unsigned i=0;i<5;i++)snprintf(titles()[i],TITLE_NAME_BYTES,"%s",examples[i]);
+   }
+#endif
    status_draw(status_active);status_present();
    const uint32_t *staged=(const uint32_t *)(board_psram()+board_psram_size()-BOARD_STATUS_BYTES)+BANNER_ROWS*BOARD_DISPLAY_ROW_WORDS;
    for(unsigned y=0;y<240;y++)assert(!memcmp(display[y*2],staged+y*BOARD_DISPLAY_ROW_WORDS,ROW_BYTES));
