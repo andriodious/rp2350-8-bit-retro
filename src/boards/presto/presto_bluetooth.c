@@ -326,7 +326,7 @@ int presto_bluetooth_command(const char *s) {
         controller_keyboard_map_set(map);keyboard_host_command("capture-cancel",false);return 200;
     }
     if(!strncmp(s,"keyboard ",9)){
-        bool available=!scanning&&!connecting&&net_boot_has_address();
+        bool available=!scanning&&!connecting&&net_bluetooth_ready();
 #if BT_KEYBOARD_DISCOVERY
         available &= !keyboard_discovery_busy();
 #endif
@@ -340,7 +340,7 @@ int presto_bluetooth_command(const char *s) {
 #if BT_KEYBOARD_DISCOVERY
     if(!strcmp(s,"keyboard-stop")){keyboard_discovery_stop();return 200;}
     if(!strcmp(s,"keyboard-scan")){
-        if(scanning||connecting||!net_boot_has_address())return 409;
+        if(scanning||connecting||!net_bluetooth_ready())return 409;
         return keyboard_discovery_start();
     }
     if(keyboard_discovery_busy())return 409;
@@ -416,14 +416,15 @@ static void bluetooth_frame(bool save) {
     }
 #endif
 #if BT_KEYBOARD_CLASSIC
-    keyboard_host_frame(net_boot_has_address()&&!scanning&&!connecting,save);
+    keyboard_host_frame(net_bluetooth_ready()&&!scanning&&!connecting,save);
     if(keyboard_host_busy())return;
 #endif
     uint32_t now=now_ms();
     // Wi-Fi joins asynchronously. Do not page an absent controller while the
-    // shared radio is scanning/associating or waiting for DHCP. Incoming links
+    // shared radio is initially scanning/associating or waiting for DHCP.
+    // Failure/timeout releases both devices for offline use. Incoming links
     // remain enabled; no retry deadline or failure count changes while waiting.
-    if(!net_boot_has_address())return;
+    if(!net_bluetooth_ready())return;
     if(!nimbus_retry_due(ready,reconnect,scanning||connecting||connected||cid,now,retry_at))return;
     if(!remembered(selected))return;
     connecting=true;attempts++;
@@ -439,7 +440,7 @@ const char *presto_bluetooth_boot_status(void) {
     if (connected || connecting) return "CONNECTING";
     if (!store_started) return "NOT STARTED";
     if (!remembered(saved)) return "NOT PAIRED";
-    if(ready && reconnect && !net_boot_has_address())return "WAITING FOR WIFI";
+    if(ready && reconnect && !net_bluetooth_ready())return "WAITING FOR WIFI";
     return ready ? "SEARCHING" : "STARTING";
 }
 
@@ -469,7 +470,7 @@ void presto_bluetooth_json(char *out,size_t size) {
     char list[768];size_t used=0;list[0]=0;
     for(unsigned i=0;i<count;i++)used+=snprintf(list+used,sizeof list-used,"%s\"%s %s\"",i?",":"",bd_addr_to_str(devices[i]),names[i]);
     snprintf(out,size,",\"bluetooth\":{\"address\":\"%s\",\"build\":8,\"page_timeout_ms\":2560,\"wifi_wait\":%s,\"retry_streak\":%u,\"last_failure\":%u,\"last_failure_phase\":%u,\"last_failure_ms\":%lu,\"reconnect_enabled\":%s,\"retry_ms\":%u,\"attempts\":%u,\"incoming\":%u,\"failures\":%u,\"remembered\":%s,\"save_error\":%s,\"save_pending\":%s,\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
-        connected?bd_addr_to_str(selected):"",(reconnect&&!connected&&!net_boot_has_address())?"true":"false",retry_streak,last_failure,last_failure_phase,(unsigned long)last_failure_ms,reconnect?"true":"false",wait_ms,attempts,incoming_count,failures,bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
+        connected?bd_addr_to_str(selected):"",(reconnect&&!connected&&!net_bluetooth_ready())?"true":"false",retry_streak,last_failure,last_failure_phase,(unsigned long)last_failure_ms,reconnect?"true":"false",wait_ms,attempts,incoming_count,failures,bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
         (long)axes[0],(long)axes[1],(long)axes[2],(long)axes[3],(long)buttons[0],(long)buttons[1],(long)buttons[2],(long)buttons[3],(long)buttons[4],(long)buttons[5],(long)buttons[6],(long)buttons[7],(long)hat,(long)menu,(long)dpad[0],(long)dpad[1],(long)dpad[2],(long)dpad[3]);
 #if BT_KEYBOARD_DISCOVERY
     size_t keyboard_n=strlen(out);
@@ -494,7 +495,7 @@ void presto_bluetooth_json(char *out,size_t size) {
 const char *presto_keyboard_boot_status(void) {
 #if BT_KEYBOARD_CLASSIC
  const char *status=keyboard_host_boot_status();
- if(!strcmp(status,"SEARCHING")&&!net_boot_has_address())return "WAITING FOR WIFI";
+ if(!strcmp(status,"SEARCHING")&&!net_bluetooth_ready())return "WAITING FOR WIFI";
  return status;
 #else
  return "DISABLED IN BUILD";

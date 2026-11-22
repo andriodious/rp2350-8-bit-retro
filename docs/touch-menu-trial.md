@@ -146,3 +146,27 @@ SHA-256: `de5b7324ae013619ff8669f0a9cc17869a46c2987b8e53f39a3542aa8cdd5701`.
 | spectrum | 4d7122c6958a01e8 |
 
 Previous reference tags and artifacts are preserved. Published v0.7.0 is unchanged.
+
+## Offline Bluetooth candidate — 22 November 2026
+
+User report: Nimbus accepts a connection when Wi-Fi/DHCP fails, but the keyboard
+remains WAITING FOR WIFI. Incoming Classic links were permitted; outgoing
+keyboard and joystick reconnection still required an IP address indefinitely.
+
+A shared network readiness rule now releases outgoing Bluetooth on a successful
+IP address, an explicit Wi-Fi failure, or 30 seconds without an address. With no
+saved Wi-Fi credentials there is no wait. Once offline access is released,
+automatic Wi-Fi retries do not block Bluetooth again; obtaining an address resets
+the grace period for a later outage. Keyboard discovery, manual pairing and
+startup status text use the same rule. Existing discovery/connection arbitration
+and retry backoff are preserved.
+
+Tests cover DHCP timeout, network failure, offline retries, restored Wi-Fi, absent
+credentials, radio arbitration and timer wrap. Keyboard host, discovery, mapping
+and machine-key tests pass. Hardware verification is pending; the verified
+touchscreen checkpoint and v0.7.0 are unchanged.
+
+Hardware verification completed on 22 November 2026: the user confirmed all four
+machines passed with Wi-Fi unavailable and restored, including keyboard, Nimbus
+and web responsiveness. The exact offline Bluetooth UF2 is the v0.8.0 release
+candidate; see `checkpoints/four-machine-touch-offline-20261122/verification.json`.

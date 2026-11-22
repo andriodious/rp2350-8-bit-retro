@@ -17,6 +17,8 @@ void net_boot_poll(void);   // connect without accepting uploads during the boot
 void net_boot_status(char *out, size_t size);
 bool net_boot_configured(void);
 bool net_boot_has_address(void);
+// Give Wi-Fi first use of the radio, but allow Bluetooth when offline.
+bool net_bluetooth_ready(void);
 void net_poll(void);        // whenever core 0 has a moment: move packets
 void net_frame(void);       // between frames: act on requests
 // /api/status's network part: ',"wifi":"...","fetch":{...}' (a JSON fragment, leading comma)

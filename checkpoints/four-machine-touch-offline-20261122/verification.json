@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-22",
+  "hardware_verified": true,
+  "reported_by": "user",
+  "uf2_sha256": "0c6a58e377763e207b0d8318764ddc117e83ca97c39b28babe525d0621bf7661",
+  "images": {
+    "master": {
+      "RETRO_IMAGE_ID": "2cf31602a06c3aa3",
+      "RETRO_LAUNCHER_SHA256": "4f64f88f7b5f22f9d7f0409459142639f6a7045db5d71802d2757f2f14d868fa"
+    },
+    "beeb": {
+      "RETRO_IMAGE_ID": "6a25a8b00355717c",
+      "RETRO_LAUNCHER_SHA256": "4f64f88f7b5f22f9d7f0409459142639f6a7045db5d71802d2757f2f14d868fa"
+    },
+    "c64": {
+      "RETRO_IMAGE_ID": "d5a0b0f35ac7fc51",
+      "RETRO_LAUNCHER_SHA256": "4f64f88f7b5f22f9d7f0409459142639f6a7045db5d71802d2757f2f14d868fa"
+    },
+    "spectrum": {
+      "RETRO_IMAGE_ID": "b5f29f2a5190c981",
+      "RETRO_LAUNCHER_SHA256": "4f64f88f7b5f22f9d7f0409459142639f6a7045db5d71802d2757f2f14d868fa"
+    }
+  },
+  "tests": [
+    "Master, BBC Micro, C64 and Spectrum passed",
+    "Startup banner and BBC BOOT/touch menus",
+    "Master normal pause/resume",
+    "Immediate menu LED settings",
+    "Keyboard and Nimbus reconnect with Wi-Fi unavailable",
+    "Restored Wi-Fi, both devices and web responsiveness"
+  ],
+  "previous_reference": "reference/four-machine-touch-keyboard-20261122",
+  "reference": "reference/four-machine-touch-offline-20261122",
+  "firmware_rebuilt": false
+}
