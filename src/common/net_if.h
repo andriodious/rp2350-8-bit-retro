@@ -31,7 +31,7 @@ bool net_wifi_save(const char *ssid, const char *pass);
 void net_restart(bool after_reply);
 
 bool net_boot_has_address(void);
-// Release Bluetooth after DHCP, absent credentials, join failure or 30s timeout.
+// Release Bluetooth after DHCP, absent credentials or the full 30s timeout.
 bool net_bluetooth_ready(void);
 
 #ifdef __cplusplus

@@ -94,7 +94,9 @@ mappings. Controls are saved separately for Master and BBC Micro. Diagnostic
 reports and downloads remain web-only.
 
 Bluetooth initially waits for Wi-Fi to finish joining, but no saved credentials,
-a failed join or a 30-second timeout releases both devices for offline use.
+or a 30-second timeout releases both devices for offline use. A failed join
+still waits for the full timeout. Bluetooth is powered up only after that gate
+opens, preventing incoming connections and scans from bypassing the wait.
 
 ### Behaviour and resources
 

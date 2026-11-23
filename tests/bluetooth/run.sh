@@ -18,3 +18,4 @@ $CC -fsanitize=address,undefined -I tests/bluetooth/discovery_stubs -I src/board
 "$TMP/discovery"
 python3 tests/bluetooth/keyboard_map_command_test.py
 python3 tests/bluetooth/wifi_gate_test.py
+python3 tests/bluetooth/startup_gate_test.py

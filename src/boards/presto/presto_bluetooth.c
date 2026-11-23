@@ -371,7 +371,7 @@ int presto_bluetooth_command(const char *s) {
         return gap_inquiry_stop()?500:200;
     }
     if(!strcmp(s,"scan")) {
-        if(scanning||connecting||connected)return 409;
+        if(scanning||connecting||connected||!net_bluetooth_ready())return 409;
         reconnect=false;count=0;error=gap_inquiry_start(8);scanning=error==0;return error?500:200;
     }
     if(!strcmp(s,"disconnect")) {
@@ -389,7 +389,7 @@ int presto_bluetooth_command(const char *s) {
     if(!strncmp(s,"connect ",8)) {
         char *end; long i=strtol(s+8,&end,10);
         if(end==s+8||*end||i<0||(unsigned)i>=count)return 400;
-        if(scanning||connecting||connected)return 409;
+        if(scanning||connecting||connected||!net_bluetooth_ready())return 409;
 #if BT_KEYBOARD_CLASSIC
         bd_addr_t ka;link_key_t kk;uint8_t kt;
         if(keyboard_store_bond(ka,kk,&kt)&&!memcmp(ka,devices[i],6))return 409;
@@ -440,7 +440,7 @@ const char *presto_bluetooth_boot_status(void) {
     if (connected || connecting) return "CONNECTING";
     if (!store_started) return "NOT STARTED";
     if (!remembered(saved)) return "NOT PAIRED";
-    if(ready && reconnect && !net_bluetooth_ready())return "WAITING FOR WIFI";
+    if(reconnect && !net_bluetooth_ready())return "WAITING FOR WIFI";
     return ready ? "SEARCHING" : "STARTING";
 }
 
@@ -500,7 +500,7 @@ void presto_bluetooth_json(char *out,size_t size) {
 const char *presto_keyboard_boot_status(void) {
 #if BT_KEYBOARD_CLASSIC
  const char *status=keyboard_host_boot_status();
- if(!strcmp(status,"SEARCHING")&&!net_bluetooth_ready())return "WAITING FOR WIFI";
+ if((!strcmp(status,"SEARCHING")||!strcmp(status,"STARTING"))&&!net_bluetooth_ready())return "WAITING FOR WIFI";
  return status;
 #else
  return "DISABLED IN BUILD";
