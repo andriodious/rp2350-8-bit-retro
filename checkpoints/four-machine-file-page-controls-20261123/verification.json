@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-23",
+  "hardware_verified": true,
+  "reported_by": "user",
+  "user_confirmation": "All four machines passed. Paging and file selection work with touch, keyboard and Nimbus, including the first and last pages. Sound and menu resume are fine.",
+  "machines": [
+    "master",
+    "beeb",
+    "c64",
+    "spectrum"
+  ],
+  "checks": [
+    "PG-UP/PG-DOWN paging and file selection with touch, keyboard and Nimbus",
+    "First and last pages",
+    "Sound",
+    "Menu resume"
+  ],
+  "firmware": {
+    "file": "retro8bit-file-page-controls-test.uf2",
+    "sha256": "5953b72cce192dfe3a26d1523357d21c9217ff8ddde01970aaf93d65a8200b8d",
+    "bytes": 7733248
+  },
+  "components": {
+    "launcher": {
+      "image": null,
+      "sha256": "77b712d1cfaa97a505bc01c844fcecd6b448c1996ea546c19403779f45612a0b"
+    },
+    "master": {
+      "image": "818b6eff1732e463",
+      "sha256": "81fbba4f66c988f78be121e2f41a572a6939dc82b6c75d8a30753018424d9c2a"
+    },
+    "beeb": {
+      "image": "ff23dc0af19613d4",
+      "sha256": "a6da97fb0e11d70a08230e2399b8a87d31636d317638476e068f995800e8d000"
+    },
+    "c64": {
+      "image": "68489f61f0400ff9",
+      "sha256": "efeaae05eb99c8aa811d1dbc3c0f7150da645f214cae4ab68552ccb5b5a00eff"
+    },
+    "spectrum": {
+      "image": "f90a561634f94615",
+      "sha256": "7f306acff15a1fa4cf776b012fd0feaa9c431ca535cc9f78639fcbe89f9b421d"
+    }
+  },
+  "validation": {
+    "host_menu_sanitizers": "PASS on master, beeb, c64, spectrum",
+    "combined_payload_blocks": 15104,
+    "firmware_packaging": "PASS",
+    "c64_static_ram_headroom_bytes": 26808,
+    "c64_static_ram_floor_bytes": 26624,
+    "source_and_build_option_audit": "PASS; only menu source, documentation and host tests changed; per-machine non-path options match verified build",
+    "launcher_difference": "One embedded date byte: Nov 22 2026 to Nov 23 2026; executable code and partitions unchanged"
+  },
+  "base_commit": "44227eb9e47ee4c5e9aee72f31433e6e68ab895a",
+  "reference_tag": "reference/four-machine-file-page-controls-20261123",
+  "firmware_rebuilt": false,
+  "original_test_archive": "artifacts/file-page-controls-20261123",
+  "verified_archive": "artifacts/four-machine-file-page-controls-20261123",
+  "v0.9.1_unchanged": true,
+  "previous_checkpoints_unchanged": true,
+  "scope_note": "User-confirmed checks above; no new individual status samples or reset counts supplied."
+}

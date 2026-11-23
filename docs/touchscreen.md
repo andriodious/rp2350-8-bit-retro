@@ -10,7 +10,7 @@ On the keyboard, tap a key to return to the emulator and send that keypress. SHI
 
 ## SD Titles
 
-Tap a title to boot it immediately, or move with UP/DOWN and press BOOT. Keyboard Up/Down and Return, or Nimbus Up/Down and A/Fire, perform the same selection. KEYBOARD returns to key entry. NEXT opens Configuration; EXIT resumes the existing title. Compatible files are filtered for the current machine.
+Tap a title to boot it immediately. PG-UP and PG-DOWN scroll one page of five titles at a time; keyboard or Nimbus Left/Right also change pages. The highlighted row is kept where possible, and paging stops at the first or last page. Keyboard or Nimbus Up/Down select individual files; Return, A/Fire or the on-screen BOOT button loads the highlighted title. KEYBOARD returns to key entry. NEXT opens Configuration; EXIT resumes the existing title. Compatible files are filtered for the current machine.
 
 ## Configuration
 

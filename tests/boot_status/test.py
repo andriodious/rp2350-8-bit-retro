@@ -50,7 +50,7 @@ static bool down,muted,render_held,joystick_online,joystick_fire,captured;
 static bool keyboard_online,keyboard_fire;
 static unsigned keyboard_directions;
 static unsigned joystick_directions,sd_count,sd_cursor;
-static const char *sd_names[8];
+static const char *sd_names[240];
 static bool load_ok=true;
 static bool touching;static unsigned touch_x,touch_y;
 static bool board_touch(unsigned *x,unsigned *y){*x=touch_x;*y=touch_y;return touching;}
@@ -137,6 +137,87 @@ static void *menu_test_malloc(size_t bytes){
 #include <assert.h>
 #include "subject.c"
 static void step(bool pressed, uint32_t ms, uint32_t f){down=pressed;now_ms=ms;frames=f;boot_status_frame();}
+
+// Exercise paging through the real frame/input path, with enough elapsed scanout
+// frames to make every input observable on all four display implementations.
+static void page_frame(unsigned elapsed_ms){step(false,now_ms+elapsed_ms,frames+4);}
+static void page_start(unsigned count){
+ static char names[240][24];
+ if(status_visible)status_close();
+ touching=false;joystick_online=keyboard_online=false;
+ joystick_directions=keyboard_directions=0;joystick_fire=keyboard_fire=false;
+ page_frame(40);sd_count=count;
+ for(unsigned i=0;i<count;i++){
+  snprintf(names[i],sizeof names[i],"Title%03u.tap",i);sd_names[i]=names[i];
+ }
+ titles_begin();assert(status_open());while(title_iterator)titles_poll();
+ loaded[0]=0;load_ok=true;page_frame(40);
+ assert(status_visible&&chooser&&title_count==count&&!loaded[0]);
+}
+static void page_tap(unsigned x,unsigned y){
+ touching=false;page_frame(40);
+ touch_x=x;touch_y=y;touching=true;page_frame(40);
+ touching=false;page_frame(40);
+}
+static void file_page_tests(void){
+ // Page edges clamp by displayed page, including short/empty lists. Keeping
+ // an in-page highlight must not turn an unavailable page jump into a row move.
+ const unsigned cases[][4]={
+  {0,0,50,0},{0,0,240,0},{1,0,50,0},{1,0,240,0},
+  {3,1,50,1},{3,1,240,1},{5,3,50,3},{5,3,240,3},
+  {6,4,240,5},{6,5,240,5},{6,5,50,0},
+  {8,2,240,7},{8,5,240,5},{8,7,50,2},
+  {12,4,240,9},{12,9,240,11},{12,10,240,10},{12,11,50,6},
+  {240,234,240,239},{240,238,240,238},{240,238,50,233}
+ };
+ for(unsigned i=0;i<sizeof cases/sizeof cases[0];i++){
+  page_start(cases[i][0]);title_selected=cases[i][1];
+  page_tap(cases[i][2],390);
+  assert(title_selected==cases[i][3]&&status_visible&&!loaded[0]);
+ }
+ // Holding a touch makes one page jump; lifting and tapping makes the next.
+ page_start(20);title_selected=1;touch_x=240;touch_y=390;touching=true;
+ page_frame(40);assert(title_selected==6);
+ page_frame(700);assert(title_selected==6&&status_visible&&!loaded[0]);
+ touching=false;page_frame(40);touching=true;page_frame(40);assert(title_selected==11);
+ touching=false;page_frame(40);
+ // A partial final page has no selectable invisible entries. Tapping a real
+ // filename after paging still boots that exact file, rather than its row index.
+ page_start(12);title_selected=9;page_tap(240,390);assert(title_selected==11);
+ page_tap(100,292);assert(title_selected==11&&status_visible&&!loaded[0]);
+ page_tap(100,92);assert(!status_visible&&!strcmp(loaded,"Title010.tap"));
+ // The BOOT button uses the retained highlight on the new page.
+ page_start(8);title_selected=2;page_tap(240,390);assert(title_selected==7);
+ page_tap(400,390);assert(!status_visible&&!strcmp(loaded,"Title007.tap"));
+ // Nimbus and keyboard retain single-row Up/Down and gain Left/Right paging.
+ // Direction changes are immediate; held input repeats only after its delay.
+ for(unsigned keyboard_source=0;keyboard_source<2;keyboard_source++){
+  page_start(20);title_selected=2;
+  joystick_online=!keyboard_source;keyboard_online=keyboard_source;
+  unsigned *directions=keyboard_source?&keyboard_directions:&joystick_directions;
+  *directions=8;page_frame(1);assert(title_selected==7);
+  page_frame(399);assert(title_selected==7);
+  page_frame(1);assert(title_selected==12);
+  page_frame(139);assert(title_selected==12);
+  page_frame(1);assert(title_selected==17);
+  *directions=4;page_frame(1);assert(title_selected==12);
+  *directions=0;page_frame(1);*directions=4;page_frame(1);assert(title_selected==7);
+  *directions=2;page_frame(1);assert(title_selected==8);
+  *directions=1;page_frame(1);assert(title_selected==7);
+  *directions=1|8;page_frame(400);assert(title_selected==6); // vertical priority
+  *directions=4|8;page_frame(400);assert(title_selected==6); // opposing horizontal
+  *directions=8;page_frame(1);assert(title_selected==11);
+  *directions=0;page_frame(1);
+  if(keyboard_source)keyboard_fire=true;else joystick_fire=true;
+  page_frame(1);assert(!status_visible&&!captured&&!strcmp(loaded,"Title011.tap"));
+ }
+ // Opposing horizontal inputs from different devices cancel as well.
+ page_start(12);title_selected=6;joystick_online=keyboard_online=true;
+ joystick_directions=4;keyboard_directions=8;page_frame(1);assert(title_selected==6);
+ keyboard_directions=0;page_frame(1);assert(title_selected==1);
+ status_close();touching=false;joystick_online=keyboard_online=false;
+ joystick_directions=keyboard_directions=0;joystick_fire=keyboard_fire=false;
+}
 int main(void){
  // Cold-start banner must fit its compact SRAM banks and restore the borrowed framebuffer.
  for(unsigned i=0;i<272*241;i++)sram_pixels[i]=0x13579bdf;
@@ -447,6 +528,7 @@ unsigned char rgb[3]={c&4?255:0,c&2?255:0,c&1?255:0};fwrite(rgb,1,3,f);}fclose(f
  assert(!strcmp(last_args,"d24 d5 u5 u24"));
 #endif
  status_visible=false;
+ file_page_tests();
 
  launched=false;machines_begin();assert(!machine_chooser);
 #if !BORROW_STATUS_FB

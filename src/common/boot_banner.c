@@ -282,6 +282,7 @@ static uint32_t status_frame, status_updated_ms;
 // The last 60 KiB of the reserved area is separate from both status buffers.
 #define TITLE_LIMIT 240
 #define TITLE_NAME_BYTES 256
+#define TITLE_PAGE_SIZE 5
 _Static_assert(2 * BANNER_ROWS * ROW_BYTES + TITLE_LIMIT * TITLE_NAME_BYTES <= BOARD_STATUS_BYTES,
                "title list overlaps status buffers");
 static unsigned title_count, title_selected;
@@ -323,6 +324,19 @@ static void machines_begin(void) {
     held_direction=0;fire_armed=false;chooser_dirty=true;
 }
 static int title_compare(const void *a,const void *b){return strcasecmp(a,b);}
+static void titles_page(int direction) {
+    if(!title_count)return;
+    unsigned start=(title_selected/TITLE_PAGE_SIZE)*TITLE_PAGE_SIZE;
+    // Keep the highlighted row where possible; do not move within an end page.
+    if(direction<0) {
+        if(!start)return;
+        title_selected-=TITLE_PAGE_SIZE;
+    } else {
+        if(start+TITLE_PAGE_SIZE>=title_count)return;
+        title_selected+=TITLE_PAGE_SIZE;
+        if(title_selected>=title_count)title_selected=title_count-1;
+    }
+}
 static void titles_begin(void) {
     titles_end();machine_chooser=false;title_count=title_selected=0;title_limit=false;load_error=NULL;
     held_direction=0;fire_armed=false;
@@ -417,14 +431,14 @@ static void status_draw(unsigned buffer) {
         if(title_iterator)text(fb,20,70,"READING SD CARD...");
         else if(!title_count)text(fb,20,70,"NO COMPATIBLE SD TITLES");
         else {
-            unsigned start=(title_selected/5)*5;
-            for(unsigned i=start;i<title_count&&i<start+5;i++) {
+            unsigned start=(title_selected/TITLE_PAGE_SIZE)*TITLE_PAGE_SIZE;
+            for(unsigned i=start;i<title_count&&i<start+TITLE_PAGE_SIZE;i++) {
                 snprintf(line,sizeof line,"%.35s",titles()[i]);
                 ui_button(fb,12,35+(i-start)*25,456,22,line,i==title_selected?3:0);
             }
             snprintf(line,sizeof line,"%u OF %u",title_selected+1,title_count);text(fb,170,166,line);
         }
-        ui_button(fb,8,183,148,24,"UP",0);ui_button(fb,166,183,148,24,"DOWN",0);ui_button(fb,324,183,148,24,"BOOT",3);
+        ui_button(fb,8,183,148,24,"PG-UP",0);ui_button(fb,166,183,148,24,"PG-DOWN",0);ui_button(fb,324,183,148,24,"BOOT",3);
         return;
     }
     centred_text(fb,8,"SYSTEM STATUS",true);
@@ -597,12 +611,12 @@ void boot_status_frame(void) {
                 }
             }
         } else if(tap&&chooser&&!title_iterator&&ty>=183&&ty<207) {
-            if(tx<160&&title_selected)title_selected--;
-            else if(tx>=160&&tx<320&&title_selected+1<title_count)title_selected++;
+            if(tx<160)titles_page(-1);
+            else if(tx<320)titles_page(1);
             else if(tx>=320&&title_count){fire_armed=true;touch_select=true;}
             chooser_dirty=true;
         } else if(tap&&chooser&&!title_iterator&&tx>=12&&tx<468&&ty>=35&&ty<160&&(ty-35)%25<22) {
-            unsigned selected=(title_selected/5)*5+(ty-35)/25;
+            unsigned selected=(title_selected/TITLE_PAGE_SIZE)*TITLE_PAGE_SIZE+(ty-35)/25;
             if(selected<title_count){title_selected=selected;chooser_dirty=true;fire_armed=true;touch_select=true;}
         }
     }
@@ -665,10 +679,12 @@ void boot_status_frame(void) {
         joystick_state(&directions,&fire);fire|=touch_select;touch_select=false;
         if(!title_iterator && title_count) {
             if(!fire)fire_armed=true;
-            int direction=(directions&1)?-1:((directions&2)?1:0);
+            int direction=(directions&1)?-1:(directions&2)?1:
+                (directions&12)==4?-2:(directions&12)==8?2:0;
             if(direction && (direction!=held_direction || (int32_t)(now-repeat_at)>=0)) {
-                if(direction<0 && title_selected)title_selected--;
-                if(direction>0 && title_selected+1<title_count)title_selected++;
+                if(direction==-2 || direction==2)titles_page(direction);
+                else if(direction<0 && title_selected)title_selected--;
+                else if(direction>0 && title_selected+1<title_count)title_selected++;
                 repeat_at=now+(direction!=held_direction?400:140);chooser_dirty=true;
             }
             held_direction=direction;
