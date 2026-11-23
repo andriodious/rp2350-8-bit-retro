@@ -121,5 +121,6 @@ emulation pacing, and settings saves preserve the active flash-read protocol.
 `-DBOOT_FILE_SELECTOR=OFF` disables runtime BOOT/touch menus and their PSRAM
 reservation; the power-on banner remains. With `BLUETOOTH=OFF`, touch keyboard,
 file selection and configuration still work. Sound/LED controls require their
-respective build options. The expanded touchscreen port awaits its own hardware
-tests on both BBC machines; the earlier BOOT-only PR was hardware verified.
+respective build options. The expanded touchscreen port was hardware verified on both BBC machines on
+23 November 2026, including the Wi-Fi/Bluetooth startup wait fix (build
+`bda7cd59c9ca`). Both machines operated as expected and touch controls passed.
