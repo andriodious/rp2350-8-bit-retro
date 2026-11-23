@@ -40,33 +40,20 @@ controller readouts. Its C64 runtime observer remains available through the web
 API. Controller pairing, maps and reconnect remain visible. Existing saved
 pairing, Wi-Fi and disk-save locations are unchanged. Clock frequency is 250 MHz.
 
-## v0.9.1 four-machine release
+## v0.9.2 four-machine release
 
-The release uses the hardware-verified clean build of
-`reference/four-machine-c64-flash-read-restore-20261122`.
-The historical `build-experimental-four.sh` name also supplies the release's
-D81 performance options. `BOOT_STATUS_TRIAL=ON` enables the verified paused SD
-chooser, touchscreen keyboard, configuration and status screens, including Bluetooth setup. Keep APP and SAVE unset to reproduce this release.
-Spectrum sources in `src/cores/chips` match the pinned fork recorded in `UPSTREAM`;
-`scripts/fetch-spectrum.py` downloads and verifies Elite against
-`test-assets/elite48/provenance.json`. Game images are not committed to Git.
+The release retains the exact hardware-accepted combined UF2 from source commit
+`863096bc0492ca600682f1765c8f12cb7d2afb60`. The release commit adds documentation without rebuilding it.
+The source checkpoint is `reference/four-machine-wifi-gate-20261123`.
 
-Build IDs and source labels can differ on rebuild. The downloadable release UF2
-is the exact hardware-tested checkpoint, with its original component IDs and
-source label. See the release checksum manifest for identification.
+Keep APP and SAVE unset. Use a fresh output directory for the recipe above;
+existing build directories retain their cached CMake options. C64 terminal-caller
+capture, runtime diagnostics and D81 performance options remain enabled.
+Spectrum's fork is pinned in `src/cores/chips/UPSTREAM`; Elite is downloaded and
+verified by `scripts/fetch-spectrum.py`. Commercial ROMs and game images are not
+added to Git by this release.
 
-Classic HID keyboard support is enabled; BLE-only keyboards are not supported.
-The exact release firmware is retained from source commit
-`481b5bf6ce9661b9a7a87664fe3a26fd57a579ca`, with C64 terminal-caller capture and
-runtime diagnostics enabled. All four payloads include the shared flash-read
-restoration fix. The release commit adds documentation and CI recipe changes; it
-does not rebuild the accepted firmware.
-Its combined UF2 SHA256 is
-`8ccb9e0a0aaf64e57b846d5352a5a847481d8faae7f0f4dad940e451bd99b108`.
-That exact clean build was accepted on hardware; see the
-[verification record](../checkpoints/four-machine-c64-flash-read-clean-verified-20261122/verification.json).
-Subsequent source rebuilds and CI artifacts verify the build separately; they do not
-replace the hardware-tested release binary and are not automatically hardware
-verified. Keep the retained matching ELF files when decoding failure records.
-v0.9.0 and previous checkpoints remain unchanged. Settings v2 can require
-re-pairing when rolling back to older firmware.
+Firmware SHA256: `3a514d70d51d1e0ac79ae6c7966b0a2904364f13a3318b8517ba386dd5ea3889`.
+See the [verification record](../checkpoints/four-machine-wifi-gate-20261123/verification.json).
+Source rebuild image IDs and labels can differ. Rebuilds and CI artifacts are not
+automatically hardware verified. v0.9.1 and all earlier checkpoints remain available.

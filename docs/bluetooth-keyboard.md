@@ -6,9 +6,9 @@ BBC Master 128, BBC Model B, Commodore 64 and ZX Spectrum 48K support a Classic 
 
 Disconnect the keyboard from its Mac/iPad or other host, switch it on and press Connect to enter pairing mode. In touchscreen System Status → Keyboard Setup, or the web Bluetooth keyboard pane, Scan for keyboards, select the matching name/address and Connect. Stop scan cancels discovery. Follow any displayed PIN instructions. A connected address is displayed without needing manual address entry.
 
-First-time Bluetooth use requires Wi-Fi credentials saved once using the [USB Wi-Fi setup guide](presto/wifi.md), because this build initialises the radio through network startup. The network may then be unavailable; touchscreen and SD operation need no Wi-Fi configuration.
+Bluetooth, touchscreen and SD operation need no saved Wi-Fi credentials. For optional web access, follow the [USB Wi-Fi setup guide](presto/wifi.md).
 
-Pairing is remembered across machine switches and power cycles, independently of Nimbus. Keyboard and joystick give Wi-Fi an initial opportunity to connect. An explicit Wi-Fi failure or 30 seconds without an address releases Bluetooth for offline use; automatic Wi-Fi retries do not block it again. A sleeping keyboard may need a keypress and time to reconnect. Reconnect resumes after Disconnect; Forget removes remembered pairing. Keep the keyboard nearby during discovery.
+Pairing is remembered across machine switches and power cycles, independently of Nimbus. Keyboard and joystick give Wi-Fi an initial opportunity to connect. Both show WAITING FOR WIFI until DHCP succeeds or the full 30 seconds expires, even if a network failure is reported earlier. With no saved credentials, Bluetooth starts immediately; automatic Wi-Fi retries do not block it again. A sleeping keyboard may need a keypress and time to reconnect. Reconnect resumes after Disconnect; Forget removes remembered pairing. Keep the keyboard nearby during discovery.
 
 ## Per-machine mappings
 

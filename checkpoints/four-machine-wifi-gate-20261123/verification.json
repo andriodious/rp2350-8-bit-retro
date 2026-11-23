@@ -1,0 +1,20 @@
+{
+  "commit": "863096bc0492ca600682f1765c8f12cb7d2afb60",
+  "base": "16bada977fb981558f93775ca08df45aec3c5034",
+  "uf2": "8bitretro-four-machine-wifi-gate-test.uf2",
+  "sha256": "3a514d70d51d1e0ac79ae6c7966b0a2904364f13a3318b8517ba386dd5ea3889",
+  "images": {
+    "master": "bac69b9422d12b43",
+    "beeb": "23b607ac9de6fa3e",
+    "c64": "6b88b920a5bd2ff9",
+    "spectrum": "a9303dbd5923a8d8"
+  },
+  "hardware": {
+    "date": "2026-11-23",
+    "confirmation": "Much better. Works now exactly as expected.",
+    "scope": "User acceptance of requested four-machine Wi-Fi available/unavailable reconnection tests; no individual status samples supplied."
+  },
+  "checks": "Bluetooth host suite, network timer/diagnostics/poll tests, firmware packaging and SRAM checks passed; boolean build options identical to paging checkpoint",
+  "release": "v0.9.2",
+  "launcher_sha256": "77b712d1cfaa97a505bc01c844fcecd6b448c1996ea546c19403779f45612a0b"
+}

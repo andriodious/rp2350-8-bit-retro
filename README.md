@@ -9,9 +9,9 @@ experiment. Original Git history, source notices and licence files are retained.
 
 ## Download and try it
 
-**[Download v0.9.1 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.9.1/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
+**[Download v0.9.2 firmware for Pimoroni Presto](https://github.com/andriodious/rp2350-8-bit-retro/releases/download/v0.9.2/rp2350-8-bit-retro-presto.uf2)** — no compilation required.
 
-See the **[v0.9.1 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.9.1)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing and power cycling, tap the screen to use the machine keyboard or press BOOT to browse SD titles. The web interface at **http://8bitretro.local/** remains optional. Existing Wi-Fi settings are retained.
+See the **[v0.9.2 release and first-time setup instructions](https://github.com/andriodious/rp2350-8-bit-retro/releases/tag/v0.9.2)** for flashing, Wi-Fi setup, source downloads and checksums. After flashing and power cycling, tap the screen to use the machine keyboard or press BOOT to browse SD titles. The web interface at **http://8bitretro.local/** remains optional. Existing Wi-Fi settings are retained.
 
 ## Machines and features
 
@@ -30,6 +30,8 @@ See the **[v0.9.1 release and first-time setup instructions](https://github.com/
   dead zone/inversion controls and reconnection across machine switches.
 - Tested C64 optimisations: CPU/VIC code in SRAM, packed pixel conversion and
   overlapping emulation/display conversion. The RP2350 clock remains 250 MHz.
+
+Version **v0.9.2** gives Wi-Fi the full startup window before connecting Bluetooth: paired devices wait for DHCP or 30 seconds. Without saved Wi-Fi credentials, Bluetooth starts immediately. SD browsing now has PG-UP/PG-DOWN buttons for five-title pages, alongside individual touch and keyboard/Nimbus selection.
 
 Version **v0.9.1** preserves fast flash reads after saving settings, fixing the persistent C64 D81 slowdown and distorted sound that could follow a menu volume change. It also improves C64 audio-clock accuracy to reduce underruns. The exact clean build passed the requested four-machine hardware checks; all v0.9.0 stability fixes are retained.
 
@@ -118,7 +120,7 @@ https://github.com/user-attachments/assets/648c8668-27c7-495a-b540-f22d90917808
 Start in the extracted release source folder or clone this repository:
 
 ```sh
-git clone --branch v0.9.1 https://github.com/andriodious/rp2350-8-bit-retro.git
+git clone --branch v0.9.2 https://github.com/andriodious/rp2350-8-bit-retro.git
 cd rp2350-8-bit-retro
 ```
 
@@ -144,7 +146,7 @@ for options and an explanation of the legacy build entry points.
 1. Hold the Presto's BOOT button, tap RESET and release BOOT to expose its USB drive.
 2. Copy `rp2350-8-bit-retro-presto.uf2` to that drive.
 3. Power cycle. Tap the display for key entry, or press BOOT to load a title from SD and open settings.
-4. Wi-Fi is optional for local operation. For web access, follow [the Presto network guide](docs/presto/wifi.md), then open `http://8bitretro.local/` or the startup IP address. Existing credentials are retained. Bluetooth currently also needs Wi-Fi credentials saved once to initialise the radio; the network itself may be unavailable. Local touch and SD menus need no Wi-Fi configuration.
+4. Wi-Fi is optional for local operation. For web access, follow [the Presto network guide](docs/presto/wifi.md), then open `http://8bitretro.local/` or the startup IP address. Existing credentials are retained. Bluetooth needs no saved Wi-Fi credentials. When a network is configured, Bluetooth waits for DHCP or the full 30-second timeout before starting. Local touch and SD menus need no Wi-Fi configuration.
 
 After flashing this version, use `8bitretro.local` instead of the previous
 `beeb.local` or interim `retro8bit.local` address. Saved Wi-Fi credentials are retained.
@@ -185,20 +187,11 @@ these records, so rolling back can require re-pairing devices and restoring sett
 
 ## Status and contributions
 
-The v0.9.1 download is the exact clean GitHub build subsequently accepted on
-hardware, from source commit `481b5bf6ce9661b9a7a87664fe3a26fd57a579ca` and
-`reference/four-machine-c64-flash-read-restore-20261122`. Its SHA256 is
-`8ccb9e0a0aaf64e57b846d5352a5a847481d8faae7f0f4dad940e451bd99b108`.
-The user confirmed “Build checks out fine” after the requested four-machine
-startup, settings-save, menu-resume and sound checks, plus C64 Monkey Island D81
-playback and physical resets. Individual counts were not supplied. See the
-[clean-build verification record](checkpoints/four-machine-c64-flash-read-clean-verified-20261122/verification.json).
-The release adds documentation and build-recipe updates without rebuilding that
-firmware. Future source rebuilds are not automatically hardware verified.
-v0.9.0 and all earlier checkpoints remain unchanged. Compatibility with every
-game, Bluetooth keyboard or controller is not implied.
+The v0.9.2 download is the exact hardware-accepted firmware from source commit `863096bc0492ca600682f1765c8f12cb7d2afb60`, without rebuilding for publication. Its SHA256 is `3a514d70d51d1e0ac79ae6c7966b0a2904364f13a3318b8517ba386dd5ea3889`. The user confirmed the Wi-Fi startup behavior works as expected; the preceding paging build passed touch, keyboard and Nimbus selection on all four machines. See the [verification record](checkpoints/four-machine-wifi-gate-20261123/verification.json).
 
-See [release notes](docs/releases/v0.9.1.md), [credits](CREDITS.md), and
+Release documentation is committed separately. Future rebuilds are not automatically hardware verified. v0.9.1 and previous checkpoints remain unchanged. Compatibility with every game or Bluetooth device is not implied.
+
+See [release notes](docs/releases/v0.9.2.md), [credits](CREDITS.md), and
 [contribution guidance](CONTRIBUTING.md). The inherited [upstream README](UPSTREAM-README.md)
 and technical documents remain available as historical and engineering references.
 
