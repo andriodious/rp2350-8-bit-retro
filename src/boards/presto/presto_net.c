@@ -127,6 +127,7 @@ static struct {
     int last_error;
     struct { uint32_t ms; int state; } history[8];
 } nd;
+static bool radio_on;           // Bluetooth also needs polling without Wi-Fi credentials
 static bool wifi_on;            // the chip is up and there's a network to join
 static int link_status;
 static bool announced;
@@ -158,17 +159,22 @@ static void net_start_step(uint32_t n) {
 static void net_start(bool boot_banner) {
     startup_diag_mark(6);
     const cred_t *c = saved_cred();
-    if (!c) {
+    if (c) {
+        snprintf(ssid_ram, sizeof(ssid_ram), "%s", c->ssid);
+        snprintf(pass_ram, sizeof(pass_ram), "%s", c->pass);
+    } else {
         printf("NET no WiFi network saved (!wifi <ssid> <password>)\n");
+#if !NIMBUS_TEST
         return;
+#endif
     }
-    snprintf(ssid_ram, sizeof(ssid_ram), "%s", c->ssid);
-    snprintf(pass_ram, sizeof(pass_ram), "%s", c->pass);
     net_start_step(40);
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_UK)) {
         printf("NET WiFi chip didn't start\n");
         return;
     }
+    radio_on = true;
+    if (!c) return; // net_poll starts Bluetooth immediately in offline mode.
     net_start_step(41);
     cyw43_arch_enable_sta_mode();
     net_start_step(42);
@@ -181,9 +187,6 @@ static void net_start(bool boot_banner) {
     join();
     net_start_step(45);
     wifi_on = true;
-#if NIMBUS_TEST
-    presto_bluetooth_start();
-#endif
 }
 
 static void check_link(void) {
@@ -221,7 +224,7 @@ static void check_link(void) {
 }
 
 void net_poll(void) {
-    if (!wifi_on) return;
+    if (!radio_on) return;
     uint32_t now = time_us_32();
     if (now - last_poll_us < 500) return;
     last_poll_us = now;
@@ -231,10 +234,18 @@ void net_poll(void) {
     cyw43_arch_poll();
     uint32_t cost = time_us_32() - now;
     if (cost > nd.poll_cost) nd.poll_cost = cost;
-    if (now - last_link_check_us > 200000) {
+    if (wifi_on && now - last_link_check_us > 200000) {
         last_link_check_us = now;
         check_link();
     }
+#if NIMBUS_TEST
+    // Delay Bluetooth power-up, including incoming/page scans, until DHCP or timeout.
+    static bool bluetooth_started;
+    if (!bluetooth_started && net_bluetooth_ready()) {
+        bluetooth_started = true;
+        presto_bluetooth_start();
+    }
+#endif
 }
 
 static const char *link_name(void) {
@@ -274,7 +285,7 @@ bool net_bluetooth_ready(void) {
     if (!waiting) { waiting = true; wait_started = now; }
     // Keep offline access through automatic Wi-Fi retries. A restored address
     // resets the grace period for a subsequent outage.
-    if ((wifi_on && link_status < 0) || (uint32_t)(now - wait_started) >= 30000000u)
+    if ((uint32_t)(now - wait_started) >= 30000000u)
         offline_allowed = true;
     return offline_allowed;
 }
@@ -1097,7 +1108,7 @@ void net_frame(void) {
         net_started = true;
         net_start(false);
     }
-    if (!wifi_on) return;
+    if (!wifi_on) { net_poll(); return; }
     if (server_pending) { server_pending = false; start_server(); }
     last_poll_us -= 1000;   // (always poll here: in turbo core 0 seldom waits for core 1)
     net_poll();

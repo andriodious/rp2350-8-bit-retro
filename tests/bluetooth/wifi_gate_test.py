@@ -25,8 +25,7 @@ static void presto_preferences_save(void){}
 static void keyboard_discovery_frame(void){}
 static bool keyboard_discovery_busy(void){return keyboard_busy;}
 static uint32_t retry_at=3000,now;
-static bool wifi,configured=true,wifi_on=true;
-static int link_status;
+static bool wifi,configured=true;
 #define BT_KEYBOARD_CLASSIC 1
 static bool keyboard_allowed,host_busy;
 static void keyboard_host_frame(bool allowed,bool save){(void)save;keyboard_allowed=allowed;}
@@ -54,9 +53,9 @@ int main(void){
  wifi=true;bluetooth_frame(false);
  wifi=false;now=40000;bluetooth_frame(false);assert(!keyboard_allowed&&attempts==1);
  now=45000;bluetooth_frame(false);assert(!keyboard_allowed&&attempts==1);
- // An explicit network/authentication failure releases both immediately.
- link_status=-2;bluetooth_frame(false);assert(keyboard_allowed&&attempts==2);
- link_status=1;now=46000;bluetooth_frame(false);assert(keyboard_allowed);
+ // Failed association must still wait for the full connection window.
+ now=69999;bluetooth_frame(false);assert(!keyboard_allowed&&attempts==1);
+ now=70000;bluetooth_frame(false);assert(keyboard_allowed&&attempts==2);
  // Wi-Fi up: preserve listening window and radio-operation arbitration.
  wifi=true;attempts=failures=retry_streak=0;retry_at=50000;now=47000;
  bluetooth_frame(false);assert(attempts==0&&keyboard_allowed);
