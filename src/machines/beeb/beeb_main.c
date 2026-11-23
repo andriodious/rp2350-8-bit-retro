@@ -82,6 +82,15 @@ static_assert(k_beebjit_panel_row_end == BOARD_DISPLAY_ROW_END,
 static uint32_t s_fb[k_beebjit_panel_rows][k_beebjit_panel_row_words];
 static const uint16_t* s_row_table[BOARD_DISPLAY_HEIGHT + 1];
 static struct beebjit_panel s_panel;
+#if WITH_BOOT_FILE_SELECTOR && PRESTO_BEEBJIT_WIRE
+uint32_t *machine_status_framebuffer(bool active) {
+  // Called at a stopped producer boundary. Sync waits until all queued drawing
+  // has completed before the menu borrows the existing SRAM scanlines.
+  if (active) beebjit_wire_sync();
+  return &s_fb[0][0];
+}
+#endif
+
 
 #if PRESTO_BEEBJIT_PANEL_PIO
 /* ---- 640 -> 480 on PIO0 ----
@@ -878,6 +887,7 @@ bool machine_view_open(int rows, int *row_words, int *display_rows) { (void) row
 uint32_t *machine_view_buffer(void) { return NULL; }
 void machine_view_release(void) {}
 void machine_view_map(int display_row, int row) { (void) display_row; (void) row; }
+bool machine_view_owns_touch(void) { return false; }
 bool machine_view_shown(void) { return false; }
 void machine_view_set(bool shown) { (void) shown; }
 uint32_t machine_view_taps(void) { return 0; }

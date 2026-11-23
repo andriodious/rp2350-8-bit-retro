@@ -30,6 +30,7 @@ function(board_setup TARGET)
             pico_btstack_hci_transport_cyw43 pico_btstack_run_loop_async_context)
     endif()
     target_sources(${TARGET} PRIVATE
+            ${BOARD_DIR}/presto_touch.c
             ${BOARD_DIR}/presto_board.c     # board_init
             ${BOARD_DIR}/presto_lcd.c       # the panel: 4-bit rows, scanned out by PIO and DMA
             ${BOARD_DIR}/presto_psram.c

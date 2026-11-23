@@ -295,6 +295,12 @@ static void cmd_machine(api_req_t *r) {
         api_error(r, 400, "no such machine (master or beeb)");
         return;
     }
+#if NIMBUS_TEST
+    if (!presto_preferences_flush()) {
+        api_error(r, 500, "couldn't save machine settings");
+        return;
+    }
+#endif
     if (!system_choose(want)) {
         api_error(r, 500, "couldn't save the choice");
         return;
@@ -438,8 +444,14 @@ static void cmd_wifi(api_req_t *r) {
 // USB: "leds [off|screen|test|bright <percent>|locks on|locks off]"; HTTP: any of "on=0|1",
 // "bright=<percent>", "locks=0|1", joined by "&"
 static void cmd_ambient(api_req_t *r) {
+#if NIMBUS_TEST
+    presto_preferences_restore();
+#endif
     if (!r->json) {
         board_leds_command(r->args);
+#if NIMBUS_TEST
+    presto_preferences_changed();
+#endif
         return;
     }
     int on = -1, bright = -1, locks = -1;
@@ -455,6 +467,9 @@ static void cmd_ambient(api_req_t *r) {
         p = amp + 1;
     }
     board_leds_set(on, bright, locks);
+#if NIMBUS_TEST
+    presto_preferences_changed();
+#endif
     cmd_status(r);
 }
 #endif
@@ -464,6 +479,9 @@ static void cmd_ambient(api_req_t *r) {
 #if WITH_SOUND
 // USB: "sound [on|off|vol <percent>]"; HTTP: any of "on=0|1", "vol=<percent>", joined by "&"
 static void cmd_sound(api_req_t *r) {
+#if NIMBUS_TEST
+    presto_preferences_restore();
+#endif
     int on = -1, vol = -1;
     char body[64];
     snprintf(body, sizeof body, "%s", r->args);
@@ -474,6 +492,9 @@ static void cmd_sound(api_req_t *r) {
         else if (!strncmp(p, "off", 3)) on = 0;
         else if (!strncmp(p, "vol ", 4)) vol = atoi(p + 4);
         audio_set(on, vol);
+#if NIMBUS_TEST
+    presto_preferences_changed();
+#endif
         bool o;
         unsigned v;
         audio_get(&o, &v);
@@ -489,6 +510,9 @@ static void cmd_sound(api_req_t *r) {
         p = amp + 1;
     }
     audio_set(on, vol);
+#if NIMBUS_TEST
+    presto_preferences_changed();
+#endif
     cmd_status(r);
 }
 #endif

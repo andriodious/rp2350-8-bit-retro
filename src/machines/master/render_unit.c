@@ -123,6 +123,7 @@ void machine_view_map(int display_row, int row)
     s_view_map[display_row] = (const uint16_t *)(s_view_fb + row * k_row_words);
     s_row_table[display_row] = s_view_map[display_row];
 }
+bool machine_view_owns_touch(void) { return s_view_rows > 0; }
 bool machine_view_shown(void) { return s_view_shown; }
 static void view_free(void)
 {

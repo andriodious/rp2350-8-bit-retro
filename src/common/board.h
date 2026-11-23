@@ -19,6 +19,9 @@ extern "C" {
 // ---- Start-up: the board's pins in a safe state (the Presto: its piezo driven off), first thing
 void board_init(void);
 
+// Poll the touchscreen on the main core; coordinates are native display pixels.
+bool board_touch(unsigned *x, unsigned *y);
+
 // ---- The display
 // Its framebuffer format, which the machines' renderers draw in (a machine refuses to build for
 // a format it doesn't support):

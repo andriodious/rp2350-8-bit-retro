@@ -224,6 +224,21 @@ bool net_boot_address_ready(void) {
     return wifi_on && cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA) == CYW43_LINK_UP &&
         !ip4_addr_isany_val(*netif_ip4_addr(&cyw43_state.netif[CYW43_ITF_STA]));
 }
+bool net_bluetooth_ready(void) {
+    static bool waiting, offline_allowed;
+    static uint32_t wait_started;
+    if (net_boot_has_address() || !net_boot_configured()) {
+        waiting = offline_allowed = false;
+        return true;
+    }
+    uint32_t now = time_us_32();
+    if (!waiting) { waiting = true; wait_started = now; }
+    // Keep offline access through automatic Wi-Fi retries. A restored address
+    // resets the grace period for a subsequent outage.
+    if ((wifi_on && link_status < 0) || (uint32_t)(now - wait_started) >= 30000000u)
+        offline_allowed = true;
+    return offline_allowed;
+}
 void net_boot_status(char *out, size_t size) {
     snprintf(out, size, "%s", net_boot_address_ready() ?
         ip4addr_ntoa(netif_ip4_addr(&cyw43_state.netif[CYW43_ITF_STA])) : link_name());

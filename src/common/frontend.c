@@ -257,6 +257,7 @@ static void frontend_frame_once(void) {
     usb_poll();
     api_frame();
 #if NIMBUS_TEST
+    presto_preferences_restore();
     presto_bluetooth_frame();
     controller_frame();
 #endif

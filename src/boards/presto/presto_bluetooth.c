@@ -22,6 +22,7 @@
 #include "api.h"
 #include "controller_store.h"
 #include "board.h"
+#include "sound.h"
 #include "nimbus_reconnect.h"
 #include "machine_if.h"
 #include "net_if.h"
@@ -45,6 +46,43 @@ static void note_failure(unsigned code,unsigned phase) {
 }
 static unsigned machine_index(void) {
     return !strcmp(machine_name(), "master") ? 0 : 1;
+}
+static bool preferences_restored, preferences_pending;
+static uint32_t preferences_due;
+static uint8_t preferences[5];
+void presto_preferences_restore(void){
+ if(preferences_restored||!store_started)return;
+ preferences_restored=true;
+ if(!controller_store_get_preferences(machine_index(),preferences))return;
+#if WITH_SOUND
+ audio_set(preferences[0],preferences[1]);
+#endif
+#if WITH_AMBIENT
+ board_leds_set(preferences[2],preferences[3],preferences[4]);
+#endif
+}
+void presto_preferences_changed(void){
+ if(!store_started)return;
+ bool on=false,locks=false;unsigned vol=50,bright=40;
+#if WITH_SOUND
+ audio_get(&on,&vol);
+#endif
+ preferences[0]=on;preferences[1]=vol;
+#if WITH_AMBIENT
+ board_leds_get(&on,&bright,&locks);
+#else
+ on=false;
+#endif
+ preferences[2]=on;preferences[3]=bright;preferences[4]=locks;
+ preferences_pending=true;preferences_due=now_ms()+750;
+}
+void presto_preferences_save(void){
+ if(!store_started||!preferences_pending)return;
+ controller_store_set_preferences(machine_index(),preferences);preferences_pending=false;
+}
+bool presto_preferences_flush(void){
+ if(!store_started)return true;
+ presto_preferences_save();store_error=!controller_store_flush();return !store_error;
 }
 static bool remembered(bd_addr_t address) {
     link_key_t key;uint8_t type;return controller_store_bond(address,key,&type);
@@ -289,7 +327,7 @@ int presto_bluetooth_command(const char *s) {
         controller_keyboard_map_set(map);keyboard_host_command("capture-cancel",false);return 200;
     }
     if(!strncmp(s,"keyboard ",9)){
-        bool available=!scanning&&!connecting&&net_boot_has_address();
+        bool available=!scanning&&!connecting&&net_bluetooth_ready();
 #if BT_KEYBOARD_DISCOVERY
         available &= !keyboard_discovery_busy();
 #endif
@@ -303,7 +341,7 @@ int presto_bluetooth_command(const char *s) {
 #if BT_KEYBOARD_DISCOVERY
     if(!strcmp(s,"keyboard-stop")){keyboard_discovery_stop();return 200;}
     if(!strcmp(s,"keyboard-scan")){
-        if(scanning||connecting||!net_boot_has_address())return 409;
+        if(scanning||connecting||!net_bluetooth_ready())return 409;
         return keyboard_discovery_start();
     }
     if(keyboard_discovery_busy())return 409;
@@ -366,6 +404,7 @@ int presto_bluetooth_command(const char *s) {
 }
 static void bluetooth_frame(bool save) {
     if(!store_started)return;
+    if(save&&preferences_pending&&(int32_t)(now_ms()-preferences_due)>=0)presto_preferences_save();
     /* Never erase flash from a BTstack callback. Do not repeatedly retry failed writes. */
     if(save&&controller_store_pending()&&!store_error)store_error=!controller_store_flush();
 #if BT_KEYBOARD_DISCOVERY
@@ -378,14 +417,14 @@ static void bluetooth_frame(bool save) {
     }
 #endif
 #if BT_KEYBOARD_CLASSIC
-    keyboard_host_frame(net_boot_has_address()&&!scanning&&!connecting,save);
+    keyboard_host_frame(net_bluetooth_ready()&&!scanning&&!connecting,save);
     if(keyboard_host_busy())return;
 #endif
     uint32_t now=now_ms();
     // Wi-Fi joins asynchronously. Do not page an absent controller while the
     // shared radio is scanning/associating or waiting for DHCP. Incoming links
     // remain enabled; no retry deadline or failure count changes while waiting.
-    if(!net_boot_has_address())return;
+    if(!net_bluetooth_ready())return;
     if(!nimbus_retry_due(ready,reconnect,scanning||connecting||connected||cid,now,retry_at))return;
     if(!remembered(selected))return;
     connecting=true;attempts++;
@@ -401,12 +440,13 @@ const char *presto_bluetooth_boot_status(void) {
     if (connected || connecting) return "CONNECTING";
     if (!store_started) return "NOT STARTED";
     if (!remembered(saved)) return "NOT PAIRED";
-    if(ready && reconnect && !net_boot_has_address())return "WAITING FOR WIFI";
+    if(ready && reconnect && !net_bluetooth_ready())return "WAITING FOR WIFI";
     return ready ? "SEARCHING" : "STARTING";
 }
 
 void presto_bluetooth_prepare_restart(void) {
     if(!store_started)return;
+    presto_preferences_save();
 #if BT_KEYBOARD_DISCOVERY
     keyboard_discovery_stop();
 #endif
@@ -438,7 +478,7 @@ void presto_bluetooth_json(char *out,size_t size) {
         memcpy(list+used,quoted,length+1);used+=length;
     }
     snprintf(out,size,",\"bluetooth\":{\"address\":\"%s\",\"build\":8,\"page_timeout_ms\":2560,\"wifi_wait\":%s,\"retry_streak\":%u,\"last_failure\":%u,\"last_failure_phase\":%u,\"last_failure_ms\":%lu,\"reconnect_enabled\":%s,\"retry_ms\":%u,\"attempts\":%u,\"incoming\":%u,\"failures\":%u,\"remembered\":%s,\"save_error\":%s,\"save_pending\":%s,\"config\":[%s],\"normalized\":[%d,%d,%d,%d],\"state\":\"%s\",\"error\":%u,\"descriptor\":%s,\"reports\":%u,\"fields\":%u,\"devices\":[%s],\"axes\":[%ld,%ld,%ld,%ld],\"buttons\":[%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld],\"hat\":%ld,\"menu\":%ld,\"dpad\":[%ld,%ld,%ld,%ld]}",
-        connected?bd_addr_to_str(selected):"",(reconnect&&!connected&&!net_boot_has_address())?"true":"false",retry_streak,last_failure,last_failure_phase,(unsigned long)last_failure_ms,reconnect?"true":"false",wait_ms,attempts,incoming_count,failures,bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
+        connected?bd_addr_to_str(selected):"",(reconnect&&!connected&&!net_bluetooth_ready())?"true":"false",retry_streak,last_failure,last_failure_phase,(unsigned long)last_failure_ms,reconnect?"true":"false",wait_ms,attempts,incoming_count,failures,bonded?"true":"false",store_error?"true":"false",controller_store_pending()?"true":"false",config,normalized[0],normalized[1],normalized[2],normalized[3],!ready?"starting":connected?"connected":connecting?"connecting":scanning?"scanning":"idle",error,descriptor_ready?"true":"false",reports,fields,list,
         (long)axes[0],(long)axes[1],(long)axes[2],(long)axes[3],(long)buttons[0],(long)buttons[1],(long)buttons[2],(long)buttons[3],(long)buttons[4],(long)buttons[5],(long)buttons[6],(long)buttons[7],(long)hat,(long)menu,(long)dpad[0],(long)dpad[1],(long)dpad[2],(long)dpad[3]);
 #if BT_KEYBOARD_DISCOVERY
     size_t keyboard_n=strlen(out);
@@ -460,9 +500,34 @@ void presto_bluetooth_json(char *out,size_t size) {
 const char *presto_keyboard_boot_status(void) {
 #if BT_KEYBOARD_CLASSIC
  const char *status=keyboard_host_boot_status();
- if(!strcmp(status,"SEARCHING")&&!net_boot_has_address())return "WAITING FOR WIFI";
+ if(!strcmp(status,"SEARCHING")&&!net_bluetooth_ready())return "WAITING FOR WIFI";
  return status;
 #else
  return "DISABLED IN BUILD";
 #endif
+}
+
+void presto_bluetooth_setup_state(bool keyboard,bluetooth_setup_state_t *out) {
+ memset(out,0,sizeof *out);
+#if BT_KEYBOARD_CLASSIC
+ if(keyboard){
+  keyboard_host_setup_state(out);
+#if BT_KEYBOARD_DISCOVERY
+  out->scanning=keyboard_discovery_busy();out->devices=keyboard_discovery_count();
+#endif
+  return;
+ }
+#endif
+ bd_addr_t saved;out->remembered=remembered(saved);
+ if(connected||connecting)snprintf(out->address,sizeof out->address,"%s",bd_addr_to_str(selected));
+ else if(out->remembered)snprintf(out->address,sizeof out->address,"%s",bd_addr_to_str(saved));
+ out->scanning=scanning;out->devices=count;out->connected=connected;out->connecting=connecting;out->reconnect=reconnect;
+}
+bool presto_bluetooth_setup_device(bool keyboard,unsigned index,bluetooth_setup_device_t *out) {
+#if BT_KEYBOARD_DISCOVERY
+ if(keyboard)return keyboard_discovery_device(index,out);
+#endif
+ if(keyboard||index>=count)return false;
+ snprintf(out->address,sizeof out->address,"%s",bd_addr_to_str(devices[index]));
+ snprintf(out->name,sizeof out->name,"%s",names[index]);return true;
 }

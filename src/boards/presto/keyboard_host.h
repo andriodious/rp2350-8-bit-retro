@@ -10,3 +10,6 @@ int keyboard_host_command(const char *command,bool available);
 void keyboard_host_json(char *out,size_t size);
 
 const char *keyboard_host_boot_status(void);
+
+#include "presto_bluetooth.h"
+void keyboard_host_setup_state(bluetooth_setup_state_t *out);

@@ -302,11 +302,17 @@ Presto builds can enable an original SteelSeries Nimbus and a Classic Bluetooth 
 keyboard with `-DBLUETOOTH=ON`. The web interface then provides discovery,
 connection/reconnection and separately saved per-machine controls and keyboard
 mappings for both BBC Model B and Master. BLE-only keyboards and Nimbus+ are not
-supported. Bluetooth is off by default; this upstream port needs hardware testing.
+supported. Bluetooth is off by default.
 See [Bluetooth setup, build and validation](docs/bluetooth.md).
 
-While running, BOOT opens an SD title chooser when a keyboard or enabled joystick
-is connected. Use Up/Down and Return (or Nimbus A/Fire) to load a title. BOOT
-cycles from chooser to status to the emulator. Emulation pauses and sound mutes
-while the menu is open; web and Bluetooth remain active. See
-[BOOT menu details](docs/startup-screen.md#boot-button-sd-chooser-and-status).
+### Touchscreen controls
+
+Touch the running emulator to open its keyboard. Tap a key to press it and resume,
+or choose **SETTINGS** for the SD file chooser, machine/sound/LED configuration,
+and system status. BOOT opens the file chooser directly. Tap a filename to load
+it; **PG-UP / PG-DOWN** page through longer lists. Bluetooth pairing and key/button
+mapping can also be managed on the touchscreen, without a browser.
+
+Keyboard and Nimbus navigation remain available. Emulation pauses and sound mutes
+while a menu is open; web and Bluetooth stay responsive. See the [screen previews,
+controls and build options](docs/startup-screen.md#touchscreen-and-boot-menus).

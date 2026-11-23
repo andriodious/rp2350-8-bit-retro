@@ -180,7 +180,8 @@ static uint32_t s_core0_pct, s_core1_pct, s_speed_permille;
 static uint32_t s_frames;
 static bool s_turbo;
 static bool s_turbo_ended;
-void machine_status_resumed(uint64_t elapsed_us) { (void)elapsed_us; s_turbo_ended = true; }
+static uint64_t s_status_pause_us;
+void machine_status_resumed(uint64_t elapsed_us) { s_status_pause_us += elapsed_us; s_turbo_ended = true; }
 static bool s_hold;             // a program being installed: the machine paused (machine_install_screen)
 static bool s_was_reset;
 static struct machine_hook_io s_hook_io;     // what the app run alongside sees (frame_hook)
@@ -478,7 +479,9 @@ static void run(void)
             // CAPS LOCK and SHIFT LOCK are lit when their IC32 latch bits (6, 7) are low
             board_leds_frame((uint8_t)(((m->ic32 & 0x40) ? 0 : 1) | ((m->ic32 & 0x80) ? 0 : 2)));
 #endif
+            uint64_t paused_before = s_status_pause_us;
             presto_machine_frame();   // may reset the machine (s_was_reset)
+            stat_t += s_status_pause_us - paused_before;
             frame_hook(m);
         }
     }

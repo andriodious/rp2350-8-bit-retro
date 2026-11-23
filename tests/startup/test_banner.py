@@ -26,11 +26,14 @@ void sleep_ms(unsigned);
 void watchdog_update(void);
 bool watchdog_caused_reboot(void);
 void net_boot_poll(void);
+void presto_bluetooth_boot_poll(void);
+const char *presto_bluetooth_boot_status(void);
+const char *presto_keyboard_boot_status(void);
 bool net_boot_configured(void);
-bool net_boot_address_ready(void);
+bool net_boot_has_address(void);
 void net_boot_status(char *, size_t);
 '''
- for name in ['board.h','drive.h','machine_if.h','net_if.h','pico/stdlib.h','hardware/watchdog.h','hardware/sync.h']:(p/name).write_text(common)
+ for name in ['presto_bluetooth.h','board.h','drive.h','machine_if.h','net_if.h','pico/stdlib.h','hardware/watchdog.h','hardware/sync.h']:(p/name).write_text(common)
  (p/'test.c').write_text('''#include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -49,7 +52,7 @@ void board_display_set_rows(const uint16_t *const *r){
  if(r==original)return;
  assert(!r[480]);
  for(int y=0;y<480;y++)assert(((uint32_t *)r[y])[60]==8);
- memcpy(image,r[0],sizeof image);
+ for(int y=0;y<240;y++)memcpy(image+y*61,r[y*2],61*sizeof(uint32_t));
 }
 void board_display_backlight(uint8_t v){(void)v;}
 uint32_t board_display_frames(void){return now/20000;}
@@ -59,8 +62,8 @@ void watchdog_update(void){}
 bool watchdog_caused_reboot(void){return reset;}
 void net_boot_poll(void){polls++;}
 bool net_boot_configured(void){return configured;}
-bool net_boot_address_ready(void){return address && now>=1000000;}
-void net_boot_status(char *o,size_t n){snprintf(o,n,"%s",net_boot_address_ready()?"192.168.1.42":"JOINING");}
+bool net_boot_has_address(void){return address && now>=1000000;}
+void net_boot_status(char *o,size_t n){snprintf(o,n,"%s",net_boot_has_address()?"192.168.1.42":"JOINING");}
 void presto_bluetooth_boot_poll(void){}
 const char *presto_bluetooth_boot_status(void){return "CONNECTED";}
 const char *presto_keyboard_boot_status(void){return "CONNECTED";}

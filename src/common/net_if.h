@@ -30,11 +30,12 @@ bool net_wifi_save(const char *ssid, const char *pass);
 // restart to join the network saved: now, or once the HTTP reply in hand has gone
 void net_restart(bool after_reply);
 
+bool net_boot_has_address(void);
+// Release Bluetooth after DHCP, absent credentials, join failure or 30s timeout.
+bool net_bluetooth_ready(void);
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-
-// True after DHCP, gates Bluetooth reconnect attempts to avoid radio contention.
-bool net_boot_has_address(void);

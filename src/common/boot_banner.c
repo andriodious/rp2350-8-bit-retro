@@ -14,10 +14,7 @@
 #include <string.h>
 #include <strings.h>
 #if NIMBUS_TEST
-// Optional companion PR: these hooks do not write pairing flash during startup.
-extern void presto_bluetooth_boot_poll(void);
-extern const char *presto_bluetooth_boot_status(void);
-extern const char *presto_keyboard_boot_status(void);
+#include "presto_bluetooth.h"
 #endif
 #include "boot_logo.h"
 #if WITH_SOUND
@@ -28,7 +25,7 @@ extern const char *presto_keyboard_boot_status(void);
 #endif
 
 // Original compact 5x7 uppercase bitmap alphabet, one row per byte.
-static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .:-/";
+static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .:-/!\"#$%&'()<>?+*=;,@[]^_{}~|";
 static const uint8_t glyphs[][7] = {
  {14,17,17,31,17,17,17},{30,17,17,30,17,17,30},{14,17,16,16,16,17,14},
  {30,17,17,17,17,17,30},{31,16,16,30,16,16,31},{31,16,16,30,16,16,16},
@@ -43,10 +40,37 @@ static const uint8_t glyphs[][7] = {
  {30,1,1,14,1,1,30},{2,6,10,18,31,2,2},{31,16,16,30,1,1,30},
  {14,16,16,30,17,17,14},{31,1,2,4,8,8,8},{14,17,17,14,17,17,14},
  {14,17,17,15,1,1,14},{0,0,0,0,0,0,0},{0,0,0,0,0,12,12},
- {0,12,12,0,12,12,0},{0,0,0,31,0,0,0},{1,2,2,4,8,8,16}
+ {0,12,12,0,12,12,0},{0,0,0,31,0,0,0},{1,2,2,4,8,8,16},
+ {4,4,4,4,4,0,4},
+ {10,10,10,0,0,0,0},
+ {10,31,10,10,31,10,0},
+ {4,15,20,14,5,30,4},
+ {25,26,2,4,8,11,19},
+ {12,18,20,8,21,18,13},
+ {4,4,8,0,0,0,0},
+ {2,4,8,8,8,4,2},
+ {8,4,2,2,2,4,8},
+ {2,4,8,16,8,4,2},
+ {8,4,2,1,2,4,8},
+ {14,17,1,2,4,0,4},
+ {0,4,4,31,4,4,0},
+ {0,21,14,31,14,21,0},
+ {0,0,31,0,31,0,0},
+ {0,12,12,0,12,4,8},
+ {0,0,0,0,12,4,8},
+ {14,17,23,21,23,16,14},
+ {14,8,8,8,8,8,14},
+ {14,2,2,2,2,2,14},
+ {4,10,17,0,0,0,0},
+ {0,0,0,0,0,0,31},
+ {2,4,4,8,4,4,2},
+ {8,4,4,2,4,4,8},
+ {0,0,9,22,0,0,0},
+ {4,4,4,4,4,4,4}
 };
 #define ROW_BYTES (BOARD_DISPLAY_ROW_WORDS * 4)
 #define BANNER_ROWS 240
+#define BORROW_STATUS_FB PRESTO_BEEBJIT_WIRE
 _Static_assert(2 * BANNER_ROWS * ROW_BYTES <= DRIVE_IMAGE_MAX, "banner exceeds upload staging");
 
 static void pixel(uint32_t *fb, int x, int y, unsigned colour) {
@@ -54,15 +78,15 @@ static void pixel(uint32_t *fb, int x, int y, unsigned colour) {
     uint32_t *p = fb + y * BOARD_DISPLAY_ROW_WORDS + x / 8;
     unsigned shift = (x % 8) * 4;
     *p = (*p & ~(15u << shift)) | ((colour & 7u) << shift);
-
 }
+static unsigned text_ink=7;
 static void text(uint32_t *fb, int x, int y, const char *s) {
     for (; *s && x + 10 <= 464; s++, x += 12) {
         const char *g = strchr(alphabet, toupper((unsigned char)*s));
         if (!g) continue;
         for (int yy = 0; yy < 7; yy++) for (int xx = 0; xx < 5; xx++)
             if (glyphs[g-alphabet][yy] & (16 >> xx)) {
-                pixel(fb, x+xx*2, y+yy, 7); pixel(fb, x+xx*2+1, y+yy, 7);
+                pixel(fb, x+xx*2, y+yy, text_ink); pixel(fb, x+xx*2+1, y+yy, text_ink);
             }
     }
 }
@@ -76,10 +100,10 @@ static void read_status(char *value, size_t size, char *line, size_t line_size) 
     #if BT_KEYBOARD_CLASSIC
     snprintf(line, line_size, "JOYSTICK: %s\nKEYBOARD: %s", presto_bluetooth_boot_status(), presto_keyboard_boot_status());
 #else
-    snprintf(line, line_size, "JOYSTICK: %s\nKEYBOARD: DISABLED IN BUILD", presto_bluetooth_boot_status());
+    snprintf(line, line_size, "JOYSTICK: %s", presto_bluetooth_boot_status());
 #endif
 #else
-    snprintf(line, line_size, "JOYSTICK: DISABLED IN BUILD\nKEYBOARD: DISABLED IN BUILD");
+    snprintf(line, line_size, "JOYSTICK: DISABLED IN BUILD");
 #endif
 }
 static void status(uint32_t *fb, const char *value, const char *line) {
@@ -100,6 +124,22 @@ static void retire_display_table(void) {
         sleep_ms(1);
     }
 }
+// Publish only immutable SRAM pixels: PSRAM scanout can starve the LCD FIFO.
+#define BOOT_BANK_ROWS 120
+static bool boot_rows_pack(const uint32_t *src,uint32_t *bank,const uint16_t **rows) {
+    unsigned used=0;
+    for(unsigned y=0;y<BANNER_ROWS;y++) {
+        unsigned match=0;
+        for(;match<used;match++)if(!memcmp(bank+match*BOARD_DISPLAY_ROW_WORDS,src+y*BOARD_DISPLAY_ROW_WORDS,ROW_BYTES))break;
+        if(match==used) {
+            if(used==BOOT_BANK_ROWS)return false;
+            memcpy(bank+used++*BOARD_DISPLAY_ROW_WORDS,src+y*BOARD_DISPLAY_ROW_WORDS,ROW_BYTES);
+        }
+        rows[y*2]=rows[y*2+1]=(const uint16_t *)(bank+match*BOARD_DISPLAY_ROW_WORDS);
+    }
+    rows[BOARD_DISPLAY_HEIGHT]=NULL;
+    return true;
+}
 void boot_banner_show(void) {
     // Web machine switches use a watchdog restart: leave their network and
     // controller startup path untouched, and skip recovery restarts too.
@@ -110,6 +150,16 @@ void boot_banner_show(void) {
     if (!fb || !previous) return;
     const uint16_t **rows = malloc(2 * (BOARD_DISPLAY_HEIGHT + 1) * sizeof *rows);
     if (!rows) return; // Failure must never prevent the emulator from booting.
+    const size_t bank_bytes=2*BOOT_BANK_ROWS*ROW_BYTES;
+#if WITH_BOOT_FILE_SELECTOR && BORROW_STATUS_FB
+    // Rendering has not started; borrow and preserve the existing SRAM framebuffer.
+    uint32_t *banks=machine_status_framebuffer(true);
+    void *saved=board_psram()+board_psram_size()-BOARD_STATUS_BYTES;
+    memcpy(saved,banks,bank_bytes);
+#else
+    uint32_t *banks=malloc(bank_bytes);
+    if(!banks){free(rows);return;}
+#endif
     const unsigned words = BANNER_ROWS * BOARD_DISPLAY_ROW_WORDS;
     uint32_t *buffers[2] = {fb, fb + words};
     const uint16_t **tables[2] = {rows, rows + BOARD_DISPLAY_HEIGHT + 1};
@@ -137,6 +187,7 @@ void boot_banner_show(void) {
     strcpy(last_value, value); strcpy(last_line, line);
     // Never expose an old emulator scanline/cursor while changing row tables.
     board_display_backlight(0);
+    if(!boot_rows_pack(fb,banks,rows))goto restore_banner;
     board_display_set_rows(rows);
     retire_display_table();
     board_display_backlight(255);
@@ -162,6 +213,7 @@ void boot_banner_show(void) {
             unsigned next = active ^ 1u;
             memcpy(buffers[next], buffers[active], BANNER_ROWS * ROW_BYTES);
             status(buffers[next], value, line);
+            if(!boot_rows_pack(buffers[next],banks+next*BOOT_BANK_ROWS*BOARD_DISPLAY_ROW_WORDS,tables[next]))break;
             board_display_set_rows(tables[next]);
             // The previous buffer must leave DMA before it can be drawn into.
             retire_display_table();
@@ -170,7 +222,7 @@ void boot_banner_show(void) {
         }
 #if BOARD_HAS_NET
         // Start the reading interval only after the IP text has reached scanout.
-        if (wait_for_address && !address_until && net_boot_address_ready())
+        if (wait_for_address && !address_until && net_boot_has_address())
             address_until = time_us_64() + 2000000;
 #endif
         uint64_t now = time_us_64();
@@ -179,22 +231,33 @@ void boot_banner_show(void) {
         if (now >= minimum_until && network_done) break;
         sleep_ms(20);
     } while (true);
+restore_banner:
     board_display_backlight(0);
+#if WITH_BOOT_FILE_SELECTOR && BORROW_STATUS_FB
+    // Stop scanning borrowed pixels before restoring them.
+    board_display_set_rows(previous);
+    retire_display_table();
+    memcpy(banks,saved,bank_bytes);
+    machine_status_framebuffer(false);
+#endif
     board_display_set_rows(previous);
     retire_display_table();
     board_display_backlight(255);
+#if !(WITH_BOOT_FILE_SELECTOR && BORROW_STATUS_FB)
+    free(banks);
+#endif
     free(rows);
 }
 
-
 #if WITH_BOOT_FILE_SELECTOR
 #include "boot_button.h"
-
+#include "system.h"
+#include "api/api.h"
 #if NIMBUS_TEST
 #include "controller.h"
 #endif
 // Runtime buffers must not borrow the upload staging area. Every machine reserves
-// the top 256 KiB of PSRAM in this build, including Beeb's disc and big allocator.
+// the top 256 KiB of PSRAM for the menu, including Beeb's disc and big allocator.
 _Static_assert(2 * BANNER_ROWS * ROW_BYTES <= BOARD_STATUS_BYTES, "status reservation too small");
 static const uint16_t **runtime_rows;
 static const uint16_t *const *emulator_rows;
@@ -208,10 +271,15 @@ static uint32_t status_frame, status_updated_ms;
 // The last 60 KiB of the reserved area is separate from both status buffers.
 #define TITLE_LIMIT 240
 #define TITLE_NAME_BYTES 256
+#define TITLE_PAGE_SIZE 5
 _Static_assert(2 * BANNER_ROWS * ROW_BYTES + TITLE_LIMIT * TITLE_NAME_BYTES <= BOARD_STATUS_BYTES,
                "title list overlaps status buffers");
 static unsigned title_count, title_selected;
 static bool chooser, chooser_dirty, title_limit, fire_armed;
+static bool machine_chooser;
+static bool touch_select;
+static unsigned machine_selected;
+static const char *const machine_ids[]={"master","beeb"};
 static int held_direction;
 static uint32_t repeat_at;
 static void *title_iterator;
@@ -238,13 +306,31 @@ static bool joystick_state(unsigned *directions,bool *fire) {
     *directions=0;*fire=false;return false;
 #endif
 }
+static void machines_begin(void) {
+    titles_end();chooser=false;machine_chooser=true;
+    machine_selected=0;
+    for(unsigned i=0;i<2;i++)if(!strcmp(machine_name(),machine_ids[i]))machine_selected=i;
+    held_direction=0;fire_armed=false;chooser_dirty=true;
+}
 static int title_compare(const void *a,const void *b){return strcasecmp(a,b);}
+static void titles_page(int direction) {
+    if(!title_count)return;
+    unsigned start=(title_selected/TITLE_PAGE_SIZE)*TITLE_PAGE_SIZE;
+    // Keep the highlighted row where possible; do not move within an end page.
+    if(direction<0) {
+        if(!start)return;
+        title_selected-=TITLE_PAGE_SIZE;
+    } else {
+        if(start+TITLE_PAGE_SIZE>=title_count)return;
+        title_selected+=TITLE_PAGE_SIZE;
+        if(title_selected>=title_count)title_selected=title_count-1;
+    }
+}
 static void titles_begin(void) {
-    titles_end();title_count=title_selected=0;title_limit=false;load_error=NULL;
+    titles_end();machine_chooser=false;title_count=title_selected=0;title_limit=false;load_error=NULL;
     held_direction=0;fire_armed=false;
-    unsigned directions;bool fire;
-    chooser=joystick_state(&directions,&fire);
-    if(chooser){title_iterator=board_sd_discs_begin();if(!title_iterator)chooser=false;}
+    chooser=true;
+    title_iterator=board_sd_discs_begin();
 }
 static void titles_poll(void) {
     if(!title_iterator)return;
@@ -259,7 +345,7 @@ static void titles_poll(void) {
     }
     if(!title_iterator){
         qsort(titles(),title_count,TITLE_NAME_BYTES,title_compare);
-        if(!title_count)chooser=false;
+
         chooser_dirty=true;
     }
 }
@@ -269,58 +355,116 @@ static bool status_allocate(void) {
     if (!board_display_get_rows() || !board_psram() || board_psram_size() < BOARD_STATUS_BYTES) return false;
     runtime_rows = malloc(2 * (BOARD_DISPLAY_HEIGHT + 1) * sizeof *runtime_rows);
     if (!runtime_rows) return false;
+#if !BORROW_STATUS_FB
     // Packed-4 status uses 46 KiB for two compact banks; emulator drawing
-    // uses its own buffer. Never scan status pixels from PSRAM.
+    // continues in its own buffer. Never scan status pixels from PSRAM.
     status_sram=malloc(2*STATUS_BANK_ROWS*ROW_BYTES);
     if(!status_sram){free(runtime_rows);runtime_rows=NULL;return false;}
+#endif
     return true;
 }
 
+static void box(uint32_t *fb,int x,int y,int w,int h,unsigned fill,unsigned edge) {
+    for(int yy=0;yy<h;yy++)for(int xx=0;xx<w;xx++)
+        pixel(fb,x+xx,y+yy,(xx==0||xx==w-1||yy==0||yy==h-1)?edge:fill);
+}
+static void ui_button(uint32_t *fb,int x,int y,int w,int h,const char *label,unsigned fill) {
+    box(fb,x,y,w,h,fill,7);
+    text_ink=fill==3?0:7;
+    text(fb,x+(w-(int)strlen(label)*12)/2,y+(h-7)/2,label);
+    text_ink=7;
+}
+static void centred_text(uint32_t *fb,int y,const char *label,bool bold) {
+    int width=(int)strlen(label)*12-2+(bold?1:0);
+    int x=(480-width)/2;
+    text(fb,x,y,label);
+    if(bold)text(fb,x+1,y,label);
+}
+static void slider(uint32_t *fb,unsigned y,unsigned value) {
+    box(fb,20,y,440,6,0,7);
+    for(unsigned yy=y+1;yy<y+5;yy++)for(unsigned x=21;x<21+value*438/100;x++)pixel(fb,x,yy,3);
+    box(fb,20+value*420/100,y-3,20,12,7,3);
+}
+#include "boot_setup_keys.h"
+static const char *setup_key_name(int code) {
+    if(code==-1)return "NONE";
+    if(code==-2)return "FIRE";
+    for(unsigned i=0;i<SETUP_KEY_COUNT;i++)if(setup_keys[i].code==code)return setup_keys[i].name;
+    return "UNKNOWN KEY";
+}
+static void status_close(void);
+#include "boot_setup.inc"
+#include "boot_touch_keyboard.inc"
+
 static void status_draw(unsigned buffer) {
-    uint32_t *fb = (uint32_t *)(board_psram() + board_psram_size() - BOARD_STATUS_BYTES);
-    (void)buffer;
-    fb += BANNER_ROWS * BOARD_DISPLAY_ROW_WORDS;
+    uint32_t *fb=(uint32_t *)(board_psram()+board_psram_size()-BOARD_STATUS_BYTES);
+    (void)buffer;fb+=BANNER_ROWS*BOARD_DISPLAY_ROW_WORDS;
     memset(fb,0,BANNER_ROWS*ROW_BYTES);
     for(unsigned y=0;y<BANNER_ROWS;y++)fb[(y+1)*BOARD_DISPLAY_ROW_WORDS-1]=BOARD_DISPLAY_ROW_END;
-    if(chooser) {
-        text(fb,20,15,"SD TITLES");
-        char line[64];
-        if(title_iterator)text(fb,20,40,"READING SD CARD...");
-        else {
-            unsigned start=(title_selected/8)*8;
-            for(unsigned i=start;i<title_count && i<start+8;i++) {
-                unsigned y=42+(i-start)*18;
-                if(i==title_selected) {
-                    for(unsigned yy=y-2;yy<y+9;yy++)for(unsigned x=8;x<14;x++)pixel(fb,x,yy,6);
-                }
-                snprintf(line,sizeof line,"%.36s",titles()[i]);text(fb,20,y,line);
-            }
-            snprintf(line,sizeof line,"%u / %u%s",title_selected+1,title_count,title_limit?" - LIST LIMIT":"");
-            text(fb,20,190,line);
-        }
-        text(fb,20,211,"UP/DOWN: CHOOSE  A/ENTER: LOAD");
-        text(fb,20,227,"BOOT: STATUS SCREEN");
+    if(touch_keyboard){touch_key_draw(fb);return;}
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+    if(setup_page){setup_draw(fb);return;}
+#endif
+    ui_button(fb,8,214,148,24,chooser?"KEYBOARD":"PREVIOUS",0);
+    ui_button(fb,166,214,148,24,"NEXT",0);
+    ui_button(fb,324,214,148,24,"EXIT",4);
+    char line[64];
+    if(machine_chooser) {
+        centred_text(fb,8,"CONFIGURATION",true);
+        const char *labels[]={"BBC MASTER","BBC MICRO"};
+        for(unsigned i=0;i<2;i++)ui_button(fb,12+(i%2)*234,28+(i/2)*34,222,30,labels[i],i==machine_selected?3:0);
+        bool on,led,locks;unsigned vol,bright;
+        on=led=locks=false;vol=bright=0;
+#if WITH_SOUND
+        audio_get(&on,&vol);
+#endif
+#if WITH_AMBIENT
+        board_leds_get(&led,&bright,&locks);
+#endif
+        ui_button(fb,12,104,170,24,on?"SOUND ON":"SOUND OFF",0);
+        snprintf(line,sizeof line,"VOLUME %u",vol);text(fb,200,113,line);slider(fb,139,vol);
+        ui_button(fb,12,158,170,24,led?"LEDS ON":"LEDS OFF",0);
+        snprintf(line,sizeof line,"BRIGHTNESS %u",bright);text(fb,200,167,line);slider(fb,193,bright);
         return;
     }
-    text(fb, 20, 15, "BBC MICRO STATUS");
-    char line[64], value[48], joystick[128];
-    snprintf(line, sizeof line, "MACHINE: %s", machine_name()); text(fb, 20, 36, line);
-    text(fb, 20, 54, "BUILD " BOOT_BUILD_ID);
-    unsigned c0, c1, speed; machine_perf_get(&c0, &c1, &speed);
-    snprintf(line, sizeof line, "SPEED %u / CPU %u / %u", speed, c0, c1); text(fb, 20, 75, line);
-    read_status(value, sizeof value, joystick, sizeof joystick);
-    status(fb, value, joystick);
-    text(fb, 20, 192, "WEB: BEEB.LOCAL");
-    text(fb, 20, 211, "BOOT: RETURN TO EMULATOR");
-    text(fb, 20, 227, load_error ? load_error : "EMULATION PAUSED");
+    if(chooser) {
+        centred_text(fb,6,"SD TITLES",true);text(fb,20,19,machine_name());
+        if(title_iterator)text(fb,20,70,"READING SD CARD...");
+        else if(!title_count)text(fb,20,70,"NO COMPATIBLE SD TITLES");
+        else {
+            unsigned start=(title_selected/TITLE_PAGE_SIZE)*TITLE_PAGE_SIZE;
+            for(unsigned i=start;i<title_count&&i<start+TITLE_PAGE_SIZE;i++) {
+                snprintf(line,sizeof line,"%.35s",titles()[i]);
+                ui_button(fb,12,35+(i-start)*25,456,22,line,i==title_selected?3:0);
+            }
+            snprintf(line,sizeof line,"%u OF %u",title_selected+1,title_count);text(fb,170,166,line);
+        }
+        ui_button(fb,8,183,148,24,"PG-UP",0);ui_button(fb,166,183,148,24,"PG-DOWN",0);ui_button(fb,324,183,148,24,"BOOT",3);
+        return;
+    }
+    centred_text(fb,8,"SYSTEM STATUS",true);
+    snprintf(line,sizeof line,"MACHINE: %s",machine_name());text(fb,20,33,line);
+    text(fb,20,52,"BUILD " BOOT_BUILD_ID);
+    // The paused status page has its own compact layout; startup reserves space for the logo.
+    char value[48],joystick[128];read_status(value,sizeof value,joystick,sizeof joystick);
+    text(fb,20,76,"DHCP IP ADDRESS");text(fb,20,89,value);
+    const char *keyboard=strchr(joystick,'\n');
+    snprintf(line,sizeof line,"%.*s",keyboard?(int)(keyboard-joystick):(int)strlen(joystick),joystick);
+    text(fb,20,115,line);
+    if(keyboard)text(fb,20,134,keyboard+1);
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+    ui_button(fb,12,147,222,23,"JOYSTICK SETUP",setup_focus==0?3:0);
+    ui_button(fb,246,147,222,23,"KEYBOARD SETUP",setup_focus==1?3:0);
+#endif
+    box(fb,12,175,456,30,0,7);centred_text(fb,180,"BEEB.LOCAL",false);centred_text(fb,195,load_error?load_error:"EMULATION PAUSED",false);
 }
 static void status_present(void) {
     const uint32_t *staged=(const uint32_t *)(board_psram()+board_psram_size()-BOARD_STATUS_BYTES);
     staged+=BANNER_ROWS*BOARD_DISPLAY_ROW_WORDS;
     uint32_t *bank=status_sram+status_active*STATUS_BANK_ROWS*BOARD_DISPLAY_ROW_WORDS;
     const uint16_t **table=runtime_rows+status_active*(BOARD_DISPLAY_HEIGHT+1);
-    // Blank scanlines share one immutable SRAM row. Only nonblank text rows
-    // consume space, so two complete screens fit without large SRAM buffers.
+    // Identical scanlines share immutable SRAM rows, including button fills
+    // and borders, so two complete screens fit without large SRAM buffers.
     memset(bank,0,ROW_BYTES);
     bank[BOARD_DISPLAY_ROW_WORDS-1]=BOARD_DISPLAY_ROW_END;
     unsigned used=1;
@@ -330,9 +474,14 @@ static void status_present(void) {
         for(unsigned x=0;x<BOARD_DISPLAY_ROW_WORDS-1;x++)nonblank|=src[x]!=0;
         const uint32_t *row=bank;
         if(nonblank) {
-            if(used>=STATUS_BANK_ROWS){status_active^=1u;return;} // Never publish an incomplete table.
-            row=bank+used++*BOARD_DISPLAY_ROW_WORDS;
-            memcpy((void *)row,src,ROW_BYTES);
+            // Repeated button borders/fills share immutable rows, preserving SRAM budget.
+            unsigned match=1;
+            for(;match<used;match++)if(!memcmp(bank+match*BOARD_DISPLAY_ROW_WORDS,src,ROW_BYTES))break;
+            if(match==used) {
+                if(used>=STATUS_BANK_ROWS){status_active^=1u;return;}
+                memcpy(bank+used++*BOARD_DISPLAY_ROW_WORDS,src,ROW_BYTES);
+            }
+            row=bank+match*BOARD_DISPLAY_ROW_WORDS;
         }
         table[y*2]=table[y*2+1]=(const uint16_t *)row;
     }
@@ -342,15 +491,26 @@ static void status_present(void) {
     board_display_set_rows(table);
 }
 static void status_close(void) {
-    titles_end();chooser=false;
+    setup_end();
+    touch_keyboard=false;
+    titles_end();chooser=false;machine_chooser=false;touch_select=false;
 #if NIMBUS_TEST
     controller_menu_capture(false);
 #endif
-    board_display_set_rows(emulator_rows);
-#if WITH_SOUND
-    audio_status_mute(false);
+#if BORROW_STATUS_FB
+            board_display_backlight(0);
+            memcpy(status_sram, board_psram()+board_psram_size()-BOARD_STATUS_BYTES, BANNER_ROWS*ROW_BYTES);
 #endif
-    status_visible = false;
+            board_display_set_rows(emulator_rows);
+#if BORROW_STATUS_FB
+            retire_display_table();
+            machine_status_framebuffer(false);
+            board_display_backlight(255);
+#endif
+#if WITH_SOUND
+            audio_status_mute(false);
+#endif
+            status_visible = false;
 
 }
 static bool status_open(void) {
@@ -358,14 +518,22 @@ static bool status_open(void) {
 #if NIMBUS_TEST
     controller_menu_capture(true);
 #endif
-    emulator_rows = board_display_get_rows();
+            emulator_rows = board_display_get_rows();
 #if WITH_SOUND
-    audio_status_mute(true);
+            audio_status_mute(true);
 #endif
-    status_active ^= 1u;
-    status_draw(status_active);
-    status_present();
-    status_visible = true;
+#if BORROW_STATUS_FB
+            board_display_backlight(0);
+            status_sram = machine_status_framebuffer(true);
+            memcpy(board_psram()+board_psram_size()-BOARD_STATUS_BYTES, status_sram, BANNER_ROWS*ROW_BYTES);
+#endif
+            status_active ^= 1u;
+            status_draw(status_active);
+            status_present();
+#if BORROW_STATUS_FB
+            retire_display_table();board_display_backlight(255);
+#endif
+            status_visible = true;
 
     return true;
 }
@@ -390,25 +558,120 @@ void boot_status_frame(void) {
     uint32_t frame = board_display_frames();
     // Allow the previous scanout table/buffer to retire without blocking audio.
     if ((uint32_t)(frame - status_frame) < 2) return;
+    static bool touch_held;
+    unsigned tx=0,ty=0;bool touched=(status_visible||!machine_view_owns_touch())&&board_touch(&tx,&ty);
+    bool tap=touched&&!touch_held;touch_held=touched;ty/=2;
+    // A touch opens the keyboard; a physical BOOT press keeps the file-first path.
+    bool open_keyboard=tap&&!status_visible&&!pending_toggle;
+    if(tap&&!status_visible)pending_toggle=true;
+    else if(status_visible&&touch_keyboard) {
+        if(pending_toggle){pending_toggle=false;touch_keyboard=false;fire_armed=false;chooser_dirty=true;}
+        else touch_key_frame(tap,tx,ty,now);
+    }
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+    else if(status_visible&&setup_page) {
+        if(pending_toggle){pending_toggle=false;setup_end();}
+        else setup_frame(tap,touched,tx,ty,now);
+    }
+    else if(status_visible&&!chooser&&!machine_chooser&&tap&&ty>=147&&ty<170) {
+        setup_open(tx>=246);
+    }
+#endif
+    else if(status_visible&&touched) {
+        if(tap&&ty>=214) {
+            if(tx>=320){status_close();return;}
+            if(tx>=160)pending_toggle=true;
+            else if(machine_chooser){titles_begin();chooser_dirty=true;}
+            else if(!chooser){machines_begin();}
+            else {
+                touch_key_open();
+            }
+        } else if(machine_chooser) {
+            if(tap&&ty>=28&&ty<58&&system_launched()){machine_selected=(tx>=246);fire_armed=true;touch_select=true;}
+            else if((ty>=104&&ty<151)||(ty>=154&&ty<205)) {
+                bool on,led,locks;unsigned vol,bright;char args[32];
+                on=led=locks=false;vol=bright=0;
+#if WITH_SOUND
+        audio_get(&on,&vol);
+#endif
+#if WITH_AMBIENT
+        board_leds_get(&led,&bright,&locks);
+#endif
+                bool sound=ty<151;
+                if(((sound&&ty<128)||(!sound&&ty<182)) && tx<182) {
+                    if(tap){snprintf(args,sizeof args,"%s",sound?(on?"off":"on"):(led?"off":"screen"));api_req_t r={.args=args};api_call(sound?"sound":"ambient",&r);chooser_dirty=true;}
+                } else if((sound&&ty>=130)||(!sound&&ty>=184)) {
+                    unsigned value=tx<=20?0:tx>=460?100:(tx-20)*100/440;
+                    if(value!=(sound?vol:bright)){snprintf(args,sizeof args,"%s %u",sound?"vol":"bright",value);api_req_t r={.args=args};api_call(sound?"sound":"ambient",&r);chooser_dirty=true;}
+                }
+            }
+        } else if(tap&&chooser&&!title_iterator&&ty>=183&&ty<207) {
+            if(tx<160)titles_page(-1);
+            else if(tx<320)titles_page(1);
+            else if(tx>=320&&title_count){fire_armed=true;touch_select=true;}
+            chooser_dirty=true;
+        } else if(tap&&chooser&&!title_iterator&&tx>=12&&tx<468&&ty>=35&&ty<160&&(ty-35)%25<22) {
+            unsigned selected=(title_selected/TITLE_PAGE_SIZE)*TITLE_PAGE_SIZE+(ty-35)/25;
+            if(selected<title_count){title_selected=selected;chooser_dirty=true;fire_armed=true;touch_select=true;}
+        }
+    }
     if (pending_toggle) {
         pending_toggle = false;
-        if(status_visible && chooser) {
-            titles_end();chooser=false;chooser_dirty=true;
+        if(status_visible && chooser
+       && !touch_keyboard
+    ) {
+            machines_begin();
+        } else if(status_visible && machine_chooser) {
+            machine_chooser=false;chooser_dirty=true;
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+            setup_focus=0;setup_fire_armed=false;setup_direction=0;
+#endif
         } else if(status_visible)status_close();
-        else {titles_begin();if(!status_open())titles_end();}
+        else {
+            titles_begin();
+            if(!status_open())titles_end();
+            else if(open_keyboard)touch_key_open();
+        }
         status_frame = frame; status_updated_ms = now;
     }
-    if(status_visible && chooser) {
+    if(status_visible && machine_chooser) {
+        unsigned directions=0;bool fire=false;
+        joystick_state(&directions,&fire);fire|=touch_select;touch_select=false;
+        if(!fire)fire_armed=true;
+        int direction=(directions&1)?-1:((directions&2)?1:0);
+        if(direction && (direction!=held_direction || (int32_t)(now-repeat_at)>=0)) {
+            if(direction<0 && machine_selected)machine_selected--;
+            if(direction>0 && machine_selected<1)machine_selected++;
+            repeat_at=now+(direction!=held_direction?400:140);chooser_dirty=true;
+        }
+        held_direction=direction;
+        if(fire && fire_armed && system_launched()) {
+            const char *want=machine_ids[machine_selected];
+            status_close();
+            // Reuse the web/USB switch path: flush preferences and disc saves,
+            // persist the selection, then restart through the launcher.
+            api_req_t request={.args=want,.from="BOOT machine selector",.json=false};
+            if(!api_call("machine",&request) || request.code!=200) {
+                load_error="MACHINE SWITCH FAILED";status_open();
+            }
+            status_frame=board_display_frames();status_updated_ms=now;
+            return;
+        }
+    }
+    if(status_visible && chooser
+       && !touch_keyboard
+    ) {
         titles_poll();
         unsigned directions=0;bool fire=false;
-        if(!joystick_state(&directions,&fire)) {
-            titles_end();chooser=false;chooser_dirty=true;
-        } else if(!title_iterator && title_count) {
+        joystick_state(&directions,&fire);fire|=touch_select;touch_select=false;
+        if(!title_iterator && title_count) {
             if(!fire)fire_armed=true;
-            int direction=(directions&1)?-1:((directions&2)?1:0);
+            int direction=(directions&1)?-1:(directions&2)?1:
+                (directions&12)==4?-2:(directions&12)==8?2:0;
             if(direction && (direction!=held_direction || (int32_t)(now-repeat_at)>=0)) {
-                if(direction<0 && title_selected)title_selected--;
-                if(direction>0 && title_selected+1<title_count)title_selected++;
+                if(direction==-2 || direction==2)titles_page(direction);
+                else if(direction<0 && title_selected)title_selected--;
+                else if(direction>0 && title_selected+1<title_count)title_selected++;
                 repeat_at=now+(direction!=held_direction?400:140);chooser_dirty=true;
             }
             held_direction=direction;
@@ -423,6 +686,16 @@ void boot_status_frame(void) {
             }
         }
     }
+#if NIMBUS_TEST && BT_KEYBOARD_CLASSIC
+    if(status_visible&&!chooser&&!machine_chooser&&!setup_page) {
+        unsigned directions=0;bool fire=false;joystick_state(&directions,&fire);
+        if(!fire)setup_fire_armed=true;
+        int direction=(directions&1)?-1:(directions&2)?1:0;
+        if(direction&&direction!=setup_direction){setup_focus=direction>0?1:0;chooser_dirty=true;}
+        setup_direction=direction;
+        if(fire&&setup_fire_armed){setup_fire_armed=false;setup_open(setup_focus==1);}
+    }
+#endif
     if (status_visible && (chooser_dirty || (!chooser && (uint32_t)(now - status_updated_ms) >= 1000))) {
         chooser_dirty=false;
         status_active ^= 1u;
@@ -432,6 +705,10 @@ void boot_status_frame(void) {
     }
 #endif
 }
+
+// All runtime status scanout is now SRAM, including BBC packed-4 rows.
+void boot_status_flash_begin(void) {}
+void boot_status_flash_end(void) {}
 
 bool boot_status_visible(void) {
 #if WITH_BOOT_FILE_SELECTOR

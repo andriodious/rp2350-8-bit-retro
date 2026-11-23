@@ -5,6 +5,7 @@
 #include "pico/flash.h"
 #include "pico/multicore.h"
 #include "hardware/flash.h"
+#include "hardware/sync.h"
 #include "hardware/structs/qmi.h"
 
 #include "mem.h"
@@ -40,9 +41,11 @@ static uint8_t s_tail[FLASH_PAGE_SIZE];     // a last part page, padded
 
 static void __no_inline_not_in_flash_func(write_sector)(void *arg) {
     (void) arg;
-    // the SDK goes back to XIP through boot2, which sets the flash's own timing, too fast at
-    // our clock: put back the slower timing the firmware runs with before touching the flash
+    // SDK erase/program may re-enter generic serial reads. Restore the active
+    // protocol and safe timing in SRAM, before IRQs or the other core resume.
     uint32_t timing = qmi_hw->m[0].timing;
+    uint32_t rcmd = qmi_hw->m[0].rcmd;
+    uint32_t rfmt = qmi_hw->m[0].rfmt;
     flash_range_erase(s_w.offset, FLASH_SECTOR_SIZE);
     uint32_t whole = s_w.len & ~(FLASH_PAGE_SIZE - 1);
     if (whole) flash_range_program(s_w.offset, s_w.data, whole);
@@ -50,7 +53,12 @@ static void __no_inline_not_in_flash_func(write_sector)(void *arg) {
         for (uint32_t i = 0; i < FLASH_PAGE_SIZE; i++) s_tail[i] = whole + i < s_w.len ? s_w.data[whole + i] : 0xff;
         flash_range_program(s_w.offset + whole, s_tail, FLASH_PAGE_SIZE);
     }
+    __dsb();
     qmi_hw->m[0].timing = timing;
+    qmi_hw->m[0].rcmd = rcmd;
+    qmi_hw->m[0].rfmt = rfmt;
+    __dsb();
+    __isb();
 }
 
 static uint32_t s_writes;

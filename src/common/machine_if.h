@@ -40,6 +40,8 @@ uint32_t *machine_view_buffer(void);
 void machine_view_release(void);        // back to the machine's picture, the RAM free now
 void machine_view_map(int display_row, int row);
 bool machine_view_shown(void);
+// An installed app may own touch for its separate view. BOOT menus remain available.
+bool machine_view_owns_touch(void);
 void machine_view_set(bool shown);
 uint32_t machine_view_taps(void);
 uint32_t machine_view_edges(void);
@@ -70,6 +72,7 @@ void machine_drive_clean(void);
 // and how far (of 1000), as often as that changes (a board that can't draw it keeps the machine's
 // last picture); permille < 0: over without a restart, the machine carries on
 // Exclude time spent in the BOOT menu from emulation pacing.
+uint32_t *machine_status_framebuffer(bool active);
 void machine_status_resumed(uint64_t elapsed_us);
 void machine_install_screen(const char *what, int permille);
 
